@@ -56,7 +56,7 @@ class FATSystem implements Closeable {
 
     /**
      * Returns the FS mode.
-     * @return [true] means throwing the [FileSystemException] exception when "dirty FAT" is detected.
+     * @return [true] means throwing the [IOException] exception when "dirty FAT" is detected.
      *         [false] means means maintenance mode.
      */
     public boolean isNormalMode() {
@@ -80,7 +80,7 @@ class FATSystem implements Closeable {
      */
     private static FATSystem open(Path path, boolean normalMode) throws IOException {
         if (Files.notExists(path))
-            throw new FileNotFoundException("Path not found:" + path.toString());
+            throw new FileNotFoundException();
         FATSystem ret = new FATSystem(normalMode);
         boolean success = false;
         try {
@@ -100,7 +100,7 @@ class FATSystem implements Closeable {
 
     private void initFromFile() throws IOException {
         if (randomAccessFile.length() < HEADER_SIZE)
-            throw new FileSystemException("Wrong media size. File is too short.");
+            throw new IOException("Wrong media size. File is too short.");
 
         fileChannel = randomAccessFile.getChannel();
         ByteBuffer bf = allocateBuffer(HEADER_SIZE);
@@ -109,10 +109,10 @@ class FATSystem implements Closeable {
         // init header
         int magic = bf.getInt(); //media type
         if (magic != MAGIC_WORD)
-            throw new FileSystemException("Wrong media type. That is not FFS file");
+            throw new IOException("Wrong media type. That is not FFS file");
         int version = bf.getInt(fsVersion);  //FS version
         if (version != VERSION)
-            throw new FileSystemException("Wrong version: " + version
+            throw new IOException("Wrong version: " + version
                       + "Version " +  VERSION + " is the only supported.");
         clusterSize = bf.getInt();
         clusterCount = bf.getInt();
@@ -133,22 +133,22 @@ class FATSystem implements Closeable {
      * @param clusterSize  the size of single cluster. Mast be at least [FolderEntry.RECORD_SIZE] size
      * @param clusterCount the total number of clusters in created file storage.
      * @return new In-file FS over the file that created in host FS.
-     * @throws FileSystemException for bad parameters or file access problem in the host FS
+     * @throws IOException for bad parameters or file access problem in the host FS
      */
     public static FATSystem create(Path path, int clusterSize, int clusterCount) throws IOException {
         if (clusterSize < FolderEntry.RECORD_SIZE)
-            throw new FileSystemException("Bad value of cluster size:" + clusterSize);
+            throw new IOException("Bad value of cluster size:" + clusterSize);
 
         if (clusterCount <= 0 || clusterCount > CLUSTER_INDEX || clusterCount*FAT_E_SIZE > MAPFILE_SIZE_LIMIT)
-            throw new FileSystemException("Bad value of cluster count:" + clusterCount);
+            throw new IOException("Bad value of cluster count:" + clusterCount);
 
         long length = (long)clusterCount * clusterSize;
         if (length/clusterSize != clusterCount)
-            throw new FileSystemException("File system is too big. FAT overloaded.");
+            throw new IOException("File system is too big. FAT overloaded.");
 
         long sizeFS = length + HEADER_SIZE;
         if (sizeFS < length)
-            throw new FileSystemException("File system is too big. No space for header." );
+            throw new IOException("File system is too big. No space for header." );
 
         FATSystem ret = new FATSystem(true);
         boolean success = false;
@@ -202,6 +202,8 @@ class FATSystem implements Closeable {
     public void close() throws IOException {
         synchronized (lockFAT) {
             synchronized (lockData) {
+                if (!opened)
+                    throw new IOException("Storage was closed earlier.");
                 try {
                     if (randomAccessFile != null) {
                         if (fileChannel != null) {
@@ -272,7 +274,7 @@ class FATSystem implements Closeable {
      */
     public ByteBuffer readCluster(int cluster) throws IOException {
         if (cluster < 0 || cluster >= clusterCount)
-            throw new FileSystemException("Bad cluster index:" + cluster);
+            throw new IOException("Bad cluster index:" + cluster);
 
         ByteBuffer bf = ByteBuffer.allocateDirect(clusterSize);  //check with alloc!
         synchronized (lockData) {
@@ -289,7 +291,7 @@ class FATSystem implements Closeable {
      * @param cluster the index of current cluster in the chain if any
      * @return the entry value
      */
-    public int readFatEntry(int cluster) throws FileSystemException {
+    public int readFatEntry(int cluster) throws IOException {
         synchronized (lockFAT) {
             checkValidStatus();
             return fatZone.getInt(cluster*FAT_E_SIZE);
@@ -303,9 +305,9 @@ class FATSystem implements Closeable {
      *        Any other value means that allocated cain will join to [findAfter] tail
      * @param count the number of cluster in the returned chain
      * @return the index of the first cluster in allocated chain.
-     * @throws FileSystemException if the chain could not be allocated
+     * @throws IOException if the chain could not be allocated
      */
-    int allocateClusters(int findAfter, int count) throws FileSystemException {
+    int allocateClusters(int findAfter, int count) throws IOException {
         // - bitmap of free clusters in memory?
         // - chunk with free block counting for sequential allocation?
         // - two stage allocation with "gray"
@@ -314,7 +316,7 @@ class FATSystem implements Closeable {
         //   up bit?
         // - resize if need?
         if (count < 1)
-            throw new FileSystemException("Cannot allocate" + count + "clusters.");
+            throw new IOException("Cannot allocate" + count + "clusters.");
         if ((findAfter < clusterCount) && (
                 ((freeClusterCount >= 0) && (count <= freeClusterCount))
              || ((freeClusterCount  < 0) && (count <= clusterCount)))) // without guaranty on dirty FAT
@@ -371,7 +373,7 @@ class FATSystem implements Closeable {
                 }
             }
         }
-        throw new FileSystemException("Disk full.");
+        throw new IOException("Disk full.");
     }
 
     /**
@@ -379,9 +381,9 @@ class FATSystem implements Closeable {
      * @param headOffset the head of the chain
      * @param freeHead if [true] the chain is freed together with head cluster
      *                 else head cluster is marked as [EOC]
-     * @throws FileSystemException
+     * @throws IOException
      */
-    void freeClusters(int headOffset, boolean freeHead) throws FileSystemException {
+    void freeClusters(int headOffset, boolean freeHead) throws IOException {
         freeClusters(headOffset, freeHead, true);
     }
 
@@ -391,9 +393,9 @@ class FATSystem implements Closeable {
      * @param freeHead if [true] the chain is freed together with head cluster
      *                 else head cluster is marked as [EOC]
      * @param forceChanges fix the changes to disk. Have to be [true] for external calls
-     * @throws FileSystemException
+     * @throws IOException
      */
-     private void freeClusters(int headOffset, boolean freeHead, boolean forceChanges) throws FileSystemException {
+     private void freeClusters(int headOffset, boolean freeHead, boolean forceChanges) throws IOException {
         synchronized (lockFAT) {
             if (forceChanges)
                 checkValidStatus();
@@ -456,16 +458,16 @@ class FATSystem implements Closeable {
         normalMode = _normalMode;
     }
 
-    private void checkValidStatus() throws FileSystemException {
+    private void checkValidStatus() throws IOException {
         if (!isOpen())
-            throw new FileSystemException("The storage was closed.");
+            throw new IOException("The storage was closed.");
 
         // check for dirty FAT
         if (freeClusterCount < 0 && isNormalMode())
-            throw new FileSystemException("The storage needs maintenance.");
+            throw new IOException("The storage needs maintenance.");
     }
 
-    private void setDirtyStatus() throws FileSystemException {
+    private void setDirtyStatus() throws IOException {
         if (freeClusterCount >= 0) {
             freeClusterCount = -1;
             checkValidStatus();

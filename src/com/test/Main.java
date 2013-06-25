@@ -18,7 +18,9 @@ public class Main {
                 };
                 for (int clusterCount : clusterCounts) {
                     System.out.print("testCreate FS Size " + clusterCount + ":");
-                    FATSystemTests.testCreate(testFFS, FolderEntry.RECORD_SIZE, clusterCount);
+                    FATSystemTests.testCreate(fs.getPath("testCreate.fs"),
+                        FolderEntry.RECORD_SIZE,
+                        clusterCount);
                     System.out.println("OK");
                 }
             }
@@ -31,11 +33,12 @@ public class Main {
                 };
                 for (int clusterCount : clusterCounts) {
                     System.out.print("testCriticalFatAllocation FS Size " + clusterCount + ":");
-                    FATSystemTests.testCriticalFatAllocation(testFFS, FolderEntry.RECORD_SIZE, clusterCount);
+                    FATSystemTests.testCriticalFatAllocation(fs.getPath("testCriticalFatAllocation.fs"),
+                        FolderEntry.RECORD_SIZE,
+                        clusterCount);
                     System.out.println("OK");
                 }
             }
-*/
             {
                 // size must be > 30
                 int[] clusterCounts = new int[] {
@@ -43,10 +46,23 @@ public class Main {
                 };
                 for (int clusterCount : clusterCounts) {
                     System.out.print("testConcurrentFragmentation FS Size " + clusterCount + ":");
-                    FATSystemTests.testConcurrentFragmentation(testFFS, FolderEntry.RECORD_SIZE, clusterCount);
+                    FATSystemTests.testConcurrentFragmentation(fs.getPath("testConcurrentFragmentation.fs"),
+                            FolderEntry.RECORD_SIZE,
+                            clusterCount);
+
                     System.out.println("OK");
                 }
             }
+*/
+            {
+                int clusterCount = 16;// > 12
+                System.out.print("testConcurrentSafeClose FS Size " + clusterCount + ":");
+                FATSystemTests.testConcurrentSafeClose(fs.getPath("testConcurrentFragmentation.fs"),
+                        FolderEntry.RECORD_SIZE,
+                        clusterCount);
+                System.out.println("OK");
+            }
+
 
         } catch (Throwable t) {
             t.printStackTrace();

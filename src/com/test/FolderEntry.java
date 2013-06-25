@@ -2,6 +2,7 @@ package com.test;
 
 import com.test.FATSystem;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.file.FileSystemException;
@@ -72,7 +73,7 @@ class FolderEntry {
      * @param type_folder
      * @return
      */
-    public static FolderEntry create(FATSystem fs, String name, int type_folder, int access) throws FileSystemException {
+    public static FolderEntry create(FATSystem fs, String name, int type_folder, int access) throws IOException {
         FolderEntry ret = new FolderEntry();
         ret.startCluster = fs.allocateClusters(-1, 1);
         ret.size = 0;

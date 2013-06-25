@@ -1,7 +1,6 @@
 package com.test;
 
 import java.io.IOException;
-import java.nio.file.FileSystemException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -11,6 +10,10 @@ import java.nio.file.Path;
  */
 
 public class FATSystemTests {
+    private static void LogError(String message) {
+        System.err.println(message);
+    }
+
     //TEST
     static public void startUp(Path hostPath) throws IOException {
         Files.deleteIfExists(hostPath);
@@ -39,7 +42,7 @@ public class FATSystemTests {
             int totalCount = 0;
             for (int m : fragmentLengths)
                 totalCount += m;
-            if (clusterCount - totalCount <= 0)
+            if (clusterCount <= totalCount)
                 new Error("Bad test parameters");
             fragmentLengths[fragmentLengths.length - 1] = clusterCount - totalCount;
 
@@ -79,10 +82,76 @@ public class FATSystemTests {
                     throw new IOException("Concurrent access problem:" + errors[i].getMessage(), errors[i]);
             }
             if (ffs.getFreeSize() != 0)
-                throw new FileSystemException("Concurrent access problem: Lost clusters.");
+                throw new IOException("Concurrent access problem: Lost clusters.");
         } finally {
-            //tearDown(path);
+            tearDown(path);
         }
+    }
+
+    //@Test
+    static public void testConcurrentSafeClose(Path path, int clusterSize, int clusterCount) throws IOException {
+        startUp(path);
+        try {
+            final FATSystem ffs  = FATSystem.create(path, clusterSize, clusterCount);
+
+            /* random size allocation */
+            final int[] fragmentLengths = new int[] {1, 2, 4, 5};
+            if (clusterCount < 12)
+                new Error("Bad test parameters");
+
+            /* stress allocation */
+            Thread[] actions = new Thread[fragmentLengths.length];
+            final Throwable[] errors = new Throwable[fragmentLengths.length];
+            for (int i = 0; i < fragmentLengths.length; ++i) {
+                final int actionI = i;
+                actions[i] = new Thread(new Runnable() {
+                    @Override public void run() {
+                        try {
+                            int start = ffs.allocateClusters(-1, fragmentLengths[actionI]);
+                            Thread.sleep(0xF); // switch thread
+                            ffs.freeClusters(start, true);
+                        } catch (Throwable e) {
+                            errors[actionI] = e;
+                        }
+                    }
+                });
+                actions[i].start();
+            }
+
+            //Async close is not a reason for [dirty storage]!
+            try {
+                Thread.sleep(0x5); // switch thread
+            } catch (InterruptedException e) {
+                //OK
+            }
+            ffs.close();
+
+            // dump status without any throw
+            for (int i = 0; i < fragmentLengths.length; ++i) {
+                try {
+                    actions[i].join();
+                } catch (InterruptedException e) {
+                    System.err.println("System panic: synchronization!");
+                    if (actions[i].isAlive())
+                        --i;
+                }
+                if (errors[i] != null
+                 && "The storage was closed.".equals(errors[i].getMessage()))
+                    new Error("Wrong incident:" + errors[i].getMessage());
+            }
+
+            //should be:
+            // --accessible for open
+            // --clean (not dirty)
+            FATSystem.create(path, clusterSize, clusterCount).close();
+        } finally {
+            tearDown(path);
+        }
+    }
+
+    //@Test
+    static public void testOpen(Path path) throws IOException {
+
     }
 
     //@Test
@@ -93,7 +162,7 @@ public class FATSystemTests {
             try {
                 ffs.allocateClusters(-1, 0);
                 throw new Error("Zero allocation available!");
-            } catch (FileSystemException fe) {
+            } catch (IOException fe) {
                 //OK
             }
 
@@ -106,7 +175,7 @@ public class FATSystemTests {
             try {
                 ffs.allocateClusters(-1, clusterCount);
                 throw new Error("Double use available!");
-            } catch (FileSystemException fe) {
+            } catch (IOException fe) {
                 //OK
             }
 

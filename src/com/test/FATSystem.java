@@ -110,7 +110,7 @@ class FATSystem implements Closeable {
         int magic = bf.getInt(); //media type
         if (magic != MAGIC_WORD)
             throw new IOException("Wrong media type. That is not FFS file");
-        int version = bf.getInt(fsVersion);  //FS version
+        int version = bf.getInt();  //FS version
         if (version != VERSION)
             throw new IOException("Wrong version: " + version
                       + "Version " +  VERSION + " is the only supported.");
@@ -120,7 +120,7 @@ class FATSystem implements Closeable {
         checkValidStatus();
 
         if (randomAccessFile.length() < ((long)clusterCount * clusterSize + HEADER_SIZE)) {
-            LogError("Wrong storage size. File was truncated.");
+            LogError("Wrong storage size. Storage was truncated in host FS.");
             setDirtyStatus();
         }
 

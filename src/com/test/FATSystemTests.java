@@ -143,7 +143,7 @@ public class FATSystemTests {
             //should be:
             // --accessible for open
             // --clean (not dirty)
-            FATSystem.create(path, clusterSize, clusterCount).close();
+            FATSystem.open(path).close();
         } finally {
             tearDown(path);
         }

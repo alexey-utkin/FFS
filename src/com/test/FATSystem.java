@@ -9,10 +9,7 @@ import java.nio.file.*;
 
 /**
  * Created with IntelliJ IDEA.
- * User: u
- * Date: 6/22/13
- * Time: 10:25 AM
- * To change this template use File | Settings | File Templates.
+ * User: uta
  */
 
 class FATSystem implements Closeable {
@@ -42,6 +39,7 @@ class FATSystem implements Closeable {
     private int entryPerCluster;
     private int fatOffset;
     private int dataOffset;
+    private int freeClusterCount; //can get -1 on "dirty FAT"
 
     private RandomAccessFile randomAccessFile;
     private FileChannel fileChannel;
@@ -50,15 +48,25 @@ class FATSystem implements Closeable {
     private final Object lockFAT = new Object();
     private final Object lockData = new Object();
 
+    /**
+     * Returns the FS mode.
+     * @return [true] means throwing the [FileSystemException] exception when "dirty FAT" is detected.
+     *         [false] means means "work first" mode.
+     */
+    public static boolean isSanityMode() {
+        return true;
+    }
+
+
     private FATSystem() {}
 
     /**
      * Creates new file-based file system.
-     * @param path is the parent FS path to the file that need be created
+     * @param path is the path in host FS for file storage that need be created
      * @param clusterSize  the size of single cluster. Mast be at least [FolderEntry.RECORD_SIZE] size
-     * @param clusterCount the total number of clusters in the system.
-     * @return new In-file File System over the created file in host File System.
-     * @throws FileSystemException for bad parameters or file access problem in the host system
+     * @param clusterCount the total number of clusters in created file storage.
+     * @return new In-file FS over the file that created in host FS.
+     * @throws FileSystemException for bad parameters or file access problem in the host FS
      */
     public static FATSystem create(Path path, int clusterSize, int clusterCount) throws IOException {
         if (clusterSize < FolderEntry.RECORD_SIZE)
@@ -107,10 +115,10 @@ class FATSystem implements Closeable {
     }
 
     private void initStorage(Path path, int _clusterSize, int _clusterCount) throws IOException {
-
         fsVersion = 1;
         clusterSize = _clusterSize;
         clusterCount = _clusterCount;
+        freeClusterCount = clusterCount;
         initDenormalized();
 
         fileChannel = randomAccessFile.getChannel();
@@ -170,6 +178,28 @@ class FATSystem implements Closeable {
         return entryPerCluster;
     }
 
+    /**
+     * Returns the capacity of FS
+     * @return the size of storage. That is the [Data Section] size.
+     */
+    public long getSize() {
+        return  clusterCount*clusterSize;
+    }
+
+    /**
+     * Returns the free capacity of FS
+     * @return the free size in storage. The [-1] means dirty FAT and the system needs in maintenance.
+     */
+    public long getFreeSize() {
+        return freeClusterCount*clusterSize;
+    }
+
+    /**
+     * Reads cluster content.
+     * @param cluster the index of the cluster in FAT
+     * @return cluster content
+     * @throws IOException
+     */
     public ByteBuffer readCluster(int cluster) throws IOException {
         if (cluster < 0 || cluster >= clusterCount)
             throw new FileSystemException("Bad cluster index:" + cluster);
@@ -204,51 +234,70 @@ class FATSystem implements Closeable {
      * @throws FileSystemException if the chain could not be allocated
      */
     int allocateClusters(int findAfter, int count) throws FileSystemException {
-        //fat lock
         // bitmap of free clusters in memory?
         // chunk with free block counting?
+        // two stage allocation with "gray"
+        //    +final static int CLUSTER_GALLOCATED = 0x80000000;
+        //    +final static int CLUSTER_GEOC       = 0xC8000000;
+        // up bit?
         if (count < 1)
             throw new FileSystemException("Cannot allocate" + count + "clusters.");
-        if ((findAfter < clusterCount) && (count <= clusterCount)) {
+        if ((findAfter < clusterCount) && (
+                ((freeClusterCount >= 0) && (count <= freeClusterCount))
+             || ((freeClusterCount  < 0) && (count <= clusterCount)))) // without guaranty on dirty FAT
+        {
             synchronized (lockFAT) {
-                int currentOffset = (findAfter == -1)
-                    ? 0
-                    : findAfter + 1;
-                int headOffset = -1;
-                int tailOffset = findAfter;
-                int endOfLoop = currentOffset; // loop marker
-                while (true) {
-                    if (currentOffset >= clusterCount) {
-                        currentOffset = 0;
+                try {
+                    int currentOffset = (findAfter == -1)
+                        ? 0
+                        : findAfter + 1;
+                    int headOffset = -1;
+                    int tailOffset = findAfter;
+                    int endOfLoop = currentOffset; // loop marker
+                    while (true) {
+                        if (currentOffset >= clusterCount) {
+                            currentOffset = 0;
+                            if (currentOffset == endOfLoop)
+                                break;
+                        }
+
+                        int fatEntry = fatZone.getInt(currentOffset*FAT_E_SIZE);
+                        if ((fatEntry & CLUSTER_STATUS) == CLUSTER_FREE) {
+                            if (headOffset == -1)
+                                headOffset = currentOffset;
+
+                            // mark as EOC
+                            --freeClusterCount;
+                            fatZone.putInt(currentOffset*FAT_E_SIZE, CLUSTER_EOC);
+                            if (tailOffset != -1) {
+                                // mark as ALLOCATED with forward index
+                                fatZone.putInt(tailOffset*FAT_E_SIZE, CLUSTER_ALLOCATED | currentOffset);
+                            }
+                            tailOffset = currentOffset;
+                            --count;
+                            if (count == 0)
+                                return headOffset;
+                        }
+                        ++currentOffset;
                         if (currentOffset == endOfLoop)
                             break;
                     }
-
-                    int fatEntry = fatZone.getInt(currentOffset*FAT_E_SIZE);
-                    if ((fatEntry & CLUSTER_STATUS) == CLUSTER_FREE) {
-                        if (headOffset == -1)
-                            headOffset = currentOffset;
-
-                        // mark as EOC
-                        fatZone.putInt(currentOffset*FAT_E_SIZE, CLUSTER_EOC);
-                        if (tailOffset != -1) {
-                            // mark as ALLOCATED with forward index
-                            fatZone.putInt(tailOffset*FAT_E_SIZE, CLUSTER_ALLOCATED | currentOffset);
+                    if (freeClusterCount >= 0) {
+                        // dirty FAT
+                        if (isSanityMode()) {
+                            throw new FileSystemException("Dirty FAT.");
                         }
-                        tailOffset = currentOffset;
-                        --count;
-                        if (count == 0)
-                            return headOffset;
+                        freeClusterCount = -1;
                     }
-                    ++currentOffset;
-                    if (currentOffset == endOfLoop)
-                        break;
+                    // rollback allocation.
+                    if (findAfter == -1)
+                        freeClusters(headOffset, true, false);
+                    else
+                        freeClusters(findAfter, false, false);
+
+                } finally {
+                    fatZone.force();
                 }
-                // rollback allocation.
-                if (findAfter == -1)
-                    freeClusters(headOffset, true);
-                else
-                    freeClusters(findAfter, false);
             }
         }
         throw new FileSystemException("Disk full.");
@@ -261,155 +310,59 @@ class FATSystem implements Closeable {
      *                 else head cluster is marked as [EOC]
      * @throws FileSystemException
      */
-    private void freeClusters(int headOffset, boolean freeHead) throws FileSystemException {
+    void freeClusters(int headOffset, boolean freeHead) throws FileSystemException {
+        freeClusters(headOffset, freeHead, true);
+    }
+    /**
+     * Frees chain that start from [headOffset] cluster.
+     * @param headOffset the head of the chain
+     * @param freeHead if [true] the chain is freed together with head cluster
+     *                 else head cluster is marked as [EOC]
+     * @param forceChanges fix the changes to disk. Have to be [true] for external calls
+     * @throws FileSystemException
+     */
+     private void freeClusters(int headOffset, boolean freeHead, boolean forceChanges) throws FileSystemException {
         synchronized (lockFAT) {
-            if (!freeHead) {
-                int value = fatZone.getInt(headOffset*FAT_E_SIZE);
-                // CLUSTER_ALLOCATED only
-                if ((value & CLUSTER_STATUS) == CLUSTER_ALLOCATED) {
-                    // mark as EOC
-                    fatZone.putInt(headOffset*FAT_E_SIZE, CLUSTER_EOC);
-                    headOffset = value & CLUSTER_INDEX;
-                } else {
-                    throw new FileSystemException("Cluster double free in tail.  Cluster#:" + headOffset
-                            + " Value:" + value);
+            try {
+                if (!freeHead) {
+                    int value = fatZone.getInt(headOffset*FAT_E_SIZE);
+                    // CLUSTER_ALLOCATED only
+                    if ((value & CLUSTER_STATUS) == CLUSTER_ALLOCATED) {
+                        // mark as EOC
+                        fatZone.putInt(headOffset*FAT_E_SIZE, CLUSTER_EOC);
+                        headOffset = value & CLUSTER_INDEX;
+                    } else {
+                        throw new FileSystemException("Cluster double free in tail.  Cluster#:" + headOffset
+                                + " Value:" + value);
+                    }
                 }
-            }
-            while (true) {
-                int value = fatZone.getInt(headOffset*FAT_E_SIZE);
-                // CLUSTER_ALLOCATED or CLUSTER_EOC
-                if ((value & CLUSTER_ALLOCATED) == CLUSTER_ALLOCATED) {
-                    // mark as DEALLOC
-                    fatZone.putInt(headOffset*FAT_E_SIZE, CLUSTER_DEALLOC);
-                    if ((value & CLUSTER_EOC) == CLUSTER_EOC)
-                        break;
-                    headOffset = value & CLUSTER_INDEX;
-                } else {
-                    throw new FileSystemException("Cluster double free. Cluster#:" + headOffset
-                            + " Value:" + value);
+                while (true) {
+                    int value = fatZone.getInt(headOffset*FAT_E_SIZE);
+                    // CLUSTER_ALLOCATED or CLUSTER_EOC
+                    if ((value & CLUSTER_ALLOCATED) == CLUSTER_ALLOCATED) {
+                        // mark as DEALLOC
+                        fatZone.putInt(headOffset*FAT_E_SIZE, CLUSTER_DEALLOC);
+                        ++freeClusterCount;
+                        if ((value & CLUSTER_EOC) == CLUSTER_EOC)
+                            break;
+                        headOffset = value & CLUSTER_INDEX;
+                    } else {
+                        throw new FileSystemException("Cluster double free. Cluster#:" + headOffset
+                                + " Value:" + value);
+                    }
                 }
+            } finally {
+                if (forceChanges)
+                    fatZone.force();
             }
         }
     }
 
-    public long getCurrentTime() {
+    /**
+     * Returns FS time counter.
+     * @return the Java current time in milliseconds.
+     */
+    public static long getCurrentTime() {
         return System.currentTimeMillis();
     }
-
-    //TEST
-    static public void startUp(Path hostPath) throws IOException {
-        Files.deleteIfExists(hostPath);
-    }
-
-    //@Test
-    static public void tearDown(Path hostPath) throws IOException {
-        Files.deleteIfExists(hostPath);
-    }
-
-    //@Test
-    static public void testConcurrentFragmentation(Path path, int clusterSize, int clusterCount) throws IOException {
-        startUp(path);
-        try (FATSystem ffs  = FATSystem.create(path, clusterSize, clusterCount)) {
-            final int circleCount = 5;
-
-            /* random size allocation */
-            final int[] fragmentLengths = new int[] {
-                    clusterCount/7,
-                    clusterCount/5,
-                    clusterCount/3,
-                    0/*rest*/};
-            /* check the rest */
-            int totalCount = 0;
-            for (int m : fragmentLengths)
-                totalCount += m;
-            if (clusterCount - totalCount <= 0)
-                new Error("Bad test parameters");
-            fragmentLengths[fragmentLengths.length - 1] = clusterCount - totalCount;
-
-            /* stress allocation */
-            Thread[] actions = new Thread[fragmentLengths.length];
-            final Throwable[] errors = new Throwable[fragmentLengths.length];
-            for (int i = 0; i < fragmentLengths.length; ++i) {
-                final int actionI = i;
-                actions[i] = new Thread(new Runnable() {
-                    @Override public void run() {
-                        for (int k = 0; k < circleCount; ++k) {
-                            try {
-                                int start = ffs.allocateClusters(-1, fragmentLengths[actionI]);
-                                Thread.sleep(1); // switch thread
-                                if (k + 1 != circleCount)
-                                    ffs.freeClusters(start, true);
-                            } catch (Throwable e) {
-                                errors[actionI] = e;
-                            }
-                        }
-                    }
-                });
-                actions[i].start();
-            }
-
-            for (int i = 0; i < fragmentLengths.length; ++i) {
-                try {
-                    actions[i].join();
-                } catch (InterruptedException e) {
-                    System.err.println("System panic: synchronization!");
-                    if (actions[i].isAlive())
-                        --i;
-                }
-                if (errors[i] != null)
-                    throw new IOException("Concurrent access problem:" + errors[i].getMessage(), errors[i]);
-            }
-        } finally {
-            //tearDown(path);
-        }
-    }
-
-    //@Test
-    static public void testCriticalFatAllocation(Path path, int clusterSize, int clusterCount) throws IOException {
-        startUp(path);
-        try (FATSystem ffs  = FATSystem.create(path, clusterSize, clusterCount)) {
-            // 0 size
-            try {
-                ffs.allocateClusters(-1, 0);
-                throw new Error("Zero allocation available!");
-            } catch (FileSystemException fe) {
-                //OK
-            }
-
-            // 1 size
-            int zeroCluster = ffs.allocateClusters(-1, 1);
-            if (zeroCluster != 0)
-                throw new Error("Bad allocation for root folder!");
-
-            // full size fail
-            try {
-                ffs.allocateClusters(-1, clusterCount);
-                throw new Error("Double use available!");
-            } catch (FileSystemException fe) {
-                //OK
-            }
-
-            // full size-1 - re-alloc!
-            int firstCluster = ffs.allocateClusters(zeroCluster, clusterCount-1);
-            if (firstCluster != 1)
-                throw new Error("Bad re-allocation for root folder!");
-
-            ffs.freeClusters(zeroCluster, true);
-
-            // full size fail success
-            ffs.allocateClusters(-1, clusterCount);
-        } finally {
-            tearDown(path);
-        }
-    }
-
-    //@Test
-    static public void testCreate(Path path, int clusterSize, int clusterCount) throws IOException {
-        startUp(path);
-        try (FATSystem ffs  = FATSystem.create(path, clusterSize, clusterCount)) {
-        } finally {
-            tearDown(path);
-        }
-    }
-
 }

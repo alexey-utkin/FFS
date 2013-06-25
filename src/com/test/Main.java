@@ -17,8 +17,9 @@ public class Main {
                         (int)(0x800000000L/FolderEntry.RECORD_SIZE)
                 };
                 for (int clusterCount : clusterCounts) {
-                    FATSystem.testCreate(testFFS, FolderEntry.RECORD_SIZE, clusterCount);
-                    System.out.println("testCreate FS Size: " + clusterCount + " OK.");
+                    System.out.print("testCreate FS Size " + clusterCount + ":");
+                    FATSystemTests.testCreate(testFFS, FolderEntry.RECORD_SIZE, clusterCount);
+                    System.out.println("OK");
                 }
             }
 
@@ -29,18 +30,21 @@ public class Main {
                         //(int)(0x800000000L/FolderEntry.RECORD_SIZE)
                 };
                 for (int clusterCount : clusterCounts) {
-                    FATSystem.testCriticalFatAllocation(testFFS, FolderEntry.RECORD_SIZE, clusterCount);
-                    System.out.println("testCriticalFatAllocation FS Size: " + clusterCount + " OK.");
+                    System.out.print("testCriticalFatAllocation FS Size " + clusterCount + ":");
+                    FATSystemTests.testCriticalFatAllocation(testFFS, FolderEntry.RECORD_SIZE, clusterCount);
+                    System.out.println("OK");
                 }
             }
 */
             {
+                // size must be > 30
                 int[] clusterCounts = new int[] {
-                        16, 32, 64
+                        31, 1024, 4096
                 };
                 for (int clusterCount : clusterCounts) {
-                    FATSystem.testConcurrentFragmentation(testFFS, FolderEntry.RECORD_SIZE, clusterCount);
-                    System.out.println("testConcurrentFragmentation FS Size: " + clusterCount + " OK.");
+                    System.out.print("testConcurrentFragmentation FS Size " + clusterCount + ":");
+                    FATSystemTests.testConcurrentFragmentation(testFFS, FolderEntry.RECORD_SIZE, clusterCount);
+                    System.out.println("OK");
                 }
             }
 

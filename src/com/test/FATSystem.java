@@ -88,7 +88,7 @@ class FATSystem implements Closeable {
         try {
             ret.randomAccessFile = new RandomAccessFile(path.toString(), "rw");
             ret.randomAccessFile.setLength(sizeFS);
-            ret.initStorage(path, clusterSize, clusterCount);
+            ret.initStorage(clusterSize, clusterCount);
             success = true;
         } finally {
             if (!success)
@@ -114,8 +114,8 @@ class FATSystem implements Closeable {
         }
     }
 
-    private void initStorage(Path path, int _clusterSize, int _clusterCount) throws IOException {
-        fsVersion = 1;
+    private void initStorage(int _clusterSize, int _clusterCount) throws IOException {
+        fsVersion = VERSION;
         clusterSize = _clusterSize;
         clusterCount = _clusterCount;
         freeClusterCount = clusterCount;
@@ -167,7 +167,7 @@ class FATSystem implements Closeable {
     public void flush() throws IOException {
         // One is not a guaranty for another
         fileChannel.force(true);
-        //fatZone.force();
+        fatZone.force();
     }
 
     int getVersion() {
@@ -313,6 +313,7 @@ class FATSystem implements Closeable {
     void freeClusters(int headOffset, boolean freeHead) throws FileSystemException {
         freeClusters(headOffset, freeHead, true);
     }
+
     /**
      * Frees chain that start from [headOffset] cluster.
      * @param headOffset the head of the chain

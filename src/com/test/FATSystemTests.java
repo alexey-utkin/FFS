@@ -197,6 +197,8 @@ public class FATSystemTests {
     static public void testCreate(Path path, int clusterSize, int clusterCount) throws IOException {
         startUp(path);
         try (FATSystem ffs  = FATSystem.create(path, clusterSize, clusterCount)) {
+            if (ffs.getSize() != clusterSize*clusterCount)
+                throw new Error("Wrong storage size!");
         } finally {
             tearDown(path);
         }

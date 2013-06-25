@@ -10,7 +10,7 @@ public class Main {
             FileSystem fs = FileSystems.getDefault();
             Path testFFS = fs.getPath("createTest.fs");
 
-/*
+
             {
                 int[] clusterCounts = new int[] {
                         16, 32,
@@ -24,7 +24,7 @@ public class Main {
                     System.out.println("OK");
                 }
             }
-
+/*
             {
                 int[] clusterCounts = new int[] {
                         16, 32,

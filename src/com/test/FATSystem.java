@@ -14,12 +14,14 @@ import java.nio.file.*;
 
 class FATSystem implements Closeable {
     //file system header with magic number abd etc
-    final static int  HEADER_SIZE = 16;
+    final static int  HEADER_SIZE = 32;
+    final static int  FREE_CLUSTER_COUNT_OFFSET = 4*4;
     final static int  VERSION     = 1;
     final static long MAPFILE_SIZE_LIMIT = Integer.MAX_VALUE;
 
     final static int FAT_E_SIZE  = 4; //bytes for FAT32
-    final static int MAGIC_WORD  = 0x73666175; //check ENDIAN sfau/uafs as BIG/LITTLE
+    final static int MAGIC_WORD  = 0x75616673;
+    //final static int MAGIC_WORD  = 0x73666175; //check ENDIAN sfau/uafs as BIG/LITTLE
 
     final static int CLUSTER_INDEX  = 0x3FFFFFFF;
     final static int CLUSTER_STATUS = 0xC0000000;
@@ -39,26 +41,91 @@ class FATSystem implements Closeable {
     private int entryPerCluster;
     private int fatOffset;
     private int dataOffset;
-    private int freeClusterCount; //can get -1 on "dirty FAT"
+    private int freeClusterCount; //can get [-1] on "dirty FAT"
 
     private RandomAccessFile randomAccessFile;
     private FileChannel fileChannel;
     private MappedByteBuffer fatZone;
     private ByteOrder byteOrder = ByteOrder.BIG_ENDIAN; //default encoding
+    private boolean opened = true; //allocate opened storage, check status in fabric
+
+    // lockFAT - lockData rule!
     private final Object lockFAT = new Object();
     private final Object lockData = new Object();
+    private final boolean normalMode;
 
     /**
      * Returns the FS mode.
      * @return [true] means throwing the [FileSystemException] exception when "dirty FAT" is detected.
-     *         [false] means means "work first" mode.
+     *         [false] means means maintenance mode.
      */
-    public static boolean isSanityMode() {
-        return true;
+    public boolean isNormalMode() {
+        return normalMode;
     }
 
+    /**
+     * Opens FS from the exist file in host FS.
+     * @param path the path to storage file in host FS
+     * @return In-file FS over the file that opened in host FS.
+     */
+    public static FATSystem open(Path path) throws IOException {
+        return open(path, true);
+    }
 
-    private FATSystem() {}
+    /**
+     * Opens FS from the exist file in host FS.
+     * @param path the path to storage file in host FS
+     * @param normalMode the [false] value allows to open dirty FAT for maintenance
+     * @return In-file FS over the file that opened in host FS.
+     */
+    private static FATSystem open(Path path, boolean normalMode) throws IOException {
+        if (Files.notExists(path))
+            throw new FileNotFoundException("Path not found:" + path.toString());
+        FATSystem ret = new FATSystem(normalMode);
+        boolean success = false;
+        try {
+            ret.randomAccessFile = new RandomAccessFile(path.toString(), "rw");
+            ret.initFromFile();
+            success = true;
+        } finally {
+            if (!success)
+                ret.close();
+        }
+        return ret;
+    }
+
+    private boolean isOpen() {
+        return opened;
+    }
+
+    private void initFromFile() throws IOException {
+        if (randomAccessFile.length() < HEADER_SIZE)
+            throw new FileSystemException("Wrong media size. File is too short.");
+
+        fileChannel = randomAccessFile.getChannel();
+        ByteBuffer bf = allocateBuffer(HEADER_SIZE);
+        readFromChannel(bf);
+
+        // init header
+        int magic = bf.getInt(); //media type
+        if (magic != MAGIC_WORD)
+            throw new FileSystemException("Wrong media type. That is not FFS file");
+        int version = bf.getInt(fsVersion);  //FS version
+        if (version != VERSION)
+            throw new FileSystemException("Wrong version: " + version
+                      + "Version " +  VERSION + " is the only supported.");
+        clusterSize = bf.getInt();
+        clusterCount = bf.getInt();
+        freeClusterCount = bf.getInt();
+        checkValidStatus();
+
+        if (randomAccessFile.length() < ((long)clusterCount * clusterSize + HEADER_SIZE)) {
+            LogError("Wrong storage size. File was truncated.");
+            setDirtyStatus();
+        }
+
+        initDenormalized();
+    }
 
     /**
      * Creates new file-based file system.
@@ -83,7 +150,7 @@ class FATSystem implements Closeable {
         if (sizeFS < length)
             throw new FileSystemException("File system is too big. No space for header." );
 
-        FATSystem ret = new FATSystem();
+        FATSystem ret = new FATSystem(true);
         boolean success = false;
         try {
             ret.randomAccessFile = new RandomAccessFile(path.toString(), "rw");
@@ -97,29 +164,13 @@ class FATSystem implements Closeable {
         return ret;
     }
 
-    private void initDenormalized() {
-        entryPerCluster = clusterSize/FolderEntry.RECORD_SIZE;
-        fatOffset = HEADER_SIZE; //version dependant
-        dataOffset = fatOffset + clusterCount*FAT_E_SIZE;
-    }
-
-    private ByteBuffer allocateBuffer(int capacity) {
-        return ByteBuffer.allocateDirect(capacity).order(byteOrder);
-    }
-
-    private void writeToChannel(ByteBuffer bf) throws IOException {
-        bf.flip();
-        while(bf.hasRemaining()) {
-            fileChannel.write(bf);
-        }
-    }
 
     private void initStorage(int _clusterSize, int _clusterCount) throws IOException {
         fsVersion = VERSION;
         clusterSize = _clusterSize;
         clusterCount = _clusterCount;
-        freeClusterCount = clusterCount;
         initDenormalized();
+        freeClusterCount = clusterCount;
 
         fileChannel = randomAccessFile.getChannel();
 
@@ -128,7 +179,10 @@ class FATSystem implements Closeable {
             .putInt(MAGIC_WORD)
             .putInt(fsVersion)     //FS version
             .putInt(clusterSize)
-            .putInt(clusterCount));
+            .putInt(clusterCount)
+            //Set dirty flag in free cluster count. We drop it on right close.
+            .putInt(-1));
+
 
         // map FAT section
         fatZone = fileChannel.map(FileChannel.MapMode.READ_WRITE, fatOffset, clusterCount*FAT_E_SIZE);
@@ -146,21 +200,37 @@ class FATSystem implements Closeable {
 
     @Override
     public void close() throws IOException {
-        if (randomAccessFile != null) {
-            if (fileChannel != null) {
-                if (fatZone != null) {
-                    try {
-                        // That is bad, but it is the only available solution
-                        // http://stackoverflow.com/questions/2972986/how-to-unmap-a-file-from-memory-mapped-using-filechannel-in-java
-                        sun.misc.Cleaner cleaner = ((DirectBuffer)fatZone).cleaner();
-                        cleaner.clean();
-                    } catch (Throwable any) {
-                        System.err.println();
+        synchronized (lockFAT) {
+            synchronized (lockData) {
+                try {
+                    if (randomAccessFile != null) {
+                        if (fileChannel != null) {
+                            if (fatZone != null) {
+                                // saves real dirty status
+                                fileChannel.position(FREE_CLUSTER_COUNT_OFFSET);
+                                // always thinking about SPARC
+                                writeToChannel(allocateBuffer(4)
+                                        .putInt(freeClusterCount));
+                                try {
+                                    // That is bad, but it is the only available solution
+                                    // http://stackoverflow.com/questions/2972986/how-to-unmap-a-file-from-memory-mapped-using-filechannel-in-java
+                                    sun.misc.Cleaner cleaner = ((DirectBuffer)fatZone).cleaner();
+                                    cleaner.clean();
+                                } catch (Throwable any) {
+                                    LogError("Not Oracle implementation for memory-mapped file."
+                                           + "We can get a problem. Trying direct GC call.");
+                                    System.gc();
+                                }
+                            }
+                            fileChannel.close();
+                        }
+                        randomAccessFile.close();
                     }
+                } finally {
+                    // RIP
+                    opened = false;
                 }
-                fileChannel.close();
             }
-            randomAccessFile.close();
         }
     }
 
@@ -206,6 +276,7 @@ class FATSystem implements Closeable {
 
         ByteBuffer bf = ByteBuffer.allocateDirect(clusterSize);  //check with alloc!
         synchronized (lockData) {
+            checkValidStatus();
             fileChannel
                 .position(dataOffset + cluster * clusterSize)
                 .read(bf);
@@ -218,8 +289,9 @@ class FATSystem implements Closeable {
      * @param cluster the index of current cluster in the chain if any
      * @return the entry value
      */
-    public int readFatEntry(int cluster) {
+    public int readFatEntry(int cluster) throws FileSystemException {
         synchronized (lockFAT) {
+            checkValidStatus();
             return fatZone.getInt(cluster*FAT_E_SIZE);
         }
     }
@@ -234,12 +306,13 @@ class FATSystem implements Closeable {
      * @throws FileSystemException if the chain could not be allocated
      */
     int allocateClusters(int findAfter, int count) throws FileSystemException {
-        // bitmap of free clusters in memory?
-        // chunk with free block counting?
-        // two stage allocation with "gray"
+        // - bitmap of free clusters in memory?
+        // - chunk with free block counting for sequential allocation?
+        // - two stage allocation with "gray"
         //    +final static int CLUSTER_GALLOCATED = 0x80000000;
         //    +final static int CLUSTER_GEOC       = 0xC8000000;
-        // up bit?
+        //   up bit?
+        // - resize if need?
         if (count < 1)
             throw new FileSystemException("Cannot allocate" + count + "clusters.");
         if ((findAfter < clusterCount) && (
@@ -247,6 +320,7 @@ class FATSystem implements Closeable {
              || ((freeClusterCount  < 0) && (count <= clusterCount)))) // without guaranty on dirty FAT
         {
             synchronized (lockFAT) {
+                checkValidStatus();
                 try {
                     int currentOffset = (findAfter == -1)
                         ? 0
@@ -282,13 +356,10 @@ class FATSystem implements Closeable {
                         if (currentOffset == endOfLoop)
                             break;
                     }
-                    if (freeClusterCount >= 0) {
-                        // dirty FAT
-                        if (isSanityMode()) {
-                            throw new FileSystemException("Dirty FAT.");
-                        }
-                        freeClusterCount = -1;
-                    }
+
+                    LogError("[freeClusterCount] has wrong value.");
+                    setDirtyStatus();
+
                     // rollback allocation.
                     if (findAfter == -1)
                         freeClusters(headOffset, true, false);
@@ -324,6 +395,8 @@ class FATSystem implements Closeable {
      */
      private void freeClusters(int headOffset, boolean freeHead, boolean forceChanges) throws FileSystemException {
         synchronized (lockFAT) {
+            if (forceChanges)
+                checkValidStatus();
             try {
                 if (!freeHead) {
                     int value = fatZone.getInt(headOffset*FAT_E_SIZE);
@@ -333,8 +406,9 @@ class FATSystem implements Closeable {
                         fatZone.putInt(headOffset*FAT_E_SIZE, CLUSTER_EOC);
                         headOffset = value & CLUSTER_INDEX;
                     } else {
-                        throw new FileSystemException("Cluster double free in tail.  Cluster#:" + headOffset
+                        LogError("Cluster double free in tail.  Cluster#:" + headOffset
                                 + " Value:" + value);
+                        setDirtyStatus();
                     }
                 }
                 while (true) {
@@ -348,8 +422,9 @@ class FATSystem implements Closeable {
                             break;
                         headOffset = value & CLUSTER_INDEX;
                     } else {
-                        throw new FileSystemException("Cluster double free. Cluster#:" + headOffset
+                        LogError("Cluster double free. Cluster#:" + headOffset
                                 + " Value:" + value);
+                        setDirtyStatus();
                     }
                 }
             } finally {
@@ -360,10 +435,67 @@ class FATSystem implements Closeable {
     }
 
     /**
+     * Log the problem to error stream.
+     * @param errorMessage  the problem description.
+     */
+    private void LogError(String errorMessage) {
+        if (isNormalMode())
+            System.err.println(errorMessage);
+    }
+
+    /**
      * Returns FS time counter.
      * @return the Java current time in milliseconds.
      */
     public static long getCurrentTime() {
         return System.currentTimeMillis();
     }
+
+
+    private FATSystem(boolean _normalMode) {
+        normalMode = _normalMode;
+    }
+
+    private void checkValidStatus() throws FileSystemException {
+        if (!isOpen())
+            throw new FileSystemException("The storage was closed.");
+
+        // check for dirty FAT
+        if (freeClusterCount < 0 && isNormalMode())
+            throw new FileSystemException("The storage needs maintenance.");
+    }
+
+    private void setDirtyStatus() throws FileSystemException {
+        if (freeClusterCount >= 0) {
+            freeClusterCount = -1;
+            checkValidStatus();
+        }
+    }
+
+    private void initDenormalized() {
+        entryPerCluster = clusterSize/FolderEntry.RECORD_SIZE;
+        fatOffset = HEADER_SIZE; //version dependant
+        dataOffset = fatOffset + clusterCount*FAT_E_SIZE;
+    }
+
+    private ByteBuffer allocateBuffer(int capacity) {
+        return ByteBuffer.allocateDirect(capacity).order(byteOrder);
+    }
+
+    private void writeToChannel(ByteBuffer bf) throws IOException {
+        bf.flip();
+        while(bf.hasRemaining()) {
+            fileChannel.write(bf);
+        }
+    }
+
+    private void readFromChannel(ByteBuffer bf) throws IOException {
+        bf.position(0);
+        int size = bf.capacity();
+        while(size > 0) {
+            size -= fileChannel.read(bf);
+        }
+        bf.flip();
+    }
+
 }

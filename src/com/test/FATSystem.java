@@ -141,6 +141,9 @@ class FATSystem implements Closeable {
         fatZone = fileChannel.map(FileChannel.MapMode.READ_WRITE, 0, fatOffset + clusterCount*FAT_E_SIZE);
         clusterAllocator = createAllocator(allocatorType);
         clusterAllocator.initFromFile();
+        //set dirty status
+        writeFreeClusterCount(-1);
+        force();
     }
 
     /**
@@ -152,7 +155,8 @@ class FATSystem implements Closeable {
      * @throws IOException for bad parameters or file access problem in the host FS
      */
     public static FATSystem create(Path path, int clusterSize, int clusterCount) throws IOException {
-          return create(path, clusterSize, clusterCount, CLASSIC_HEAP);
+        return create(path, clusterSize, clusterCount, CLASSIC_HEAP);
+        //return create(path, clusterSize, clusterCount, FAST_FORWARD);
     }
 
     /**
@@ -217,6 +221,14 @@ class FATSystem implements Closeable {
         force();
     }
 
+    private void writeFreeClusterCount(int value) {
+        if (isNormalMode()) {
+            // saves real dirty status
+            fatZone.position(FREE_CLUSTER_COUNT_OFFSET);
+            fatZone.putInt(value);
+        }
+    }
+
     @Override
     public void close() throws IOException {
         synchronized (lockFAT) {
@@ -227,17 +239,13 @@ class FATSystem implements Closeable {
                     if (randomAccessFile != null) {
                         if (fileChannel != null) {
                             if (fatZone != null) {
-                                if (isNormalMode()) {
-                                    // saves real dirty status
-                                    fatZone.position(FREE_CLUSTER_COUNT_OFFSET);
-                                    fatZone.putInt(freeClusterCount);
-                                }
-                                try {
+                                writeFreeClusterCount(freeClusterCount);
+                                if (fatZone instanceof DirectBuffer) {
                                     // That is bad, but it is the only available solution
                                     // http://stackoverflow.com/questions/2972986/how-to-unmap-a-file-from-memory-mapped-using-filechannel-in-java
                                     sun.misc.Cleaner cleaner = ((DirectBuffer)fatZone).cleaner();
                                     cleaner.clean();
-                                } catch (Throwable any) {
+                                } else {
                                     LogError("Not Oracle implementation for memory-mapped file."
                                            + "We can get a problem. Trying direct GC call.");
                                     System.gc();
@@ -357,6 +365,8 @@ class FATSystem implements Closeable {
                  || ((freeClusterCount  < 0) && (count <= clusterCount)))) // without guaranty on dirty FAT
             {
                 try {
+                    if (tailCluster != -1 && getFatEntry(tailCluster) != FATClusterAllocator.CLUSTER_EOC)
+                        throw new IOException("Can join the chain with the tail only.");
                     return clusterAllocator.allocateClusters(tailCluster, count);
                 } finally {
                     forceFat();

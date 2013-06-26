@@ -10,7 +10,7 @@ public class Main {
             FileSystem fs = FileSystems.getDefault();
             Path testFFS = fs.getPath("createTest.fs");
 
-
+/*
             {
                 int[] clusterCounts = new int[] {
                         16, 32, 2
@@ -38,6 +38,7 @@ public class Main {
                     System.out.println("OK");
                 }
             }
+
             {
                 // size must be > 30
                 int[] clusterCounts = new int[] {
@@ -59,6 +60,12 @@ public class Main {
                 FATSystemTests.testConcurrentSafeClose(fs.getPath("testConcurrentFragmentation.fs"),
                         FolderEntry.RECORD_SIZE,
                         clusterCount);
+                System.out.println("OK");
+            }
+*/
+            {
+                System.out.print("testOpen");
+                FATSystemTests.testOpen(fs.getPath("testOpen.fs"));
                 System.out.println("OK");
             }
 

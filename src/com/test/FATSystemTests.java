@@ -83,75 +83,99 @@ public class FATSystemTests {
             }
             if (ffs.getFreeSize() != 0)
                 throw new IOException("Concurrent access problem: Lost clusters.");
-        } finally {
-            tearDown(path);
         }
+        tearDown(path);
     }
 
     //@Test
     static public void testConcurrentSafeClose(Path path, int clusterSize, int clusterCount) throws IOException {
         startUp(path);
-        try {
-            final FATSystem ffs  = FATSystem.create(path, clusterSize, clusterCount);
 
-            /* random size allocation */
-            final int[] fragmentLengths = new int[] {1, 2, 4, 5};
-            if (clusterCount < 12)
-                throw new Error("Bad test parameters");
+        final FATSystem ffs  = FATSystem.create(path, clusterSize, clusterCount);
 
-            /* stress allocation */
-            Thread[] actions = new Thread[fragmentLengths.length];
-            final Throwable[] errors = new Throwable[fragmentLengths.length];
-            for (int i = 0; i < fragmentLengths.length; ++i) {
-                final int actionI = i;
-                actions[i] = new Thread(new Runnable() {
-                    @Override public void run() {
-                        try {
-                            int start = ffs.allocateClusters(-1, fragmentLengths[actionI]);
-                            Thread.sleep(0xF); // switch thread
-                            ffs.freeClusters(start, true);
-                        } catch (Throwable e) {
-                            errors[actionI] = e;
-                        }
+        /* random size allocation */
+        final int[] fragmentLengths = new int[] {1, 2, 4, 5};
+        if (clusterCount < 12)
+            throw new Error("Bad test parameters");
+
+        /* stress allocation */
+        Thread[] actions = new Thread[fragmentLengths.length];
+        final Throwable[] errors = new Throwable[fragmentLengths.length];
+        for (int i = 0; i < fragmentLengths.length; ++i) {
+            final int actionI = i;
+            actions[i] = new Thread(new Runnable() {
+                @Override public void run() {
+                    try {
+                        int start = ffs.allocateClusters(-1, fragmentLengths[actionI]);
+                        Thread.sleep(0xF); // switch thread
+                        ffs.freeClusters(start, true);
+                    } catch (Throwable e) {
+                        errors[actionI] = e;
                     }
-                });
-                actions[i].start();
-            }
-
-            //Async close is not a reason for [dirty storage]!
-            try {
-                Thread.sleep(0x5); // switch thread
-            } catch (InterruptedException e) {
-                //OK
-            }
-            ffs.close();
-
-            // dump status without any throw
-            for (int i = 0; i < fragmentLengths.length; ++i) {
-                try {
-                    actions[i].join();
-                } catch (InterruptedException e) {
-                    System.err.println("System panic: synchronization!");
-                    if (actions[i].isAlive())
-                        --i;
                 }
-                if (errors[i] != null
-                 && "The storage was closed.".equals(errors[i].getMessage()))
-                    throw new Error("Wrong incident:" + errors[i].getMessage());
-            }
-
-            //should be:
-            // --accessible for open
-            // --clean (not dirty)
-            FATSystem.open(path).close();
-        } finally {
-            tearDown(path);
+            });
+            actions[i].start();
         }
+
+        //Async close is not a reason for [dirty storage]!
+        try {
+            Thread.sleep(0x5); // switch thread
+        } catch (InterruptedException e) {
+            //OK
+        }
+        ffs.close();
+
+        // dump status without any throw
+        for (int i = 0; i < fragmentLengths.length; ++i) {
+            try {
+                actions[i].join();
+            } catch (InterruptedException e) {
+                System.err.println("System panic: synchronization!");
+                if (actions[i].isAlive())
+                    --i;
+            }
+            if (errors[i] != null
+             && "The storage was closed.".equals(errors[i].getMessage()))
+                throw new Error("Wrong incident:" + errors[i].getMessage());
+        }
+
+        //should be:
+        // --accessible for open
+        // --clean (not dirty)
+        FATSystem.open(path).close();
+
+        tearDown(path);
     }
 
     //@Test
     static public void testOpen(Path path) throws IOException {
+        startUp(path);
+        int clusterCount = 4;
 
+        final FATSystem ffs1  = FATSystem.create(path, FolderEntry.RECORD_SIZE, clusterCount);
+        int first = ffs1.allocateClusters(-1, clusterCount/2);
+        ffs1.close();
+
+        final FATSystem ffs2  = FATSystem.open(path);
+
+        if (ffs2.getSize() != clusterCount*FolderEntry.RECORD_SIZE)
+            throw new Error("Wrong storage size!");
+
+        if (ffs2.getFreeSize() != clusterCount*FolderEntry.RECORD_SIZE/2)
+            throw new Error("Wrong storage free size!");
+
+        //test join, test sequential allocation on free disk
+        int second = ffs2.allocateClusters(first + clusterCount/2 - 1, clusterCount/2);
+        if (ffs2.getFreeSize() != 0)
+            throw new Error("Wrong storage state: FAT alloc!");
+
+        ffs2.freeClusters(first, true);
+        if (ffs2.getFreeSize() != clusterCount*FolderEntry.RECORD_SIZE)
+            throw new Error("Wrong storage state: FAT join!");
+
+        ffs2.close();
+
+        tearDown(path);
     }
 
     //@Test
@@ -188,9 +212,8 @@ public class FATSystemTests {
 
             // full size fail success
             ffs.allocateClusters(-1, clusterCount);
-        } finally {
-            tearDown(path);
         }
+        tearDown(path);
     }
 
     //@Test
@@ -199,9 +222,8 @@ public class FATSystemTests {
         try (FATSystem ffs  = FATSystem.create(path, clusterSize, clusterCount)) {
             if (ffs.getSize() != clusterSize*clusterCount)
                 throw new Error("Wrong storage size!");
-        } finally {
-            //tearDown(path);
         }
+        tearDown(path);
     }
 
 

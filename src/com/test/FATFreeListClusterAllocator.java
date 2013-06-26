@@ -11,9 +11,13 @@ import java.io.IOException;
  * Allocates cluster chains.
  * Bad   point: reverse index sequence in chain.
  * Good  point: O(count)
+ *
+ * Improvements (todo): start release clusters from tail.
  */
 
 public class FATFreeListClusterAllocator implements FATClusterAllocator {
+    final static int CLUSTER_FREE_EOC = 0xC8000000;
+
     private final FATSystem fs;
     private int freeListHead;
 
@@ -29,10 +33,10 @@ public class FATFreeListClusterAllocator implements FATClusterAllocator {
     @Override
     public void initFAT() {
         // init FAT32
-        for (int i = 0; i < fs.clusterCount - 1; ++i) {
-            fs.putFatEntry(i, fs.CLUSTER_FREE | (i + 1));
-        }
-        fs.putFatEntry(fs.clusterCount - 1, fs.CLUSTER_FREE_EOC);
+        for (int i = 0; i < fs.clusterCount - 1; ++i)
+            fs.putFatEntry(i, CLUSTER_FREE | (i + 1));
+
+        fs.putFatEntry(fs.clusterCount - 1, CLUSTER_FREE_EOC);
         freeListHead = 0;
     }
 
@@ -54,21 +58,21 @@ public class FATFreeListClusterAllocator implements FATClusterAllocator {
         int tailOffset = tailCluster;
         while (count > 0 && freeListHead >= 0) {
             int fatEntry = fs.getFatEntry(freeListHead);
-            if ((fatEntry & fs.CLUSTER_STATUS) == fs.CLUSTER_FREE || fatEntry == fs.CLUSTER_FREE_EOC) {
+            if ((fatEntry & CLUSTER_STATUS) == CLUSTER_FREE || fatEntry == CLUSTER_FREE_EOC) {
                 if (headCluster == -1)
                     headCluster = freeListHead;
 
                 // mark as EOC
                 --fs.freeClusterCount;
-                fs.putFatEntry(freeListHead, fs.CLUSTER_EOC);
+                fs.putFatEntry(freeListHead, CLUSTER_EOC);
                 if (tailOffset != -1) {
                     // mark as ALLOCATED with forward index
-                    fs.putFatEntry(tailOffset, fs.CLUSTER_ALLOCATED | freeListHead);
+                    fs.putFatEntry(tailOffset, CLUSTER_ALLOCATED | freeListHead);
                 }
                 tailOffset = freeListHead;
-                freeListHead = (fatEntry == fs.CLUSTER_FREE_EOC)
+                freeListHead = (fatEntry == CLUSTER_FREE_EOC)
                     ? -1
-                    : (fatEntry & fs.CLUSTER_INDEX);
+                    : (fatEntry & CLUSTER_INDEX);
                 --count;
                 if (count == 0)
                     return headCluster;
@@ -103,14 +107,13 @@ public class FATFreeListClusterAllocator implements FATClusterAllocator {
         if (headCluster < 0)
             return;
 
-        //todo: improve: start release clusters from tail.
         if (!freeHead) {
             int fatEntry = fs.getFatEntry(headCluster);
             // CLUSTER_ALLOCATED only
-            if ((fatEntry & fs.CLUSTER_STATUS) == fs.CLUSTER_ALLOCATED) {
+            if ((fatEntry & CLUSTER_STATUS) == CLUSTER_ALLOCATED) {
                 // mark as EOC
-                fs.putFatEntry(headCluster, fs.CLUSTER_EOC);
-                headCluster = fatEntry & fs.CLUSTER_INDEX;
+                fs.putFatEntry(headCluster, CLUSTER_EOC);
+                headCluster = fatEntry & CLUSTER_INDEX;
             } else {
                 fs.LogError("Cluster double free in tail.  Cluster#:" + headCluster
                         + " Value:" + fatEntry);
@@ -120,19 +123,19 @@ public class FATFreeListClusterAllocator implements FATClusterAllocator {
         while (true) {
             int fatEntry = fs.getFatEntry(headCluster);
             // CLUSTER_ALLOCATED or CLUSTER_EOC
-            if ((fatEntry & fs.CLUSTER_ALLOCATED) == fs.CLUSTER_ALLOCATED) {
+            if ((fatEntry & CLUSTER_ALLOCATED) == CLUSTER_ALLOCATED) {
                 // mark as DEALLOC
                 if (freeListHead == -1) {
                     freeListHead = headCluster;
-                    fs.putFatEntry(headCluster, fs.CLUSTER_FREE_EOC);
+                    fs.putFatEntry(headCluster, CLUSTER_FREE_EOC);
                 } else {
-                    fs.putFatEntry(headCluster, fs.CLUSTER_FREE | freeListHead);
+                    fs.putFatEntry(headCluster, CLUSTER_FREE | freeListHead);
                     freeListHead = headCluster;
                 }
                 ++fs.freeClusterCount;
-                if ((fatEntry & fs.CLUSTER_EOC) == fs.CLUSTER_EOC)
+                if ((fatEntry & CLUSTER_EOC) == CLUSTER_EOC)
                     break;
-                headCluster = fatEntry & fs.CLUSTER_INDEX;
+                headCluster = fatEntry & CLUSTER_INDEX;
             } else {
                 fs.LogError("Cluster double free. Cluster#:" + headCluster
                         + " Value:" + fatEntry);

@@ -7,6 +7,12 @@ import java.io.IOException;
  * User: uta
  */
 interface FATClusterAllocator {
+    final static int CLUSTER_INDEX  = 0x3FFFFFFF;
+    final static int CLUSTER_STATUS = 0xC0000000;
+    final static int CLUSTER_FREE      = 0x00000000;
+    final static int CLUSTER_ALLOCATED = 0x40000000;
+    final static int CLUSTER_EOC       = 0xC0000000;
+
     /**
      * Initializes FAT System.
      */

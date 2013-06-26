@@ -30,16 +30,6 @@ class FATSystem implements Closeable {
     final static int MAGIC_WORD  = 0x75616673;
     //final static int MAGIC_WORD  = 0x73666175; //check ENDIAN sfau/uafs as BIG/LITTLE
 
-    final static int CLUSTER_INDEX  = 0x3FFFFFFF;
-    final static int CLUSTER_STATUS = 0xC0000000;
-    final static int CLUSTER_FREE      = 0x00000000;
-    final static int CLUSTER_ALLOCATED = 0x40000000;
-    final static int CLUSTER_EOC       = 0xC0000000;
-    final static int CLUSTER_FREE_EOC  = 0xC8000000;
-    // Diagnostic
-    final static int CLUSTER_UNUSED    = 0x0BADBEEF;
-    final static int CLUSTER_DEALLOC   = 0x0CCCCCCC;
-
     //header
     private int fsVersion;
     private int clusterSize;
@@ -491,7 +481,7 @@ class FATSystem implements Closeable {
 
     private static long getRequestedStorageFileSize(int clusterSize, int clusterCount) throws IOException {
         long mapLength = (long)clusterCount*FAT_E_SIZE + HEADER_SIZE;
-        if (clusterCount <= 0 || clusterCount > CLUSTER_INDEX || mapLength > MAPFILE_SIZE_LIMIT)
+        if (clusterCount <= 0 || clusterCount > FATClusterAllocator.CLUSTER_INDEX || mapLength > MAPFILE_SIZE_LIMIT)
             throw new IOException("Bad value of cluster count:" + clusterCount);
 
         long length = (long)clusterCount * clusterSize;

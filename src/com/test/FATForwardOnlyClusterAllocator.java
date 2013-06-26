@@ -10,10 +10,17 @@ import java.io.IOException;
  * Allocates cluster chains. Free haunter algorithm.
  * Bad   point: O(fs.clusterCount)
  * Good  point: the best monotonic index sequence in chain.
- *              visible watermarks
+ *              visible watermarks, parameters for save.
  * Applicable for system with fs.clusterCount ~ count.
+ *
+ * Improvements (todo): for write-mostly system - support the hint [startOffset]
+ * as last allocated index.
  */
 class FATForwardOnlyClusterAllocator implements FATClusterAllocator {
+    // Diagnostic
+    final static int CLUSTER_UNUSED    = 0x0BADBEEF;
+    final static int CLUSTER_DEALLOC   = 0x0CCCCCCC;
+
     private final FATSystem fs;
 
     FATForwardOnlyClusterAllocator(FATSystem _fs) {
@@ -28,7 +35,7 @@ class FATForwardOnlyClusterAllocator implements FATClusterAllocator {
     public void initFAT() {
         // init FAT32
         for (int i = 0; i < fs.clusterCount; ++i) {
-            fs.putFatEntry(i, fs.CLUSTER_UNUSED);
+            fs.putFatEntry(i, CLUSTER_UNUSED);
         }
     }
 
@@ -62,16 +69,16 @@ class FATForwardOnlyClusterAllocator implements FATClusterAllocator {
             }
 
             int fatEntry = fs.getFatEntry(currentOffset);
-            if ((fatEntry & fs.CLUSTER_STATUS) == fs.CLUSTER_FREE) {
+            if ((fatEntry & CLUSTER_STATUS) == CLUSTER_FREE) {
                 if (headCluster == -1)
                     headCluster = currentOffset;
 
                 // mark as EOC
                 --fs.freeClusterCount;
-                fs.putFatEntry(currentOffset, fs.CLUSTER_EOC);
+                fs.putFatEntry(currentOffset, CLUSTER_EOC);
                 if (tailOffset != -1) {
                     // mark as ALLOCATED with forward index
-                    fs.putFatEntry(tailOffset, fs.CLUSTER_ALLOCATED | currentOffset);
+                    fs.putFatEntry(tailOffset, CLUSTER_ALLOCATED | currentOffset);
                 }
                 tailOffset = currentOffset;
                 --count;
@@ -110,10 +117,10 @@ class FATForwardOnlyClusterAllocator implements FATClusterAllocator {
         if (!freeHead) {
             int fatEntry = fs.getFatEntry(headCluster);
             // CLUSTER_ALLOCATED only
-            if ((fatEntry & fs.CLUSTER_STATUS) == fs.CLUSTER_ALLOCATED) {
+            if ((fatEntry & CLUSTER_STATUS) == CLUSTER_ALLOCATED) {
                 // mark as EOC
-                fs.putFatEntry(headCluster, fs.CLUSTER_EOC);
-                headCluster = fatEntry & fs.CLUSTER_INDEX;
+                fs.putFatEntry(headCluster, CLUSTER_EOC);
+                headCluster = fatEntry & CLUSTER_INDEX;
             } else {
                 fs.LogError("Cluster double free in tail.  Cluster#:" + headCluster
                         + " Value:" + fatEntry);
@@ -123,13 +130,13 @@ class FATForwardOnlyClusterAllocator implements FATClusterAllocator {
         while (true) {
             int fatEntry = fs.getFatEntry(headCluster);
             // CLUSTER_ALLOCATED or CLUSTER_EOC
-            if ((fatEntry & fs.CLUSTER_ALLOCATED) == fs.CLUSTER_ALLOCATED) {
+            if ((fatEntry & CLUSTER_ALLOCATED) == CLUSTER_ALLOCATED) {
                 // mark as DEALLOC
-                fs.putFatEntry(headCluster, fs.CLUSTER_DEALLOC);
+                fs.putFatEntry(headCluster, CLUSTER_DEALLOC);
                 ++fs.freeClusterCount;
-                if ((fatEntry & fs.CLUSTER_EOC) == fs.CLUSTER_EOC)
+                if ((fatEntry & CLUSTER_EOC) == CLUSTER_EOC)
                     break;
-                headCluster = fatEntry & fs.CLUSTER_INDEX;
+                headCluster = fatEntry & CLUSTER_INDEX;
             } else {
                 fs.LogError("Cluster double free. Cluster#:" + headCluster
                         + " Value:" + fatEntry);

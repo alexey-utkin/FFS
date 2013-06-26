@@ -14,7 +14,7 @@ public class Main {
             {
                 int[] clusterCounts = new int[] {
                         16, 32,
-                        (int)(0x800000000L/FolderEntry.RECORD_SIZE)
+                        //(int)(0x800000000L/FolderEntry.RECORD_SIZE)
                 };
                 for (int clusterCount : clusterCounts) {
                     System.out.print("testCreate FS Size " + clusterCount + ":");
@@ -24,12 +24,11 @@ public class Main {
                     System.out.println("OK");
                 }
             }
-/*
+
             {
                 int[] clusterCounts = new int[] {
                         16, 32,
-                        (int)(0x80000000L/FolderEntry.RECORD_SIZE)
-                        //(int)(0x800000000L/FolderEntry.RECORD_SIZE)
+                        //(int)(0x80000000L/FolderEntry.RECORD_SIZE)
                 };
                 for (int clusterCount : clusterCounts) {
                     System.out.print("testCriticalFatAllocation FS Size " + clusterCount + ":");
@@ -53,7 +52,7 @@ public class Main {
                     System.out.println("OK");
                 }
             }
-*/
+
             {
                 int clusterCount = 16;// > 12
                 System.out.print("testConcurrentSafeClose FS Size " + clusterCount + ":");

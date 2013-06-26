@@ -35,19 +35,20 @@ class FATSystem implements Closeable {
     //header
     private int fsVersion;
     private int clusterSize;
-    private int clusterCount;
+    int clusterCount;
 
     //denomalized values
     private int entryPerCluster;
     private int fatOffset;
     private int dataOffset;
-    private int freeClusterCount; //can get [-1] on "dirty FAT"
+    int freeClusterCount; //can get [-1] on "dirty FAT"
 
     private RandomAccessFile randomAccessFile;
     private FileChannel fileChannel;
-    private MappedByteBuffer fatZone;
+    MappedByteBuffer fatZone;
     private ByteOrder byteOrder = ByteOrder.BIG_ENDIAN; //default encoding
     private boolean opened = true; //allocate opened storage, check status in fabric
+    private FATForwardOnlyClusterAllocator clusterAllocator;
 
     // lockFAT - lockData rule!
     private final Object lockFAT = new Object();
@@ -125,6 +126,7 @@ class FATSystem implements Closeable {
         }
 
         initDenormalized();
+        clusterAllocator = new FATForwardOnlyClusterAllocator(this);
     }
 
     /**
@@ -183,14 +185,11 @@ class FATSystem implements Closeable {
             //Set dirty flag in free cluster count. We drop it on right close.
             .putInt(-1));
 
-
         // map FAT section
         fatZone = fileChannel.map(FileChannel.MapMode.READ_WRITE, fatOffset, clusterCount*FAT_E_SIZE);
         fatZone.order(byteOrder);
-        // init FAT32
-        for (int i = 0; i < clusterCount; ++i) {
-            fatZone.putInt(CLUSTER_UNUSED);
-        }
+        clusterAllocator = new FATForwardOnlyClusterAllocator(this);
+        clusterAllocator.initFAT();
 
         // init Data Region
         //createRoot();
@@ -317,63 +316,20 @@ class FATSystem implements Closeable {
         // - resize if need?
         if (count < 1)
             throw new IOException("Cannot allocate" + count + "clusters.");
-        if ((findAfter < clusterCount) && (
-                ((freeClusterCount >= 0) && (count <= freeClusterCount))
-             || ((freeClusterCount  < 0) && (count <= clusterCount)))) // without guaranty on dirty FAT
-        {
-            synchronized (lockFAT) {
-                checkValidStatus();
+        synchronized (lockFAT) {
+            checkValidStatus();
+            if ((findAfter < clusterCount) && (
+                    ((freeClusterCount >= 0) && (count <= freeClusterCount))
+                 || ((freeClusterCount  < 0) && (count <= clusterCount)))) // without guaranty on dirty FAT
+            {
                 try {
-                    int currentOffset = (findAfter == -1)
-                        ? 0
-                        : findAfter + 1;
-                    int headOffset = -1;
-                    int tailOffset = findAfter;
-                    int endOfLoop = currentOffset; // loop marker
-                    while (true) {
-                        if (currentOffset >= clusterCount) {
-                            currentOffset = 0;
-                            if (currentOffset == endOfLoop)
-                                break;
-                        }
-
-                        int fatEntry = fatZone.getInt(currentOffset*FAT_E_SIZE);
-                        if ((fatEntry & CLUSTER_STATUS) == CLUSTER_FREE) {
-                            if (headOffset == -1)
-                                headOffset = currentOffset;
-
-                            // mark as EOC
-                            --freeClusterCount;
-                            fatZone.putInt(currentOffset*FAT_E_SIZE, CLUSTER_EOC);
-                            if (tailOffset != -1) {
-                                // mark as ALLOCATED with forward index
-                                fatZone.putInt(tailOffset*FAT_E_SIZE, CLUSTER_ALLOCATED | currentOffset);
-                            }
-                            tailOffset = currentOffset;
-                            --count;
-                            if (count == 0)
-                                return headOffset;
-                        }
-                        ++currentOffset;
-                        if (currentOffset == endOfLoop)
-                            break;
-                    }
-
-                    LogError("[freeClusterCount] has wrong value.");
-                    setDirtyStatus();
-
-                    // rollback allocation.
-                    if (findAfter == -1)
-                        freeClusters(headOffset, true, false);
-                    else
-                        freeClusters(findAfter, false, false);
-
+                    return clusterAllocator.allocateClusters(findAfter, count);
                 } finally {
                     fatZone.force();
                 }
             }
+            throw new IOException("Disk full.");
         }
-        throw new IOException("Disk full.");
     }
 
     /**
@@ -383,55 +339,13 @@ class FATSystem implements Closeable {
      *                 else head cluster is marked as [EOC]
      * @throws IOException
      */
-    void freeClusters(int headOffset, boolean freeHead) throws IOException {
-        freeClusters(headOffset, freeHead, true);
-    }
-
-    /**
-     * Frees chain that start from [headOffset] cluster.
-     * @param headOffset the head of the chain
-     * @param freeHead if [true] the chain is freed together with head cluster
-     *                 else head cluster is marked as [EOC]
-     * @param forceChanges fix the changes to disk. Have to be [true] for external calls
-     * @throws IOException
-     */
-     private void freeClusters(int headOffset, boolean freeHead, boolean forceChanges) throws IOException {
+     void freeClusters(int headOffset, boolean freeHead) throws IOException {
         synchronized (lockFAT) {
-            if (forceChanges)
-                checkValidStatus();
+            checkValidStatus();
             try {
-                if (!freeHead) {
-                    int value = fatZone.getInt(headOffset*FAT_E_SIZE);
-                    // CLUSTER_ALLOCATED only
-                    if ((value & CLUSTER_STATUS) == CLUSTER_ALLOCATED) {
-                        // mark as EOC
-                        fatZone.putInt(headOffset*FAT_E_SIZE, CLUSTER_EOC);
-                        headOffset = value & CLUSTER_INDEX;
-                    } else {
-                        LogError("Cluster double free in tail.  Cluster#:" + headOffset
-                                + " Value:" + value);
-                        setDirtyStatus();
-                    }
-                }
-                while (true) {
-                    int value = fatZone.getInt(headOffset*FAT_E_SIZE);
-                    // CLUSTER_ALLOCATED or CLUSTER_EOC
-                    if ((value & CLUSTER_ALLOCATED) == CLUSTER_ALLOCATED) {
-                        // mark as DEALLOC
-                        fatZone.putInt(headOffset*FAT_E_SIZE, CLUSTER_DEALLOC);
-                        ++freeClusterCount;
-                        if ((value & CLUSTER_EOC) == CLUSTER_EOC)
-                            break;
-                        headOffset = value & CLUSTER_INDEX;
-                    } else {
-                        LogError("Cluster double free. Cluster#:" + headOffset
-                                + " Value:" + value);
-                        setDirtyStatus();
-                    }
-                }
+                clusterAllocator.freeClusters(headOffset, freeHead);
             } finally {
-                if (forceChanges)
-                    fatZone.force();
+                fatZone.force();
             }
         }
     }
@@ -440,7 +354,7 @@ class FATSystem implements Closeable {
      * Log the problem to error stream.
      * @param errorMessage  the problem description.
      */
-    private void LogError(String errorMessage) {
+    void LogError(String errorMessage) {
         if (isNormalMode())
             System.err.println(errorMessage);
     }
@@ -467,7 +381,7 @@ class FATSystem implements Closeable {
             throw new IOException("The storage needs maintenance.");
     }
 
-    private void setDirtyStatus() throws IOException {
+    void setDirtyStatus() throws IOException {
         if (freeClusterCount >= 0) {
             freeClusterCount = -1;
             checkValidStatus();

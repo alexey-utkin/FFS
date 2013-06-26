@@ -191,7 +191,14 @@ class FATSystem implements Closeable {
         return ret;
     }
 
-
+    /**
+     * Initializes new storage from parameters.
+     *
+     * @param _clusterSize single cluster size
+     * @param _clusterCount count of clusters in created storage
+     * @param allocatorType the allocation algorithm for FAT
+     * @throws IOException
+     */
     private void initStorage(int _clusterSize, int _clusterCount,
                              int allocatorType) throws IOException {
         fsVersion = VERSION;
@@ -214,10 +221,6 @@ class FATSystem implements Closeable {
             .putInt(-1);
         clusterAllocator = createAllocator(allocatorType);
         clusterAllocator.initFAT();
-
-        // init Data Region
-        //createRoot();
-
         force();
     }
 
@@ -464,7 +467,7 @@ class FATSystem implements Closeable {
     }
 
     /**
-     * Reads entry from FAT by index.
+     * Reads the entry from FAT by index.
      *
      * @param index the entry index in FAT, not offset!
      * @return entry value
@@ -474,7 +477,7 @@ class FATSystem implements Closeable {
     }
 
     /**
-     * Writes the entry value to FAT by index.
+     * Writes the entry to FAT by index.
      *
      * @param index the entry index in FAT, not offset!
      * @param value to store

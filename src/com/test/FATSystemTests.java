@@ -1,6 +1,8 @@
 package com.test;
 
 import java.io.IOException;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -14,12 +16,88 @@ public class FATSystemTests {
         System.err.println(message);
     }
 
-    //TEST
+    private static void Log(String message) {
+        System.err.print(message);
+    }
+
+    private static void LogLN(String message) {
+        System.err.println(message);
+    }
+
+    public static void main(String[] args) {
+        try {
+            FileSystem fs = FileSystems.getDefault();
+
+            {
+                int[] clusterCounts = new int[] {
+                        16, 32, 2
+                        //(int)(0x800000000L/FolderEntry.RECORD_SIZE)
+                };
+                for (int clusterCount : clusterCounts) {
+                    Log("testCreate FS Size " + clusterCount + ":");
+                    FATSystemTests.testCreate(fs.getPath("testCreate.fs"),
+                        FolderEntry.RECORD_SIZE,
+                        clusterCount);
+                    LogLN("OK");
+                }
+            }
+
+            {
+                int[] clusterCounts = new int[] {
+                        16, 32,
+                        //(int)(0x80000000L/FolderEntry.RECORD_SIZE)
+                };
+                for (int clusterCount : clusterCounts) {
+                    Log("testCriticalFatAllocation FS Size " + clusterCount + ":");
+                    FATSystemTests.testCriticalFatAllocation(fs.getPath("testCriticalFatAllocation.fs"),
+                        FolderEntry.RECORD_SIZE,
+                        clusterCount);
+                    LogLN("OK");
+                }
+            }
+
+            {
+                // size must be > 30
+                int[] clusterCounts = new int[] {
+                        31, 1024, 4096
+                };
+                for (int clusterCount : clusterCounts) {
+                    Log("testConcurrentFragmentation FS Size " + clusterCount + ":");
+                    FATSystemTests.testConcurrentFragmentation(fs.getPath("testConcurrentFragmentation.fs"),
+                            FolderEntry.RECORD_SIZE,
+                            clusterCount);
+
+                    LogLN("OK");
+                }
+            }
+
+            {
+                int clusterCount = 16;// > 12
+                Log("testConcurrentSafeClose FS Size " + clusterCount + ":");
+                FATSystemTests.testConcurrentSafeClose(fs.getPath("testConcurrentFragmentation.fs"),
+                        FolderEntry.RECORD_SIZE,
+                        clusterCount);
+                LogLN("OK");
+            }
+
+            {
+                Log("testOpen");
+                FATSystemTests.testOpen(fs.getPath("testOpen.fs"));
+                LogLN("OK");
+            }
+
+
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+    }
+
+    //@Staff
     static public void startUp(Path hostPath) throws IOException {
         Files.deleteIfExists(hostPath);
     }
 
-    //@Test
+    //@Staff
     static public void tearDown(Path hostPath) throws IOException {
         Files.deleteIfExists(hostPath);
     }

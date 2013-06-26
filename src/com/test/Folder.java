@@ -57,13 +57,14 @@ class Folder {
                 }
                 int value = fs.readFatEntry(cluster);
                 // end of Folder
-                if ( (value & FATSystem.CLUSTER_EOC) == FATSystem.CLUSTER_EOC )
+                if ( (value & FATClusterAllocator.CLUSTER_EOC) == FATClusterAllocator.CLUSTER_EOC )
                     break;
                 // can continue
-                if ( (value & FATSystem.CLUSTER_ALLOCATED) == 0)
+                if ( (value & FATClusterAllocator.CLUSTER_ALLOCATED) == 0) {
                     throw new FileSystemException("Bad cluster value (free) Cluster#:" + cluster);
+                }
 
-                cluster = value & FATSystem.CLUSTER_INDEX;
+                cluster = value & FATClusterAllocator.CLUSTER_INDEX;
             }
         }
         return null;

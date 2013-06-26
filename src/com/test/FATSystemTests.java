@@ -43,7 +43,7 @@ public class FATSystemTests {
             for (int m : fragmentLengths)
                 totalCount += m;
             if (clusterCount <= totalCount)
-                new Error("Bad test parameters");
+                throw new Error("Bad test parameters");
             fragmentLengths[fragmentLengths.length - 1] = clusterCount - totalCount;
 
             /* stress allocation */
@@ -97,7 +97,7 @@ public class FATSystemTests {
             /* random size allocation */
             final int[] fragmentLengths = new int[] {1, 2, 4, 5};
             if (clusterCount < 12)
-                new Error("Bad test parameters");
+                throw new Error("Bad test parameters");
 
             /* stress allocation */
             Thread[] actions = new Thread[fragmentLengths.length];
@@ -137,7 +137,7 @@ public class FATSystemTests {
                 }
                 if (errors[i] != null
                  && "The storage was closed.".equals(errors[i].getMessage()))
-                    new Error("Wrong incident:" + errors[i].getMessage());
+                    throw new Error("Wrong incident:" + errors[i].getMessage());
             }
 
             //should be:
@@ -200,7 +200,9 @@ public class FATSystemTests {
             if (ffs.getSize() != clusterSize*clusterCount)
                 throw new Error("Wrong storage size!");
         } finally {
-            tearDown(path);
+            //tearDown(path);
         }
     }
+
+
 }

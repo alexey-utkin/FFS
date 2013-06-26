@@ -13,7 +13,7 @@ public class Main {
 
             {
                 int[] clusterCounts = new int[] {
-                        16, 32,
+                        16, 32, 2
                         //(int)(0x800000000L/FolderEntry.RECORD_SIZE)
                 };
                 for (int clusterCount : clusterCounts) {

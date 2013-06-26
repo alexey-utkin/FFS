@@ -11,7 +11,8 @@ import java.io.IOException;
  * Bad   point: O(fs.clusterCount)
  * Good  point: the best monotonic index sequence in chain.
  *              visible watermarks, parameters for save.
- * Applicable for system with fs.clusterCount ~ count.
+ * Applicable for system with fs.clusterCount ~ count. Perfect for maintenance,
+ * when free list is damaged.
  *
  * Improvements (todo): for write-mostly system - support the hint [startOffset]
  * as last allocated index.
@@ -90,8 +91,7 @@ class FATForwardOnlyClusterAllocator implements FATClusterAllocator {
                 break;
         }
 
-        fs.LogError("[freeClusterCount] has wrong value.");
-        fs.setDirtyStatus();
+        fs.setDirtyStatus("[freeClusterCount] has wrong value.");
 
         // rollback allocation.
         if (tailCluster == -1)
@@ -122,9 +122,8 @@ class FATForwardOnlyClusterAllocator implements FATClusterAllocator {
                 fs.putFatEntry(headCluster, CLUSTER_EOC);
                 headCluster = fatEntry & CLUSTER_INDEX;
             } else {
-                fs.LogError("Cluster double free in tail.  Cluster#:" + headCluster
+                fs.setDirtyStatus("Cluster double free in tail.  Cluster#:" + headCluster
                         + " Value:" + fatEntry);
-                fs.setDirtyStatus();
             }
         }
         while (true) {
@@ -138,9 +137,8 @@ class FATForwardOnlyClusterAllocator implements FATClusterAllocator {
                     break;
                 headCluster = fatEntry & CLUSTER_INDEX;
             } else {
-                fs.LogError("Cluster double free. Cluster#:" + headCluster
+                fs.setDirtyStatus("Cluster double free. Cluster#:" + headCluster
                         + " Value:" + fatEntry);
-                fs.setDirtyStatus();
             }
         }
     }

@@ -133,8 +133,7 @@ class FATSystem implements Closeable {
         long sizeFS = getRequestedStorageFileSize(clusterSize, clusterCount);
 
         if (randomAccessFile.length() < sizeFS) {
-            LogError("Wrong storage size. Storage was truncated in host FS.");
-            setDirtyStatus();
+            setDirtyStatus("Wrong storage size. Storage was truncated in host FS.");
         }
         
         initDenormalized();
@@ -312,7 +311,7 @@ class FATSystem implements Closeable {
 
         ByteBuffer bf = ByteBuffer.allocateDirect(clusterSize);  //check with alloc!
         synchronized (lockData) {
-            checkValidStatus();
+            checkCanRead();
             fileChannel
                 .position(dataOffset + cluster * clusterSize)
                 .read(bf);
@@ -327,7 +326,7 @@ class FATSystem implements Closeable {
      */
     public int readFatEntry(int cluster) throws IOException {
         synchronized (lockFAT) {
-            checkValidStatus();
+            checkCanRead();
             return fatZone.getInt(cluster*FAT_E_SIZE);
         }
     }
@@ -352,7 +351,7 @@ class FATSystem implements Closeable {
         if (count < 1)
             throw new IOException("Cannot allocate" + count + "clusters.");
         synchronized (lockFAT) {
-            checkValidStatus();
+            checkCanWrite();
             if ((tailCluster < clusterCount) && (
                     ((freeClusterCount >= 0) && (count <= freeClusterCount))
                  || ((freeClusterCount  < 0) && (count <= clusterCount)))) // without guaranty on dirty FAT
@@ -376,7 +375,7 @@ class FATSystem implements Closeable {
      */
      void freeClusters(int headOffset, boolean freeHead) throws IOException {
         synchronized (lockFAT) {
-            checkValidStatus();
+            checkCanWrite();
             try {
                 clusterAllocator.freeClusters(headOffset, freeHead);
             } finally {
@@ -407,19 +406,24 @@ class FATSystem implements Closeable {
         normalMode = _normalMode;
     }
 
-    private void checkValidStatus() throws IOException {
+    private void checkCanRead() throws IOException {
         if (!isOpen())
-            throw new IOException("The storage was closed.");
+            throw new IOException("The storage is closed.");
+    }
+
+    private void checkCanWrite() throws IOException {
+        checkCanRead();
 
         // check for dirty FAT
         if (freeClusterCount < 0 && isNormalMode())
             throw new IOException("The storage needs maintenance.");
     }
 
-    void setDirtyStatus() throws IOException {
+    void setDirtyStatus(String message) throws IOException {
         if (freeClusterCount >= 0) {
             freeClusterCount = -1;
-            checkValidStatus();
+            LogError(message);
+            checkCanWrite();
         }
     }
 

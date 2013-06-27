@@ -62,6 +62,7 @@ public class FATFreeListClusterAllocator implements FATClusterAllocator {
                 if (headCluster == -1)
                     headCluster = freeListHead;
 
+                // "God, save EOC on power down!"
                 // mark as EOC
                 --fs.freeClusterCount;
                 fs.putFatEntry(freeListHead, CLUSTER_EOC);

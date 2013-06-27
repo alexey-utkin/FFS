@@ -6,7 +6,8 @@ import java.io.IOException;
  * Created with IntelliJ IDEA.
  * User: uta
  *
- * Forward Only Debug Allocator
+ * Forward Only Allocator. debug/maintenance
+ *
  * Allocates cluster chains. Free haunter algorithm.
  * Bad   point: O(fs.clusterCount)
  * Good  point: the best monotonic index sequence in chain.
@@ -74,6 +75,7 @@ class FATForwardOnlyClusterAllocator implements FATClusterAllocator {
                 if (headCluster == -1)
                     headCluster = currentOffset;
 
+                // "God, save EOC on power down!"
                 // mark as EOC
                 --fs.freeClusterCount;
                 fs.putFatEntry(currentOffset, CLUSTER_EOC);

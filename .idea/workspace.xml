@@ -3,24 +3,6 @@
   <component name="ChangeListManager">
     <list default="true" id="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" name="Default" comment="">
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.gitignore" afterPath="$PROJECT_DIR$/.gitignore" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/test/com/test/FATSystemTest.java" afterPath="$PROJECT_DIR$/test/com/test/FATSystemTest.java" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/FileSystem.iml" afterPath="$PROJECT_DIR$/FileSystem.iml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/com/test/FolderEntry.java" afterPath="$PROJECT_DIR$/src/com/test/FolderEntry.java" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/nbproject/build-impl.xml" afterPath="$PROJECT_DIR$/nbproject/build-impl.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/build.xml" afterPath="$PROJECT_DIR$/build.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/compiler.xml" afterPath="$PROJECT_DIR$/.idea/compiler.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/description.html" afterPath="$PROJECT_DIR$/.idea/description.html" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/encodings.xml" afterPath="$PROJECT_DIR$/.idea/encodings.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/nbproject/genfiles.properties" afterPath="$PROJECT_DIR$/nbproject/genfiles.properties" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/misc.xml" afterPath="$PROJECT_DIR$/.idea/misc.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/modules.xml" afterPath="$PROJECT_DIR$/.idea/modules.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/copyright/profiles_settings.xml" afterPath="$PROJECT_DIR$/.idea/copyright/profiles_settings.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/project-template.xml" afterPath="$PROJECT_DIR$/.idea/project-template.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/nbproject/project.properties" afterPath="$PROJECT_DIR$/nbproject/project.properties" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/nbproject/project.xml" afterPath="$PROJECT_DIR$/nbproject/project.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/scopes/scope_settings.xml" afterPath="$PROJECT_DIR$/.idea/scopes/scope_settings.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/uiDesigner.xml" afterPath="$PROJECT_DIR$/.idea/uiDesigner.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/vcs.xml" afterPath="$PROJECT_DIR$/.idea/vcs.xml" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
     </list>
     <ignored path="FileSystem.iws" />
@@ -32,7 +14,7 @@
     <file path="/fragment.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372226660711" ignored="false" />
     <file path="/FolderEntry.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1371985505146" ignored="false" />
     <file path="/Folder.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1371985927933" ignored="false" />
-    <file path="/Dummy.txt" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372332794365" ignored="false" />
+    <file path="/Dummy.txt" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372333944385" ignored="false" />
     <file path="/FATSystemTests.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372195154152" ignored="false" />
     <file path="/FATClusterAllocator.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372226578454" ignored="false" />
     <file path="/FATForwardOnlyClusterAllocator.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372228148911" ignored="false" />
@@ -109,10 +91,10 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="FATSystemTest.java" pinned="false" current="true" current-in-tab="true">
+      <file leaf-file-name="FATSystemTest.java" pinned="false" current="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/test/com/test/FATSystemTest.java">
           <provider selected="true" editor-type-id="text-editor">
-            <state line="19" column="32" selection-start="422" selection-end="422" vertical-scroll-proportion="0.63375795">
+            <state line="19" column="32" selection-start="422" selection-end="422" vertical-scroll-proportion="0.0">
               <folding>
                 <element signature="e#0#11127#0" expanded="true" />
                 <element signature="imports" expanded="true" />
@@ -152,10 +134,10 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="FATForwardOnlyClusterAllocator.java" pinned="false" current="false" current-in-tab="false">
+      <file leaf-file-name="FATForwardOnlyClusterAllocator.java" pinned="false" current="true" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/src/com/test/FATForwardOnlyClusterAllocator.java">
           <provider selected="true" editor-type-id="text-editor">
-            <state line="10" column="62" selection-start="199" selection-end="199" vertical-scroll-proportion="0.0">
+            <state line="10" column="62" selection-start="199" selection-end="199" vertical-scroll-proportion="-0.9444444">
               <folding />
             </state>
           </provider>
@@ -245,24 +227,6 @@
             </PATH_ELEMENT>
             <PATH_ELEMENT>
               <option name="myItemId" value="FileSystem" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
-            </PATH_ELEMENT>
-          </PATH>
-          <PATH>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="FileSystem" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="FileSystem" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="test" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="test" />
               <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
             </PATH_ELEMENT>
           </PATH>
@@ -460,7 +424,11 @@
       <created>1372229023960</created>
       <updated>1372229023960</updated>
     </task>
-    <option name="localTasksCounter" value="8" />
+    <task id="LOCAL-00008" summary="Unit test integration to Idea">
+      <created>1372333966579</created>
+      <updated>1372333966579</updated>
+    </task>
+    <option name="localTasksCounter" value="9" />
     <servers />
   </component>
   <component name="TodoView" selected-index="0">
@@ -492,16 +460,16 @@
       <window_info id="Palette" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Ant Build" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.4273743" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
-      <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.5251397" sideWeight="0.5" order="7" side_tool="true" content_ui="tabs" />
-      <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.23294723" sideWeight="0.20530726" order="2" side_tool="true" content_ui="tabs" />
+      <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.23463687" sideWeight="0.5" order="7" side_tool="true" content_ui="tabs" />
+      <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.23294723" sideWeight="0.32960895" order="2" side_tool="true" content_ui="tabs" />
       <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.5907821" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Messages" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.20334262" sideWeight="0.5" order="8" side_tool="false" content_ui="tabs" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.32951945" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
       <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Maven Projects" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Commander" active="false" anchor="right" auto_hide="false" internal_type="SLIDING" type="SLIDING" visible="false" weight="0.4" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
-      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.23294723" sideWeight="0.26955307" order="0" side_tool="false" content_ui="combo" />
-      <window_info id="Run" active="true" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.5251397" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
+      <window_info id="Project" active="true" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.23294723" sideWeight="0.43435755" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.23463687" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Cvs" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.25" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
       <window_info id="Message" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
       <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.22757111" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
@@ -551,7 +519,7 @@
     <option name="WRAP_WHEN_TYPING_REACHES_RIGHT_MARGIN" value="false" />
     <option name="FORCE_NON_EMPTY_COMMENT" value="false" />
     <option name="CLEAR_INITIAL_COMMIT_MESSAGE" value="false" />
-    <option name="LAST_COMMIT_MESSAGE" value="Cleaned file set" />
+    <option name="LAST_COMMIT_MESSAGE" value="Unit test integration to Idea" />
     <option name="MAKE_NEW_CHANGELIST_ACTIVE" value="false" />
     <option name="OPTIMIZE_IMPORTS_BEFORE_PROJECT_COMMIT" value="false" />
     <option name="CHECK_FILES_UP_TO_DATE_BEFORE_COMMIT" value="false" />
@@ -573,6 +541,7 @@
     <MESSAGE value="Dirty status support, synchronized close." />
     <MESSAGE value="NB project was created" />
     <MESSAGE value="Cleaned file set" />
+    <MESSAGE value="Unit test integration to Idea" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager />
@@ -629,20 +598,6 @@
         <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0" />
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/com/test/FATForwardOnlyClusterAllocator.java">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="10" column="62" selection-start="199" selection-end="199" vertical-scroll-proportion="0.0">
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/com/test/FATClusterAllocator.java">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="29" column="0" selection-start="840" selection-end="840" vertical-scroll-proportion="0.0">
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/nbproject/build-impl.xml">
       <provider selected="true" editor-type-id="text-editor">
         <state line="21" column="92" selection-start="497" selection-end="497" vertical-scroll-proportion="0.05923345">
@@ -657,6 +612,13 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/.gitignore">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0">
+          <folding />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/src/com/test/FATSystem.java">
       <provider selected="true" editor-type-id="text-editor">
         <state line="177" column="40" selection-start="6674" selection-end="6674" vertical-scroll-proportion="0.0">
@@ -664,10 +626,17 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/.gitignore">
+    <entry file="file://$PROJECT_DIR$/test/com/test/FATSystemTest.java">
       <provider selected="true" editor-type-id="text-editor">
-        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0">
-          <folding />
+        <state line="19" column="32" selection-start="422" selection-end="422" vertical-scroll-proportion="0.0">
+          <folding>
+            <element signature="e#0#11127#0" expanded="true" />
+            <element signature="imports" expanded="true" />
+            <element signature="e#5271#6022#0" expanded="true" />
+            <element signature="e#6003#6004#0" expanded="true" />
+            <element signature="e#8035#8469#0" expanded="true" />
+            <element signature="e#8454#8455#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>
@@ -685,17 +654,17 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/test/com/test/FATSystemTest.java">
+    <entry file="file://$PROJECT_DIR$/src/com/test/FATClusterAllocator.java">
       <provider selected="true" editor-type-id="text-editor">
-        <state line="19" column="32" selection-start="422" selection-end="422" vertical-scroll-proportion="0.63375795">
-          <folding>
-            <element signature="e#0#11127#0" expanded="true" />
-            <element signature="imports" expanded="true" />
-            <element signature="e#5271#6022#0" expanded="true" />
-            <element signature="e#6003#6004#0" expanded="true" />
-            <element signature="e#8035#8469#0" expanded="true" />
-            <element signature="e#8454#8455#0" expanded="true" />
-          </folding>
+        <state line="29" column="0" selection-start="840" selection-end="840" vertical-scroll-proportion="0.0">
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/com/test/FATForwardOnlyClusterAllocator.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="10" column="62" selection-start="199" selection-end="199" vertical-scroll-proportion="-0.9444444">
+          <folding />
         </state>
       </provider>
     </entry>

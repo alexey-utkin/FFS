@@ -1,3 +1,7 @@
+/*
+ * To change this template, choose Tools | Templates
+ * and open the template in the editor.
+ */
 package com.test;
 
 import java.io.IOException;
@@ -5,103 +9,136 @@ import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import org.junit.After;
+import org.junit.AfterClass;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 /**
- * Created with IntelliJ IDEA.
- * User: uta
+ *
+ * @author uta
  */
-
-public class FATSystemTests {
-    private static void LogError(String message) {
-        System.err.println(message);
-    }
-
+public class FATSystemTest {
+    static FileSystem fs = FileSystems.getDefault();    
     private static void Log(String message) {
-        System.err.print(message);
+        System.out.print(message);
     }
-
     private static void LogLN(String message) {
-        System.err.println(message);
+        System.out.println(message);
     }
-
-    public static void main(String[] args) {
-        try {
-            FileSystem fs = FileSystems.getDefault();
-
-            {
-                int[] clusterCounts = new int[] {
-                        16, 32, 2
-                        //(int)(0x800000000L/FolderEntry.RECORD_SIZE)
-                };
-                for (int clusterCount : clusterCounts) {
-                    Log("testCreate FS Size " + clusterCount + ":");
-                    FATSystemTests.testCreate(fs.getPath("testCreate.fs"),
-                        FolderEntry.RECORD_SIZE,
-                        clusterCount);
-                    LogLN("OK");
-                }
-            }
-
-            {
-                int[] clusterCounts = new int[] {
-                        16, 32,
-                        //(int)(0x80000000L/FolderEntry.RECORD_SIZE)
-                };
-                for (int clusterCount : clusterCounts) {
-                    Log("testCriticalFatAllocation FS Size " + clusterCount + ":");
-                    FATSystemTests.testCriticalFatAllocation(fs.getPath("testCriticalFatAllocation.fs"),
-                        FolderEntry.RECORD_SIZE,
-                        clusterCount);
-                    LogLN("OK");
-                }
-            }
-
-            {
-                // size must be > 30
-                int[] clusterCounts = new int[] {
-                        31, 1024, 4096
-                };
-                for (int clusterCount : clusterCounts) {
-                    Log("testConcurrentFragmentation FS Size " + clusterCount + ":");
-                    FATSystemTests.testConcurrentFragmentation(fs.getPath("testConcurrentFragmentation.fs"),
-                            FolderEntry.RECORD_SIZE,
-                            clusterCount);
-
-                    LogLN("OK");
-                }
-            }
-
-            {
-                int clusterCount = 16;// > 12
-                Log("testConcurrentSafeClose FS Size " + clusterCount + ":");
-                FATSystemTests.testConcurrentSafeClose(fs.getPath("testConcurrentFragmentation.fs"),
-                        FolderEntry.RECORD_SIZE,
-                        clusterCount);
-                LogLN("OK");
-            }
-
-            {
-                Log("testOpen");
-                FATSystemTests.testOpen(fs.getPath("testOpen.fs"));
-                LogLN("OK");
-            }
-
-
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
-    }
-
-    //@Staff
     static public void startUp(Path hostPath) throws IOException {
         Files.deleteIfExists(hostPath);
     }
-
-    //@Staff
     static public void tearDown(Path hostPath) throws IOException {
         Files.deleteIfExists(hostPath);
     }
+    
+    public FATSystemTest() {
+    }
+    
+    @BeforeClass
+    public static void setUpClass() {
+    }
+    
+    @AfterClass
+    public static void tearDownClass() {
+    }
+    
+    @Before
+    public void setUp() {
+        
+    }
+    
+    @After
+    public void tearDown() {
+    }
 
+    /**
+     * Test of FS creation.
+     */
+    static public void testCreate(Path path, int clusterSize, int clusterCount) throws IOException {
+        startUp(path);
+        try (FATSystem ffs  = FATSystem.create(path, clusterSize, clusterCount)) {
+            if (ffs.getSize() != clusterSize*clusterCount)
+                throw new Error("Wrong storage size!");
+        }
+        tearDown(path);
+    }
+    
+    @Test
+    public void testCreate() throws IOException {
+        int[] clusterCounts = new int[] {
+                16, 32, 2
+                //(int)(0x800000000L/FolderEntry.RECORD_SIZE)
+        };
+        for (int clusterCount : clusterCounts) {
+            Log("testCreate FS Size " + clusterCount + ":");
+            testCreate(fs.getPath("testCreate.fs"),
+                FolderEntry.RECORD_SIZE,
+                clusterCount);
+            LogLN("OK");
+        }
+    }
+
+    /**
+     * Test of FS Critical Fat Allocation.
+     */
+    static public void testCriticalFatAllocation(Path path, int clusterSize, int clusterCount) throws IOException {
+        startUp(path);
+        try (FATSystem ffs  = FATSystem.create(path, clusterSize, clusterCount)) {
+            // 0 size
+            try {
+                ffs.allocateClusters(-1, 0);
+                throw new Error("Zero allocation available!");
+            } catch (IOException fe) {
+                //OK
+            }
+
+            // 1 size
+            int zeroCluster = ffs.allocateClusters(-1, 1);
+            if (zeroCluster != 0)
+                throw new Error("Bad allocation for root folder!");
+
+            // full size fail
+            try {
+                ffs.allocateClusters(-1, clusterCount);
+                throw new Error("Double use available!");
+            } catch (IOException fe) {
+                //OK
+            }
+
+            // full size-1 - re-alloc!
+            int firstCluster = ffs.allocateClusters(zeroCluster, clusterCount-1);
+            if (firstCluster != 1)
+                throw new Error("Bad re-allocation for root folder!");
+
+            ffs.freeClusters(zeroCluster, true);
+
+            // full size fail success
+            ffs.allocateClusters(-1, clusterCount);
+        }
+        tearDown(path);
+    }
+    
+    @Test
+    public void testCriticalFatAllocation() throws IOException {
+        int[] clusterCounts = new int[] {
+                16, 32,
+                //(int)(0x80000000L/FolderEntry.RECORD_SIZE)
+        };
+        for (int clusterCount : clusterCounts) {
+            Log("testCriticalFatAllocation FS Size " + clusterCount + ":");
+            testCriticalFatAllocation(fs.getPath("testCriticalFatAllocation.fs"),
+                FolderEntry.RECORD_SIZE,
+                clusterCount);
+            LogLN("OK");
+        }
+    }
+
+    /**
+     * Test of FS Concurrent Fragmentation.
+     */
     //@Test
     static public void testConcurrentFragmentation(Path path, int clusterSize, int clusterCount) throws IOException {
         startUp(path);
@@ -164,8 +201,26 @@ public class FATSystemTests {
         }
         tearDown(path);
     }
+    
+    @Test
+    public void testConcurrentFragmentation() throws IOException {
+        // size must be > 30
+        int[] clusterCounts = new int[] {
+                31, 1024, 4096
+        };
+        for (int clusterCount : clusterCounts) {
+            Log("testConcurrentFragmentation FS Size " + clusterCount + ":");
+            testConcurrentFragmentation(fs.getPath("testConcurrentFragmentation.fs"),
+                    FolderEntry.RECORD_SIZE,
+                    clusterCount);
 
-    //@Test
+            LogLN("OK");
+        }
+    }
+
+    /**
+     * Test of FS Concurrent Safe Close.
+     */
     static public void testConcurrentSafeClose(Path path, int clusterSize, int clusterCount) throws IOException {
         startUp(path);
 
@@ -224,8 +279,20 @@ public class FATSystemTests {
 
         tearDown(path);
     }
+    
+    @Test
+    public void testConcurrentSafeClose() throws IOException {
+        int clusterCount = 16;// > 12
+        Log("testConcurrentSafeClose FS Size " + clusterCount + ":");
+        testConcurrentSafeClose(fs.getPath("testConcurrentFragmentation.fs"),
+                FolderEntry.RECORD_SIZE,
+                clusterCount);
+        LogLN("OK");
+    }
 
-    //@Test
+    /**
+     * Test of FS Concurrent Safe Close.
+     */
     static public void testOpen(Path path) throws IOException {
         startUp(path);
         int clusterCount = 4;
@@ -255,54 +322,11 @@ public class FATSystemTests {
 
         tearDown(path);
     }
-
-    //@Test
-    static public void testCriticalFatAllocation(Path path, int clusterSize, int clusterCount) throws IOException {
-        startUp(path);
-        try (FATSystem ffs  = FATSystem.create(path, clusterSize, clusterCount)) {
-            // 0 size
-            try {
-                ffs.allocateClusters(-1, 0);
-                throw new Error("Zero allocation available!");
-            } catch (IOException fe) {
-                //OK
-            }
-
-            // 1 size
-            int zeroCluster = ffs.allocateClusters(-1, 1);
-            if (zeroCluster != 0)
-                throw new Error("Bad allocation for root folder!");
-
-            // full size fail
-            try {
-                ffs.allocateClusters(-1, clusterCount);
-                throw new Error("Double use available!");
-            } catch (IOException fe) {
-                //OK
-            }
-
-            // full size-1 - re-alloc!
-            int firstCluster = ffs.allocateClusters(zeroCluster, clusterCount-1);
-            if (firstCluster != 1)
-                throw new Error("Bad re-allocation for root folder!");
-
-            ffs.freeClusters(zeroCluster, true);
-
-            // full size fail success
-            ffs.allocateClusters(-1, clusterCount);
-        }
-        tearDown(path);
+    
+    @Test
+    public void testOpen() throws IOException {            
+        Log("testOpen:");        
+        testOpen(fs.getPath("testOpen.fs"));
+        LogLN("OK");        
     }
-
-    //@Test
-    static public void testCreate(Path path, int clusterSize, int clusterCount) throws IOException {
-        startUp(path);
-        try (FATSystem ffs  = FATSystem.create(path, clusterSize, clusterCount)) {
-            if (ffs.getSize() != clusterSize*clusterCount)
-                throw new Error("Wrong storage size!");
-        }
-        tearDown(path);
-    }
-
-
 }

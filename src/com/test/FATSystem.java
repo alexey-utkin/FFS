@@ -464,20 +464,26 @@ class FATSystem implements Closeable {
      * @return the number of bytes that were written
      */
     int writeChannel(Integer startCluster, Long pos, ByteBuffer src) throws IOException {
-        int wasWritten = 0;
+        int wasWritten;
         synchronized (lockFAT) {
             checkCanWrite();
             int nextToPos = (int)(pos/clusterSize);
             startCluster = getShift(startCluster, nextToPos);
             pos = pos - nextToPos*clusterSize;
-            long startPos = startCluster*clusterSize + pos;
+
+            long startPos = dataOffset + startCluster*clusterSize + pos;
+
             synchronized (lockData) {
                 int limit = src.limit();
                 long sizeToWrite = limit - src.position();
                 int restOfCluster = (int)(clusterSize - pos);
-                src.limit(restOfCluster);
-                wasWritten = fileChannel.write(src, dataOffset + startPos);
-                src.limit(limit);
+                if (restOfCluster > limit) {
+                    wasWritten = fileChannel.write(src, startPos);
+                } else {
+                    src.limit(restOfCluster);
+                    wasWritten = fileChannel.write(src, startPos);
+                    src.limit(limit);
+                }
             }
         }
         return wasWritten;

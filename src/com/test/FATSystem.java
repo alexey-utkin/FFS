@@ -460,7 +460,7 @@ class FATSystem implements Closeable {
      *
      * @param startCluster the head of chain
      * @param pos the byte offset in chain
-     * @param src the source of bytes to copy
+     * @param src the source of bytes
      * @return the number of bytes that were written
      */
     int writeChannel(Integer startCluster, Long pos, ByteBuffer src) throws IOException {
@@ -469,7 +469,7 @@ class FATSystem implements Closeable {
             checkCanWrite();
             int nextToPos = (int)(pos/clusterSize);
             startCluster = getShift(startCluster, nextToPos);
-            pos = pos - nextToPos*clusterSize;
+            pos -= nextToPos*clusterSize;
 
             long startPos = dataOffset + startCluster*clusterSize + pos;
 
@@ -489,6 +489,42 @@ class FATSystem implements Closeable {
         return wasWritten;
     }
 
+    /**
+     * Reads from [fileChannel] along the chain.
+     *
+     * [startCluster] and [pos] passed by reference for hinting.
+     *
+     * @param startCluster the head of chain
+     * @param pos the byte offset in chain
+     * @param dst the destination of bytes
+     * @return the number of bytes that were read
+     * @throws IOException
+     */
+    public int readChannel(Integer startCluster, Long pos, ByteBuffer dst) throws IOException {
+        int wasRead;
+        synchronized (lockFAT) {
+            checkCanRead();
+            int nextToPos = (int)(pos/clusterSize);
+            startCluster = getShift(startCluster, nextToPos);
+            pos -= nextToPos*clusterSize;
+
+            long startPos = dataOffset + startCluster*clusterSize + pos;
+
+            synchronized (lockData) {
+                int limit = dst.limit();
+                long sizeToRead = limit - dst.position();
+                int restOfCluster = (int)(clusterSize - pos);
+                if (restOfCluster > limit) {
+                    wasRead = fileChannel.read(dst, startPos);
+                } else {
+                    dst.limit(restOfCluster);
+                    wasRead = fileChannel.read(dst, startPos);
+                    dst.limit(limit);
+                }
+            }
+        }
+        return wasRead;
+    }
 
     /**
      * Log the problem to error stream.

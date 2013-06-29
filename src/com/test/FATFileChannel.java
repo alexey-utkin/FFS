@@ -31,7 +31,13 @@ public class FATFileChannel implements Closeable {
      * java.nio.channels.ReadableByteChannel} interface. </p>
      */
     public int read(ByteBuffer dst) throws IOException {
-        return 0;  //To change body of implemented methods use File | Settings | File Templates.
+        synchronized (fatFile.getLockContent()) {
+            if (position >= fatFile.length())
+                return -1;
+            int wasRead = fatFile.fs.readFileContext(fatFile, position, dst);
+            position += wasRead;
+            return wasRead;
+        }
     }
 
     /**

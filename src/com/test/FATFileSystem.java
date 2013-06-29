@@ -163,7 +163,7 @@ public class FATFileSystem implements Closeable {
         fat.adjustClusterChain(fatFile.fileId, newLength, newLength);
     }
 
-    public int writeFileContext(FATFile fatFile, long position,
+    int writeFileContext(FATFile fatFile, long position,
                                 ByteBuffer src) throws IOException {
         int wasWritten = 0;
         Integer startCluster = fatFile.fileId;
@@ -172,6 +172,23 @@ public class FATFileSystem implements Closeable {
             wasWritten += fat.writeChannel(startCluster, pos, src);
         }
         return wasWritten;
+    }
+
+    int readFileContext(FATFile fatFile, long position,
+                        ByteBuffer dst) throws IOException {
+        int wasRead = 0;
+        Integer startCluster = fatFile.fileId;
+        Long pos = position;
+        while (dst.hasRemaining()) {
+            int read = fat.readChannel(startCluster, pos, dst);
+            if (read < 0) {
+                if (wasRead == 0)
+                    return -1;
+                break;
+            }
+            wasRead += read;
+        }
+        return wasRead;
     }
 
     /**

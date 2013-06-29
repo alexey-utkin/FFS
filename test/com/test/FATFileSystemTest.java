@@ -26,7 +26,7 @@ public class FATFileSystemTest  extends FATBaseTest {
     @Test
     public void testFileCreate() throws IOException {
         final int[] clusterSizes = new int[] {
-            FolderEntry.RECORD_SIZE,
+            FATFile.RECORD_SIZE,
             4096
         };
         int clusterCount = 2;

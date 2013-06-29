@@ -48,7 +48,7 @@ class FATSystem implements Closeable {
     private boolean opened = true; //allocate opened storage, check status in fabric
     private FATClusterAllocator clusterAllocator;
 
-    // lockFAT - lockData rule!
+    // lockFAT -> lockData lock sequence
     private final Object lockFAT = new Object();
     private final Object lockData = new Object();
     private final boolean normalMode;
@@ -140,7 +140,7 @@ class FATSystem implements Closeable {
     /**
      * Creates new FAT file system.
      * @param path is the path in host FS for file storage that need be created
-     * @param clusterSize  the size of single cluster. Mast be at least [FolderEntry.RECORD_SIZE] size
+     * @param clusterSize  the size of single cluster. Mast be at least [FATFile.RECORD_SIZE] size
      * @param clusterCount the total number of clusters in created file storage.
      * @param allocatorType the cluster allocation strategy
      * @return new In-file FS over the file that created in host FS.
@@ -148,7 +148,7 @@ class FATSystem implements Closeable {
      */
     public static FATSystem create(Path path, int clusterSize,int clusterCount,
                                    int allocatorType) throws IOException {
-        if (clusterSize < FolderEntry.RECORD_SIZE)
+        if (clusterSize < FATFile.RECORD_SIZE)
             throw new IOException("Bad value of cluster size:" + clusterSize);
 
         // max storage size for 4k cluster: CLUSTER_INDEX*4096 = 3FF FFFF F000
@@ -525,7 +525,7 @@ class FATSystem implements Closeable {
     }
 
     private void initDenormalized() {
-        entryPerCluster = clusterSize/FolderEntry.RECORD_SIZE;
+        entryPerCluster = clusterSize/FATFile.RECORD_SIZE;
         fatOffset = HEADER_SIZE; //version dependant
         dataOffset = fatOffset + clusterCount*FAT_E_SIZE;
     }

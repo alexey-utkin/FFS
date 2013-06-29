@@ -31,9 +31,9 @@ public class FATSystemTest extends  FATBaseTest {
     public void testCreate() throws IOException {
         final int[] clusterCounts = new int[] {
                 16, 32, 2
-                //(int)(0x800000000L/FolderEntry.RECORD_SIZE)
+                //(int)(0x800000000L/FATFile.RECORD_SIZE)
         };
-        int clusterSize = FolderEntry.RECORD_SIZE;
+        int clusterSize = FATFile.RECORD_SIZE;
         for (int allocatorType : allocatorTypes) {
             for (int clusterCount : clusterCounts) {
                 logStart(getPath(), clusterSize, clusterCount, allocatorType);
@@ -89,9 +89,9 @@ public class FATSystemTest extends  FATBaseTest {
     public void testCriticalFatAllocation() throws IOException {
         int[] clusterCounts = new int[] {
                 16, 32,
-                //(int)(0x80000000L/FolderEntry.RECORD_SIZE)
+                //(int)(0x80000000L/FATFile.RECORD_SIZE)
         };
-        int clusterSize = FolderEntry.RECORD_SIZE;
+        int clusterSize = FATFile.RECORD_SIZE;
         for (int allocatorType : allocatorTypes) {
             for (int clusterCount : clusterCounts) {
                 logStart(getPath(), clusterSize, clusterCount, allocatorType);
@@ -174,7 +174,7 @@ public class FATSystemTest extends  FATBaseTest {
         int[] clusterCounts = new int[] {
                 31, 1024, 4096
         };
-        int clusterSize = FolderEntry.RECORD_SIZE;
+        int clusterSize = FATFile.RECORD_SIZE;
         for (int allocatorType : allocatorTypes) {
             for (int clusterCount : clusterCounts) {
                 logStart(getPath(), clusterSize, clusterCount, allocatorType);
@@ -251,7 +251,7 @@ public class FATSystemTest extends  FATBaseTest {
     @Test
     public void testConcurrentSafeClose() throws IOException {
         int clusterCount = 16;// > 12
-        int clusterSize = FolderEntry.RECORD_SIZE;
+        int clusterSize = FATFile.RECORD_SIZE;
         for (int allocatorType : allocatorTypes) {
             logStart(getPath(), clusterSize, clusterCount, allocatorType);
             testConcurrentSafeClose(getPath(),
@@ -273,10 +273,10 @@ public class FATSystemTest extends  FATBaseTest {
 
         final FATSystem ffs2  = FATSystem.open(path, true);
 
-        if (ffs2.getSize() != clusterCount*FolderEntry.RECORD_SIZE)
+        if (ffs2.getSize() != clusterCount*FATFile.RECORD_SIZE)
             throw new Error("Wrong storage size!");
 
-        if (ffs2.getFreeSize() != clusterCount*FolderEntry.RECORD_SIZE/2)
+        if (ffs2.getFreeSize() != clusterCount*FATFile.RECORD_SIZE/2)
             throw new Error("Wrong storage free size!");
 
         //test join, test sequential allocation on free disk
@@ -285,7 +285,7 @@ public class FATSystemTest extends  FATBaseTest {
             throw new Error("Wrong storage state: FAT alloc!");
 
         ffs2.freeClusters(first, true);
-        if (ffs2.getFreeSize() != clusterCount*FolderEntry.RECORD_SIZE)
+        if (ffs2.getFreeSize() != clusterCount*FATFile.RECORD_SIZE)
             throw new Error("Wrong storage state: FAT join!");
 
         ffs2.close();
@@ -296,7 +296,7 @@ public class FATSystemTest extends  FATBaseTest {
     @Test
     public void testOpen() throws IOException {
         int clusterCount = 16;// > 12
-        int clusterSize = FolderEntry.RECORD_SIZE;
+        int clusterSize = FATFile.RECORD_SIZE;
         for (int allocatorType : allocatorTypes) {
             logStart(getPath(), clusterSize, clusterCount, allocatorType);
             testOpen(getPath(), clusterSize, clusterCount, allocatorType);

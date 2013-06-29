@@ -10,21 +10,34 @@ import java.util.Arrays;
  */
 public class FATFile {
     public static final int INVALID_FILE_ID = -1;
-    public static final int FILE_MAX_NAME = 127;
+    public static final int FILE_MAX_NAME = 110;
 
     public static final int TYPE_FILE = 0;
     public static final int TYPE_FOLDER = 1;
+    public static final int TYPE_DELETED = -1;
+
+    static final FATFile DELETED_FILE = new FATFile();
 
     final FATFileSystem fs;
 
-    public static final int RECORD_SIZE = 3*4 + 3*8 + FILE_MAX_NAME*2;
-    int  fileID;
-    int  type;
+    //lockAttribute ->lockContent lock sequence
+    private final Object lockAttribute = new Object();
+    private final Object lockContent = new Object();
+
+
+    public static final int RECORD_SIZE = 3*4 + 3*8 + FILE_MAX_NAME*2;  //256 bytes
+    // attributes
+    final int type;
+    int fileId;
     int  access;
     long size;
     long timeCreate;
     long timeModify;
     final char[] name = new char[FILE_MAX_NAME];
+
+    // properties
+    private int parentId = INVALID_FILE_ID;
+
 
     void initName(String _name) throws IOException {
         int len = _name.length();
@@ -34,14 +47,33 @@ public class FATFile {
         System.arraycopy(_name.toCharArray(), 0, name, 0, len);
     }
 
-    protected FATFile(FATFileSystem _fat, int _type, long _size, int _access) throws IOException {
-        fs = _fat;
+    /**
+     * For deleted instance only!
+     */
+    protected FATFile() {
+        fs = null;
+        type = TYPE_DELETED;
+    }
+
+    /**
+     * Creates File in FAT with allocated space.
+     *
+     * Could not be called directly, use [fs.createFile] instead.
+     *
+     * @param _fs
+     * @param _type
+     * @param _size
+     * @param _access
+     * @throws IOException
+     */
+    FATFile(FATFileSystem _fs, int _type, long _size, int _access) throws IOException {
+        fs = _fs;
         size = _size;
         type = _type;
         access = _access;
         timeCreate = FATFileSystem.getCurrentTime();
         timeModify = FATFileSystem.getCurrentTime();
-        fileID = fs.allocateFileSpace(size);
+        fileId = fs.allocateFileSpace(size);
     }
 
     public FATFileChannel getChannel(boolean appendMode) {
@@ -49,12 +81,13 @@ public class FATFile {
     }
 
     public void delete() throws IOException {
+        //todo: folder case
         fs.deleteFile(this);
     }
 
     protected ByteBuffer serialize(ByteBuffer bf, int version) {
         bf
-            .putInt(fileID)
+            .putInt(fileId)
             .putLong(size)
             .putLong(timeCreate)
             .putLong(timeModify)
@@ -88,11 +121,62 @@ public class FATFile {
      *
      * @param newLength The desired length of the file
      */
-    public synchronized void setLength(long newLength) throws IOException {
-        if (newLength == size)
-            return;
-        fs.setFileLength(this, newLength);
-        size = newLength;
+    public void setLength(long newLength) throws IOException {
+        synchronized (lockAttribute) {
+            synchronized (lockContent) {
+                if (newLength == size)
+                    return;
+                fs.setFileLength(this, newLength);
+                size = newLength;
+                updateAttributes();
+            }
+        }
     }
 
+    /**
+     * Updates attribute info in parent record if any.
+     *
+     * Have to be called under [lockAttribute].
+     * @throws IOException
+     */
+    private void updateAttributes() throws IOException {
+        if (parentId != INVALID_FILE_ID) {
+            fs.getFolder(parentId).updateFileRecord(this);
+        }
+    }
+
+    public void moveTo(FATFolder newParent) throws IOException {
+        synchronized (lockAttribute) {
+            //redirect any file attribute change (ex. size) to new parent
+            int oldParentId = parentId;
+            parentId = newParent.getFolderId();
+            boolean success = false;
+            try {
+                newParent.ref(this);
+                success = true;
+            } finally {
+                if (!success) {
+                    parentId = oldParentId;
+                } else if (oldParentId != INVALID_FILE_ID) {
+                    fs.getFolder(oldParentId).deRef(this);
+                }
+            }
+        }
+    }
+
+    int getFileId() {
+        return fileId;
+    }
+
+    public boolean isFolder() {
+        return type == TYPE_FOLDER;
+    }
+
+    Object getLockContent() {
+        return lockContent;
+    }
+
+    Object getLockAttribute() {
+        return lockAttribute;
+    }
 }

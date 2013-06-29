@@ -35,19 +35,6 @@ public class FATFileChannel implements Closeable {
     }
 
     /**
-     * Reads a sequence of bytes from this channel into a subsequence of the
-     * given buffers.
-     * <p/>
-     * <p> Bytes are read starting at this channel's current file position, and
-     * then the file position is updated with the number of bytes actually
-     * read.  Otherwise this method behaves exactly as specified in the {@link
-     * java.nio.channels.ScatteringByteChannel} interface.  </p>
-     */
-    public long read(ByteBuffer[] dsts, int offset, int length) throws IOException {
-        return 0;  //To change body of implemented methods use File | Settings | File Templates.
-    }
-
-    /**
      * Writes a sequence of bytes to this channel from the given buffer.
      * <p/>
      * <p> Bytes are written starting at this channel's current file position
@@ -64,13 +51,16 @@ public class FATFileChannel implements Closeable {
             return 0;
 
         int wasWritten = 0;
-        synchronized (fatFile) {
-            long finalPos = position + sizeToWrite;
-            if (finalPos > fatFile.length())
-                fatFile.setLength(finalPos);
+        //Lock Attribute due to file size change
+        synchronized (fatFile.getLockAttribute()) {
+            synchronized (fatFile.getLockContent()) {
+                long finalPos = position + sizeToWrite;
+                if (finalPos > fatFile.length())
+                    fatFile.setLength(finalPos);
 
-            wasWritten = fatFile.fs.writeFileContext(fatFile, position, src);
-            position += wasWritten;
+                wasWritten = fatFile.fs.writeFileContext(fatFile, position, src);
+                position += wasWritten;
+            }
         }
         return wasWritten;
     }
@@ -109,8 +99,7 @@ public class FATFileChannel implements Closeable {
     public FATFileChannel position(long newPosition) throws IOException {
         if (newPosition < 0)
             throw new IOException("Bad new position.");
-
-        synchronized (fatFile) {
+        synchronized (fatFile.getLockContent()) {
             position = newPosition;
         }
         return this;
@@ -260,7 +249,13 @@ public class FATFileChannel implements Closeable {
      * @throws java.io.IOException      If some other I/O error occurs
      */
     public int write(ByteBuffer src, long position) throws IOException {
-        return 0;  //To change body of implemented methods use File | Settings | File Templates.
+        // Lock Attribute due to file size change
+        synchronized (fatFile.getLockAttribute()) {
+            synchronized (fatFile.getLockContent()) {
+                position(position);
+                return write(src);
+            }
+        }
     }
 
 

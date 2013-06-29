@@ -87,6 +87,7 @@ public class FATFileSystem implements Closeable {
         boolean success = false;
         try {
             ret.fat = FATSystem.open(path, normalMode);
+            ret.root = FATFolder.openRoot(ret);
             success = true;
         } finally {
             if (!success)
@@ -174,21 +175,68 @@ public class FATFileSystem implements Closeable {
     }
 
     /**
-     * Creates a file that has no connection with folder.
+     * Creates new file.
+     * Returns file has no connection with folder.
      *
-     * @param type
-     * @param size
-     * @param access
-     * @return
+     * @param type FATFile.TYPE_XXXX const
+     * @param size the space for allocation
+     * @param access desired access to file
+     * @return created file
      * @throws IOException
      */
-    FATFile createFile(int type, int size, int access) throws IOException {
+    FATFile createFile(int type, long size, int access) throws IOException {
         synchronized (fileLock) {
+            // create new
             FATFile ret = new FATFile(this, type, size, access);
             fileCache.put(ret.getFileId(), ret);
             return ret;
         }
     }
+
+    /**
+     * Opens root folder file or file for maintenance.
+     * Returns file has no connection with folder.
+     *
+     * @param type   FATFile.TYPE_XXXX const
+     * @param fileId real file id (the index of chain start)
+     * @return opened file
+     * @throws IOException
+     */
+    FATFile openFile(int type, int fileId) throws IOException {
+        synchronized (fileLock) {
+            // open existent
+            int fatEntry = fat.getFatEntry(fileId);
+            if ((fatEntry & FATClusterAllocator.CLUSTER_ALLOCATED) == 0)
+                throw new IOException("Invalid file id.");
+
+            FATFile ret = new FATFile(this, type, fileId);
+            fileCache.put(ret.getFileId(), ret);
+            return ret;
+        }
+    }
+
+    /**
+     * Opens file from folder record.
+     * Returns file that has no connection with folder.
+     *
+     * @param bf the storage of attributes
+     * @return opened file
+     * @throws IOException
+     */
+    FATFile openFile(ByteBuffer bf) throws IOException {
+        synchronized (fileLock) {
+            // open existent if can
+            int fileId = bf.getInt();
+            FATFile ret =  fileCache.get(fileId);
+            if (ret == null) {
+                ret = new FATFile(this, fileId, bf);
+                fileCache.put(ret.getFileId(), ret);
+            }
+            return ret;
+        }
+    }
+
+
 
     /**
      * Restores folder from [fileId] or gets it from cache.

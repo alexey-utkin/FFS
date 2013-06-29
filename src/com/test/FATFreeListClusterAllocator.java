@@ -12,7 +12,7 @@ import java.io.IOException;
  * Bad   point: reverse index sequence in chain.
  * Good  point: O(count)
  *
- * Improvements (todo): start release clusters from tail.
+ * Improvements start release clusters from tail.
  */
 
 public class FATFreeListClusterAllocator implements FATClusterAllocator {

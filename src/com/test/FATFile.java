@@ -11,12 +11,13 @@ import java.util.Arrays;
 public class FATFile {
     public static final int INVALID_FILE_ID = -1;
     public static final int FILE_MAX_NAME = 110;
+    public static final char ZAP_CHAR = 0xCDCD;
 
     public static final int TYPE_FILE = 0;
     public static final int TYPE_FOLDER = 1;
     public static final int TYPE_DELETED = -1;
 
-    static final FATFile DELETED_FILE = new FATFile();
+    static final FATFile DELETED_FILE = new FATFile(null, TYPE_DELETED, INVALID_FILE_ID);
 
     final FATFileSystem fs;
 
@@ -43,16 +44,17 @@ public class FATFile {
         int len = _name.length();
         if (len > FILE_MAX_NAME)
                 throw new IOException("Name is too long:" + _name);
-        Arrays.fill(name, (char)0xCDCD);
+        Arrays.fill(name, ZAP_CHAR);
         System.arraycopy(_name.toCharArray(), 0, name, 0, len);
     }
 
     /**
-     * For deleted instance only!
+     * Opens file from id
      */
-    protected FATFile() {
-        fs = null;
-        type = TYPE_DELETED;
+    FATFile(FATFileSystem _fs, int _type, int _fileId) {
+        fs = _fs;
+        type = _type;
+        fileId = _fileId;
     }
 
     /**
@@ -68,13 +70,27 @@ public class FATFile {
      */
     FATFile(FATFileSystem _fs, int _type, long _size, int _access) throws IOException {
         fs = _fs;
+        fileId = fs.allocateFileSpace(size);
         size = _size;
-        type = _type;
-        access = _access;
         timeCreate = FATFileSystem.getCurrentTime();
         timeModify = FATFileSystem.getCurrentTime();
-        fileId = fs.allocateFileSpace(size);
+        access = _access;
+        type = _type;
     }
+
+    FATFile(FATFileSystem _fs, int _fileId, ByteBuffer bf) {
+        //int version = _fs.getVersion();
+        fs = _fs;
+        fileId = _fileId;
+        size = bf.getLong();
+        timeCreate = bf.getLong();
+        timeModify = bf.getLong();
+        access = bf.getInt();
+        type = bf.getInt();
+        // only UNICODE name for performance and compatibility reasons
+        bf.asCharBuffer().get(name);
+    }
+
 
     public FATFileChannel getChannel(boolean appendMode) {
         return new FATFileChannel(this, appendMode);
@@ -85,7 +101,7 @@ public class FATFile {
         fs.deleteFile(this);
     }
 
-    protected ByteBuffer serialize(ByteBuffer bf, int version) {
+    ByteBuffer serialize(ByteBuffer bf, int version) {
         bf
             .putInt(fileId)
             .putLong(size)
@@ -98,6 +114,7 @@ public class FATFile {
         bf.position(bf.position() + name.length*2);
         return bf;
     }
+
 
     void force(boolean updateMetadata) throws IOException {
         if (updateMetadata)
@@ -178,5 +195,13 @@ public class FATFile {
 
     Object getLockAttribute() {
         return lockAttribute;
+    }
+
+    public String toString() {
+        String ret = new String(name);
+        int zeroPos = ret.indexOf(ZAP_CHAR);
+        return (zeroPos == -1)
+                ? ret
+                : ret.substring(0, zeroPos);
     }
 }

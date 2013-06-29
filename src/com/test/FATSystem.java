@@ -415,7 +415,7 @@ class FATSystem implements Closeable {
         while (nextCount > 0) {
             int fatEntry = getFatEntry(startCluster);
             // CLUSTER_ALLOCATED only
-            if ((fatEntry & FATClusterAllocator.CLUSTER_STATUS) == FATClusterAllocator.CLUSTER_ALLOCATED) {
+            if ((fatEntry & FATClusterAllocator.CLUSTER_ALLOCATED) == FATClusterAllocator.CLUSTER_ALLOCATED) {
                 startCluster = fatEntry & FATClusterAllocator.CLUSTER_INDEX;
             } else {
                 setDirtyStatus("Cluster chain is broken. Cluster#:" + startCluster

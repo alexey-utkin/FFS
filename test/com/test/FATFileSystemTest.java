@@ -3,6 +3,7 @@ package com.test;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Path;
 
 /**
@@ -47,11 +48,25 @@ public class FATFileSystemTest  extends FATBaseTest {
         startUp(path);
 
         final FATFileSystem ffs1  = FATFileSystem.create(path, clusterSize, clusterCount, allocatorType);
+        FATFolder root1 = ffs1.getRoot();
+        root1.createSubfolder("Test1");
+        root1.createSubfolder("Test2");
+        root1.createSubfolder("Test3");
+
+        boolean fileAlreadyExistsException = false;
+        try {
+            root1.createSubfolder("Test2");
+        } catch (FileAlreadyExistsException ex) {
+            fileAlreadyExistsException = true;
+        }
+        if (!fileAlreadyExistsException)
+            throw new Error("Can create duplicates.");
+
         ffs1.close();
 
         final FATFileSystem ffs2  = FATFileSystem.open(path);
-        FATFolder root = ffs2.getRoot();
-        if (root.childFiles.isEmpty())
+        FATFolder root2 = ffs2.getRoot();
+        if (root2.childFiles.isEmpty())
             throw new Error("Bad root.");
         ffs2.close();
 

@@ -2,6 +2,7 @@ package com.test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.file.FileAlreadyExistsException;
 import java.util.ArrayList;
 
 /**
@@ -17,7 +18,7 @@ public class FATFolder {
     final FATFile fatFile;
 
     //PERFORMANCE HINT POINT
-    //use different collections for main operations
+    //use collections adapted for critical operations
     final ArrayList<FATFile> childFiles = new ArrayList<>();
 
 
@@ -48,7 +49,7 @@ public class FATFolder {
         if (rootFile.getFileId() != ROOT_FILE_ID)
             new IOException("Root already exists.");
 
-        rootFile.initName(ROOT_NAME);
+        rootFile.setName(ROOT_NAME);
         // self store
         FATFolder ret = fs.getFolder(rootFile.getFileId());
         rootFile.moveTo(ret);
@@ -72,6 +73,39 @@ public class FATFolder {
             || !ROOT_NAME.equals(ret.childFiles.get(0).toString()))
             throw new IOException("Root folder is damaged!");
         return ret;
+    }
+
+    public void  createSubfolder(String folderName) throws IOException {
+        FATFile subfolder = findFolder(folderName);
+        if (subfolder != null)
+            throw new FileAlreadyExistsException(folderName);
+
+        synchronized (fatFile.fs.getTreeLock()) {
+            subfolder = fatFile.fs.createFile(FATFile.TYPE_FOLDER, EMPTY_FILE_SIZE, fatFile.access);
+            subfolder.setName(folderName);
+            subfolder.moveTo(this);
+        }
+    }
+
+    /***
+     * Finds the file with selected name in folder collection.
+     *
+     * FUNCTIONAL HINT POINT: [folderName] as regexp
+     * FUNCTIONAL HINT POINT: Hash map collection for fast Unique test.
+     *
+     * @param folderName the exact name to find, case sensitive.
+     * @return the found file or [null].
+     */
+    public FATFile findFolder(String folderName) {
+        if (folderName == null)
+            return null;
+        synchronized (fatFile.getLockContent()) {
+            for (FATFile file : childFiles) {
+                if (folderName.equals(file.toString()))
+                    return file;
+            }
+        }
+        return null;
     }
 
     private void readContent() throws IOException {

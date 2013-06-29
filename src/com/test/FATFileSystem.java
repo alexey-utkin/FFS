@@ -111,8 +111,12 @@ public class FATFileSystem implements Closeable {
      */
     @Override
     public void close() throws IOException {
-        if (fat != null)
-            fat.close();
+        synchronized (treeLock) {
+            synchronized (fileLock) {
+                if (fat != null)
+                    fat.close();
+            }
+        }
     }
 
     /**
@@ -287,5 +291,9 @@ public class FATFileSystem implements Closeable {
 
     public FATFolder getRoot() {
         return root;
+    }
+
+    public Object getTreeLock() {
+        return treeLock;
     }
 }

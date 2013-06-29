@@ -39,15 +39,6 @@ public class FATFile {
     // properties
     private int parentId = INVALID_FILE_ID;
 
-
-    void initName(String _name) throws IOException {
-        int len = _name.length();
-        if (len > FILE_MAX_NAME)
-                throw new IOException("Name is too long:" + _name);
-        Arrays.fill(name, ZAP_CHAR);
-        System.arraycopy(_name.toCharArray(), 0, name, 0, len);
-    }
-
     /**
      * Opens file from id
      */
@@ -201,5 +192,15 @@ public class FATFile {
         return (zeroPos == -1)
                 ? ret
                 : ret.substring(0, zeroPos);
+    }
+
+    public void setName(String fileName) {
+        int len = fileName.length();
+        if (len > FILE_MAX_NAME)
+            throw new IllegalArgumentException("Name is too long. Max length is " + FILE_MAX_NAME);
+        synchronized (lockAttribute) {
+            Arrays.fill(name, ZAP_CHAR);
+            System.arraycopy(fileName.toCharArray(), 0, name, 0, len);
+        }
     }
 }

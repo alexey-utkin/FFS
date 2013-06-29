@@ -211,22 +211,22 @@ public class FATFileSystem implements Closeable {
     }
 
     /**
-     * Opens root folder file or file for maintenance.
-     * Returns file has no connection with folder.
+     * Opens folder file.
      *
      * @param type   FATFile.TYPE_XXXX const
      * @param fileId real file id (the index of chain start)
+     * @param parentId owner folder id
      * @return opened file
      * @throws IOException
      */
-    FATFile openFile(int type, int fileId) throws IOException {
+    FATFile openFile(int type, int fileId, int parentId) throws IOException {
         synchronized (fileLock) {
             // open existent
             int fatEntry = fat.getFatEntry(fileId);
             if ((fatEntry & FATClusterAllocator.CLUSTER_ALLOCATED) == 0)
                 throw new IOException("Invalid file id.");
 
-            FATFile ret = new FATFile(this, type, fileId);
+            FATFile ret = new FATFile(this, type, fileId, parentId);
             fileCache.put(ret.getFileId(), ret);
             return ret;
         }
@@ -240,15 +240,16 @@ public class FATFileSystem implements Closeable {
      * @return opened file
      * @throws IOException
      */
-    FATFile openFile(ByteBuffer bf) throws IOException {
+    FATFile openFile(ByteBuffer bf, int parentId) throws IOException {
         synchronized (fileLock) {
             // open existent if can
             int fileId = bf.getInt();
+            int type = bf.getInt();
             FATFile ret =  fileCache.get(fileId);
             if (ret == null) {
-                ret = new FATFile(this, fileId, bf);
-                fileCache.put(ret.getFileId(), ret);
-            }
+                ret =  openFile(type, fileId, parentId);
+            } // else check the type?
+            ret.initFromBuffer(bf);
             return ret;
         }
     }
@@ -284,4 +285,7 @@ public class FATFileSystem implements Closeable {
         }
     }
 
+    public FATFolder getRoot() {
+        return root;
+    }
 }

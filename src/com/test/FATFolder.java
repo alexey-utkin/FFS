@@ -9,7 +9,7 @@ import java.util.ArrayList;
  * User: uta
  */
 
-class FATFolder {
+public class FATFolder {
     private static final String ROOT_NAME = "<root>";
     //to check long in call params
     private static final long EMPTY_FILE_SIZE = 0L;
@@ -44,6 +44,7 @@ class FATFolder {
     static FATFolder createRoot(FATFileSystem fs, int access) throws IOException {
         // exclusive access to [ret]
         FATFile rootFile = fs.createFile(FATFile.TYPE_FOLDER, EMPTY_FILE_SIZE, access);
+        rootFile.size = FATFile.RECORD_SIZE;// have to be at least one record length
         if (rootFile.getFileId() != ROOT_FILE_ID)
             new IOException("Root already exists.");
 
@@ -62,9 +63,10 @@ class FATFolder {
      * @throws IOException
      */
     static FATFolder openRoot(FATFileSystem fs) throws IOException {
-        FATFile rootFile = fs.openFile(FATFile.TYPE_FOLDER, ROOT_FILE_ID);
+        FATFile rootFile = fs.openFile(FATFile.TYPE_FOLDER, ROOT_FILE_ID, ROOT_FILE_ID);
         // exclusive access to [ret]
         FATFolder ret = fs.getFolder(rootFile.getFileId());
+        rootFile.size = FATFile.RECORD_SIZE;// have to be at least one record length
         ret.readContent();
         if (ret.childFiles.isEmpty()
             || !ROOT_NAME.equals(ret.childFiles.get(0).toString()))
@@ -76,14 +78,14 @@ class FATFolder {
         synchronized (fatFile.getLockContent()) {
             try (FATFileChannel folderContent = fatFile.getChannel(false)) {
                 ByteBuffer bf = fatFile.fs.allocateBuffer(FATFile.RECORD_SIZE);
-                long folderStorageSize = fatFile.length();
-                while (folderContent.position() < folderStorageSize) {
+                // for the root folder the [fatFile.size] will updated at fist read to actual value.
+                while (folderContent.position() < fatFile.length()) {
                     folderContent.read(bf);
                     bf.flip();
-                    childFiles.add(fatFile.fs.openFile(bf));
+                    childFiles.add(fatFile.fs.openFile(bf, getFolderId()));
                     bf.position(0);
                 }
-                if (folderContent.position() != folderStorageSize)
+                if (folderContent.position() != fatFile.length())
                     throw new IOException("Folder is damaged!");
             }
         }

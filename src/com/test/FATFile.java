@@ -17,7 +17,7 @@ public class FATFile {
     public static final int TYPE_FOLDER = 1;
     public static final int TYPE_DELETED = -1;
 
-    static final FATFile DELETED_FILE = new FATFile(null, TYPE_DELETED, INVALID_FILE_ID);
+    static final FATFile DELETED_FILE = new FATFile(null, TYPE_DELETED, INVALID_FILE_ID, INVALID_FILE_ID);
 
     final FATFileSystem fs;
 
@@ -51,10 +51,11 @@ public class FATFile {
     /**
      * Opens file from id
      */
-    FATFile(FATFileSystem _fs, int _type, int _fileId) {
+    FATFile(FATFileSystem _fs, int _type, int _fileId, int _parentId) {
         fs = _fs;
         type = _type;
         fileId = _fileId;
+        parentId = _parentId;
     }
 
     /**
@@ -71,22 +72,19 @@ public class FATFile {
     FATFile(FATFileSystem _fs, int _type, long _size, int _access) throws IOException {
         fs = _fs;
         fileId = fs.allocateFileSpace(size);
+        type = _type;
         size = _size;
         timeCreate = FATFileSystem.getCurrentTime();
         timeModify = FATFileSystem.getCurrentTime();
         access = _access;
-        type = _type;
     }
 
-    FATFile(FATFileSystem _fs, int _fileId, ByteBuffer bf) {
-        //int version = _fs.getVersion();
-        fs = _fs;
-        fileId = _fileId;
+    public void initFromBuffer(ByteBuffer bf) {
+        // [fileId] and [type] was read before for [ctr] call
         size = bf.getLong();
         timeCreate = bf.getLong();
         timeModify = bf.getLong();
         access = bf.getInt();
-        type = bf.getInt();
         // only UNICODE name for performance and compatibility reasons
         bf.asCharBuffer().get(name);
     }
@@ -104,11 +102,11 @@ public class FATFile {
     ByteBuffer serialize(ByteBuffer bf, int version) {
         bf
             .putInt(fileId)
+            .putInt(type)
             .putLong(size)
             .putLong(timeCreate)
             .putLong(timeModify)
-            .putInt(access)
-            .putInt(type);
+            .putInt(access);
         // only UNICODE name for performance and compatibility reasons
         bf.asCharBuffer().put(name);
         bf.position(bf.position() + name.length*2);

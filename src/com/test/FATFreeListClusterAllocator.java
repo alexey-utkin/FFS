@@ -15,7 +15,7 @@ import java.io.IOException;
  * Improvements start release clusters from tail.
  */
 
-public class FATFreeListClusterAllocator implements FATClusterAllocator {
+class FATFreeListClusterAllocator implements FATClusterAllocator {
     final static int CLUSTER_FREE_EOC = 0xC8000000;
 
     private final FATSystem fs;

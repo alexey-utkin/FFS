@@ -2,48 +2,43 @@ package com.test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.FileSystemException;
 
 /**
  * Created with IntelliJ IDEA.
- * User: u
- * Date: 6/22/13
- * Time: 3:47 PM
- * To change this template use File | Settings | File Templates.
+ * User: uta
  */
-class Folder {
-    private final Object lockWrite = new Object();
-    private FolderEntry firstEntry;
 
-    protected Folder() {}
+class FATFolder extends FATFile {
 
-    Folder create(FATSystem fs, Folder parent, String name, int access) throws IOException {
-        FolderEntry fe;        
-        synchronized (lockWrite) {
-            if (parent != null) {
-                fe = parent.find(fs, name);
-                if (fe != null)
-                    throw new FileAlreadyExistsException(fe.toString());
-            }
-            // creates self-terminate entry with allocated cluster with timestamp
-            fe = FolderEntry.create(fs, name, FolderEntry.TYPE_FOLDER, access);
-            addEntry(fs, fe);
-        }
-        return createFromEntry(fs, fe);
+    protected FATFolder(FATFileSystem _fs, int _type, long _size, int _access) throws IOException {
+        super(_fs, _type, _size, _access);
     }
 
-    private static Folder createFromEntry(FATSystem fs, FolderEntry fe) {
-        Folder ret = new Folder();
-        ret.firstEntry = fe;
+    static FATFolder createRoot(FATFileSystem fs, int access) throws IOException {
+        // exclusive access to [ret]
+        FATFolder ret = new FATFolder(fs, TYPE_FOLDER, RECORD_SIZE, access);
+        try (FATFileChannel cn = ret.getChannel(false)) {
+            boolean completed = false;
+            // create [.]
+            ret.initName(".");
+            cn.write(
+                (ByteBuffer) ret.serialize(fs.allocateBuffer(RECORD_SIZE), fs.getVersion())
+                .flip());
+            ret.initName("<root>");
+        }
         return ret;
     }
 
-    private void addEntry(FATSystem fs, FolderEntry folderEntry) {
-        //todo:
+    public static FATFolder create(FATFolder parent, String name, int access) throws IOException {
+        return null;
     }
 
-    private FolderEntry find(FATSystem fs, String name) throws IOException {
+
+/*
+    private FolderEntry find(FileSystem fs, String name) throws IOException {
         synchronized (lockWrite) {
             int cluster = firstEntry.startCluster;
             while (true) {
@@ -69,4 +64,5 @@ class Folder {
         }
         return null;
     }
+*/
 }

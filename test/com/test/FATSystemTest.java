@@ -5,6 +5,9 @@
 package com.test;
 
 import java.io.IOException;
+import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -14,29 +17,60 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.Rule;
+import org.junit.rules.TestName;
 
 /**
  *
  * @author uta
  */
 public class FATSystemTest {
-    static FileSystem fs = FileSystems.getDefault();    
-    private static void Log(String message) {
+    private static FileSystem fs = FileSystems.getDefault();
+
+    private static final int[] allocatorTypes = new int[] {
+            FATSystem.ALLOCATOR_CLASSIC_HEAP,
+            FATSystem.ALLOCATOR_FAST_FORWARD};
+    private static final String[] allocationTypeNames = new String[] {
+            "ClassicHeap",
+            "FastForward"};
+
+    private static void log(String message) {
         System.out.print(message);
     }
-    private static void LogLN(String message) {
+    private static void logLN(String message) {
         System.out.println(message);
     }
     static public void startUp(Path hostPath) throws IOException {
         Files.deleteIfExists(hostPath);
     }
     static public void tearDown(Path hostPath) throws IOException {
-        Files.deleteIfExists(hostPath);
+        //Files.deleteIfExists(hostPath);
     }
-    
-    public FATSystemTest() {
+    static public void logStart(Path path, int clusterSize, int clusterCount,
+                                int allocatorType)
+    {
+        log(    path + "/" + allocationTypeNames[allocatorType]
+                + " cs=" + clusterSize
+                + " cc=" + clusterCount
+                + ":");
     }
-    
+    static public void logOk() {
+        logLN("Ok");
+    }
+
+    @Rule
+    public TestName name = new TestName();
+
+    public Path getPath() {
+        return fs.getPath(name.getMethodName() + ".fs");
+    }
+
+
+    public FATSystemTest() throws IOException {
+        testFileCreate();
+    }
+
+
     @BeforeClass
     public static void setUpClass() {
     }
@@ -55,11 +89,41 @@ public class FATSystemTest {
     }
 
     /**
+     * Test of File creation.
+     */
+    static public void testFileCreate(Path path, int clusterSize, int clusterCount,
+                                  int allocatorType) throws IOException {
+        startUp(path);
+        try (FATSystem ffs  = FATSystem.create(path, clusterSize, clusterCount, allocatorType)) {
+
+        }
+        tearDown(path);
+    }
+
+    @Test
+    public void testFileCreate() throws IOException {
+        final int[] clusterCounts = new int[] {
+                32
+        };
+        int clusterSize = 4096;
+        for (int allocatorType : allocatorTypes) {
+            for (int clusterCount : clusterCounts) {
+                logStart(getPath(), clusterSize, clusterCount, allocatorType);
+                testFileCreate(getPath(),
+                        clusterSize, clusterCount, allocatorType);
+                logOk();
+            }
+        }
+    }
+
+
+    /**
      * Test of FS creation.
      */
-    static public void testCreate(Path path, int clusterSize, int clusterCount) throws IOException {
+    static public void testCreate(Path path, int clusterSize, int clusterCount,
+                                  int allocatorType) throws IOException {
         startUp(path);
-        try (FATSystem ffs  = FATSystem.create(path, clusterSize, clusterCount)) {
+        try (FATSystem ffs  = FATSystem.create(path, clusterSize, clusterCount, allocatorType)) {
             if (ffs.getSize() != clusterSize*clusterCount)
                 throw new Error("Wrong storage size!");
         }
@@ -68,25 +132,28 @@ public class FATSystemTest {
     
     @Test
     public void testCreate() throws IOException {
-        int[] clusterCounts = new int[] {
+        final int[] clusterCounts = new int[] {
                 16, 32, 2
                 //(int)(0x800000000L/FolderEntry.RECORD_SIZE)
         };
-        for (int clusterCount : clusterCounts) {
-            Log("testCreate FS Size " + clusterCount + ":");
-            testCreate(fs.getPath("testCreate.fs"),
-                FolderEntry.RECORD_SIZE,
-                clusterCount);
-            LogLN("OK");
+        int clusterSize = FolderEntry.RECORD_SIZE;
+        for (int allocatorType : allocatorTypes) {
+            for (int clusterCount : clusterCounts) {
+                logStart(getPath(), clusterSize, clusterCount, allocatorType);
+                testCreate(getPath(),
+                        clusterSize, clusterCount, allocatorType);
+                logOk();
+            }
         }
     }
 
     /**
      * Test of FS Critical Fat Allocation.
      */
-    static public void testCriticalFatAllocation(Path path, int clusterSize, int clusterCount) throws IOException {
+    static public void testCriticalFatAllocation(Path path, int clusterSize, int clusterCount,
+                                                 int allocatorType) throws IOException {
         startUp(path);
-        try (FATSystem ffs  = FATSystem.create(path, clusterSize, clusterCount)) {
+        try (FATSystem ffs  = FATSystem.create(path, clusterSize, clusterCount, allocatorType)) {
             // 0 size
             try {
                 ffs.allocateClusters(-1, 0);
@@ -127,22 +194,24 @@ public class FATSystemTest {
                 16, 32,
                 //(int)(0x80000000L/FolderEntry.RECORD_SIZE)
         };
-        for (int clusterCount : clusterCounts) {
-            Log("testCriticalFatAllocation FS Size " + clusterCount + ":");
-            testCriticalFatAllocation(fs.getPath("testCriticalFatAllocation.fs"),
-                FolderEntry.RECORD_SIZE,
-                clusterCount);
-            LogLN("OK");
+        int clusterSize = FolderEntry.RECORD_SIZE;
+        for (int allocatorType : allocatorTypes) {
+            for (int clusterCount : clusterCounts) {
+                logStart(getPath(), clusterSize, clusterCount, allocatorType);
+                testCriticalFatAllocation(getPath(),
+                        clusterSize, clusterCount, allocatorType);
+                logOk();
+            }
         }
     }
 
     /**
      * Test of FS Concurrent Fragmentation.
      */
-    //@Test
-    static public void testConcurrentFragmentation(Path path, int clusterSize, int clusterCount) throws IOException {
+    static public void testConcurrentFragmentation(Path path, int clusterSize, int clusterCount,
+                                                   int allocatorType) throws IOException {
         startUp(path);
-        try (FATSystem ffs  = FATSystem.create(path, clusterSize, clusterCount)) {
+        try (FATSystem ffs  = FATSystem.create(path, clusterSize, clusterCount, allocatorType)) {
             final int circleCount = 15;
 
             /* random size allocation */
@@ -208,23 +277,25 @@ public class FATSystemTest {
         int[] clusterCounts = new int[] {
                 31, 1024, 4096
         };
-        for (int clusterCount : clusterCounts) {
-            Log("testConcurrentFragmentation FS Size " + clusterCount + ":");
-            testConcurrentFragmentation(fs.getPath("testConcurrentFragmentation.fs"),
-                    FolderEntry.RECORD_SIZE,
-                    clusterCount);
-
-            LogLN("OK");
+        int clusterSize = FolderEntry.RECORD_SIZE;
+        for (int allocatorType : allocatorTypes) {
+            for (int clusterCount : clusterCounts) {
+                logStart(getPath(), clusterSize, clusterCount, allocatorType);
+                testConcurrentFragmentation(getPath(),
+                        clusterSize, clusterCount, allocatorType);
+                logOk();
+            }
         }
     }
 
     /**
      * Test of FS Concurrent Safe Close.
      */
-    static public void testConcurrentSafeClose(Path path, int clusterSize, int clusterCount) throws IOException {
+    static public void testConcurrentSafeClose(Path path, int clusterSize,
+                                               int clusterCount, int allocatorType) throws IOException {
         startUp(path);
 
-        final FATSystem ffs  = FATSystem.create(path, clusterSize, clusterCount);
+        final FATSystem ffs  = FATSystem.create(path, clusterSize, clusterCount, allocatorType);
 
         /* random size allocation */
         final int[] fragmentLengths = new int[] {1, 2, 4, 5};
@@ -275,7 +346,7 @@ public class FATSystemTest {
         //should be:
         // --accessible for open
         // --clean (not dirty)
-        FATSystem.open(path).close();
+        FATSystem.open(path, true).close();
 
         tearDown(path);
     }
@@ -283,25 +354,27 @@ public class FATSystemTest {
     @Test
     public void testConcurrentSafeClose() throws IOException {
         int clusterCount = 16;// > 12
-        Log("testConcurrentSafeClose FS Size " + clusterCount + ":");
-        testConcurrentSafeClose(fs.getPath("testConcurrentFragmentation.fs"),
-                FolderEntry.RECORD_SIZE,
-                clusterCount);
-        LogLN("OK");
+        int clusterSize = FolderEntry.RECORD_SIZE;
+        for (int allocatorType : allocatorTypes) {
+            logStart(getPath(), clusterSize, clusterCount, allocatorType);
+            testConcurrentSafeClose(getPath(),
+                    clusterSize, clusterCount, allocatorType);
+            logOk();
+        }
     }
 
     /**
      * Test of FS Concurrent Safe Close.
      */
-    static public void testOpen(Path path) throws IOException {
+    static public void testOpen(Path path, int clusterSize,
+                                int clusterCount, int allocatorType) throws IOException {
         startUp(path);
-        int clusterCount = 4;
 
-        final FATSystem ffs1  = FATSystem.create(path, FolderEntry.RECORD_SIZE, clusterCount);
+        final FATSystem ffs1  = FATSystem.create(path, clusterSize, clusterCount, allocatorType);
         int first = ffs1.allocateClusters(-1, clusterCount/2);
         ffs1.close();
 
-        final FATSystem ffs2  = FATSystem.open(path);
+        final FATSystem ffs2  = FATSystem.open(path, true);
 
         if (ffs2.getSize() != clusterCount*FolderEntry.RECORD_SIZE)
             throw new Error("Wrong storage size!");
@@ -324,9 +397,13 @@ public class FATSystemTest {
     }
     
     @Test
-    public void testOpen() throws IOException {            
-        Log("testOpen:");        
-        testOpen(fs.getPath("testOpen.fs"));
-        LogLN("OK");        
+    public void testOpen() throws IOException {
+        int clusterCount = 16;// > 12
+        int clusterSize = FolderEntry.RECORD_SIZE;
+        for (int allocatorType : allocatorTypes) {
+            logStart(getPath(), clusterSize, clusterCount, allocatorType);
+            testOpen(getPath(), clusterSize, clusterCount, allocatorType);
+            logOk();
+        }
     }
 }

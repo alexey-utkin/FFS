@@ -11,7 +11,7 @@ import java.io.IOException;
  * Allocates cluster chains. Free haunter algorithm.
  * Bad   point: O(fs.clusterCount)
  * Good  point: the best monotonic index sequence in chain.
- *              visible watermarks, parameters for save.
+ *              visible watermark, parameters for save.
  * Applicable for system with fs.clusterCount ~ count. Perfect for maintenance,
  * when free list is damaged.
  *
@@ -34,7 +34,7 @@ class FATForwardOnlyClusterAllocator implements FATClusterAllocator {
      * Initializes FAT System.
      */
     @Override
-    public void initFAT() {
+    public void initFAT() throws IOException {
         // init FAT32
         for (int i = 0; i < fs.clusterCount; ++i) {
             fs.putFatEntry(i, CLUSTER_UNUSED);

@@ -92,6 +92,7 @@ public class FATFileSystemTest  extends FATBaseTest {
         root1.createSubfolder("Test3");
 
         try {
+            // test check name first, available space size
             root1.createSubfolder("Test2");
             throw new Error("Can create duplicates.");
         } catch (FileAlreadyExistsException ex) {
@@ -114,12 +115,12 @@ public class FATFileSystemTest  extends FATBaseTest {
                 FATFile.RECORD_SIZE,
                 4096
         };
-        int clusterCount = 6; //fixed in minimal value
+        int clusterCount = 2/*dir + rec*/*3/*empty*/ + 1/*root*/; //fixed in minimal value
         for (int allocatorType : allocatorTypes) {
             for (int clusterSize : clusterSizes) {
                 logStart(getPath(), clusterSize, clusterCount, allocatorType);
-                //testFileOpen(getPath(),
-                //        clusterSize, clusterCount, allocatorType);
+                testFileOpen(getPath(),
+                        clusterSize, clusterCount, allocatorType);
                 logOk();
             }
         }

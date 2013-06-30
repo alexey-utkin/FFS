@@ -213,7 +213,7 @@ public class FATFolder {
                 try (FATFileChannel folderContent = fatFile.getChannel(false)) {
                     ByteBuffer bf = ts_fs().ts_allocateBuffer(FATFile.RECORD_SIZE);
                     // for the root folder the [fatFile.size]
-                    // will updated at fist read to actual value.
+                    // will updated at first read to actual value.
                     while (folderContent.position() < fatFile.length()) {
                         folderContent.read(bf);
                         bf.flip();
@@ -239,7 +239,6 @@ public class FATFolder {
         synchronized (fatFile.ts_getLockContent()) {
             try {
                 ts_fs().begin(false);
-
                 success = true;
             } finally {
                 if (!success) {

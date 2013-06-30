@@ -190,6 +190,7 @@ class FATSystem implements Closeable {
         // map FAT section
         fatZone = fileChannel.map(FileChannel.MapMode.READ_WRITE, 0, fatOffset + clusterCount*FAT_E_SIZE);
         fatZone.order(byteOrder)
+        //writeToChannel( allocateBuffer(HEADER_SIZE)
             // init header
             .putInt(MAGIC_WORD)
             .putInt(fsVersion)     //FS version
@@ -198,6 +199,7 @@ class FATSystem implements Closeable {
             .putInt(clusterCount)
             //Set dirty flag in free cluster count. We drop it on right close.
             .putInt(-1);
+        //);
         clusterAllocator = createAllocator(allocatorType);
         clusterAllocator.initFAT();
         forceFat();
@@ -274,7 +276,7 @@ class FATSystem implements Closeable {
      * Flush content to disk.
      * Have to be called in [lockFAT] section
      */
-    private void forceFat() {
+    private void forceFat() throws IOException {
         clusterAllocator.force();
         fatZone.force();
     }
@@ -319,19 +321,6 @@ class FATSystem implements Closeable {
                 .read(bf);
         }
         return bf;
-    }
-
-    /**
-     * Reads FAT entry by index.
-     *
-     * @param cluster the index of current cluster in the chain if any
-     * @return the entry value
-     */
-    public int readFatEntry(int cluster) throws IOException {
-        synchronized (lockFAT) {
-            checkCanRead();
-            return fatZone.getInt(cluster*FAT_E_SIZE);
-        }
     }
 
     /**
@@ -391,20 +380,14 @@ class FATSystem implements Closeable {
         }
     }
 
-
     /**
      * Calculates the length of chain in clusters to hold [size] bytes.
      *
-     * @param size the number of bytes to hold.
+     * @param size the number of bytes to hold
      * @return the length of the chain
      */
-    int getSizeInClusters(long size) {
-        if (size < clusterSize)
-            return 1;
-        int fullClusters = (int)(size/clusterSize);
-        return (fullClusters*clusterSize == size)
-            ? fullClusters
-            : fullClusters + 1;
+    public int getSizeInClusters(long size) {
+        return (int)getSizeInUnits(size, clusterSize);
     }
 
     /**
@@ -426,6 +409,7 @@ class FATSystem implements Closeable {
                 setDirtyStatus("Cluster chain is broken. Cluster#:" + startCluster
                         + " Value:" + fatEntry, true);
             }
+            --nextCount;
         }
         return startCluster;
     }
@@ -444,8 +428,8 @@ class FATSystem implements Closeable {
             // check only public parameters
             if (newLength < 0 || newLength > getSize())
                 throw new IOException("Wrong FATFile size:" + newLength);
-            int oldSizeInClusters = getSizeInClusters(oldLength);
-            int newSizeInClusters = getSizeInClusters(newLength);
+            int oldSizeInClusters = (int)getSizeInUnits(oldLength, clusterSize);
+            int newSizeInClusters = (int)getSizeInUnits(newLength, clusterSize);
             // do nothing for [newSizeInClusters = oldSizeInClusters]
             if (newSizeInClusters < oldSizeInClusters) {
                 freeClusters(getShift(startCluster, newSizeInClusters - 1), false);
@@ -481,7 +465,7 @@ class FATSystem implements Closeable {
             synchronized (lockData) {
                 int limit = src.limit();
                 int restOfCluster = (int)(clusterSize - pos);
-                if (restOfCluster > limit) {
+                if (restOfCluster >= limit) {
                     wasWritten = fileChannel.write(src, startPos);
                 } else {
                     src.limit(restOfCluster);
@@ -572,11 +556,12 @@ class FATSystem implements Closeable {
 
     private void initDenormalized() {
         fatOffset = HEADER_SIZE; //version dependant
-        dataOffset = fatOffset + clusterCount*FAT_E_SIZE;
+        dataOffset = (int)getDataOffset(fatOffset + clusterCount*FAT_E_SIZE);
     }
 
     ByteBuffer allocateBuffer(int capacity) {
         return ByteBuffer.allocateDirect(capacity).order(byteOrder);
+        //return ByteBuffer.allocate(capacity).order(byteOrder);
     }
 
     private void writeToChannel(ByteBuffer bf) throws IOException {
@@ -600,8 +585,15 @@ class FATSystem implements Closeable {
      * @param index the entry index in FAT, not offset!
      * @return entry value
      */
-    int getFatEntry(int index) {
+    int getFatEntry(int index) throws IOException {
         return fatZone.getInt(fatOffset + index*FAT_E_SIZE);
+        /* Uncomment the alternative procedure to compare the performance
+        ByteBuffer bf = allocateBuffer(4);
+        fileChannel.position(fatOffset + index * FAT_E_SIZE);
+        fileChannel.read(bf);
+        bf.flip();
+        return bf.getInt();
+        */
     }
 
     /**
@@ -610,8 +602,13 @@ class FATSystem implements Closeable {
      * @param index the entry index in FAT, not offset!
      * @param value to store
      */
-    void putFatEntry(int index, int value) {
+    void putFatEntry(int index, int value) throws IOException {
         fatZone.putInt(fatOffset + index*FAT_E_SIZE, value);
+        /* Uncomment the alternative procedure to compare the performance
+        ByteBuffer bf = allocateBuffer(4);
+        bf.putInt(value).flip();
+        fileChannel.write(bf, fatOffset + index * FAT_E_SIZE);
+        */
     }
 
     private FATClusterAllocator createAllocator(int allocatorType) throws IOException {
@@ -622,6 +619,28 @@ class FATSystem implements Closeable {
             return new FATFreeListClusterAllocator(this);
         }
         throw new IOException("Unknown cluster allocator.");
+    }
+
+    /**
+     * Calculates the length of chain in units to hold [size] bytes.
+     *
+     * @param size the number of bytes to hold
+     * @param unitSize the unit capacity in bytes
+     * @return the length of the chain
+     */
+    public static long getSizeInUnits(long size, long unitSize) {
+        if (size < unitSize)
+            return 1;
+        int fullClusters = (int)(size/unitSize);
+        return (fullClusters*unitSize == size)
+                ? fullClusters
+                : fullClusters + 1;
+    }
+
+    private static long getDataOffset(long mapSize) {
+        //PERFORMANCE HINT POINT - 4k alignment for memory mapping.
+        //return getSizeInUnits(mapSize, 4096) * 4096; //4k alignment
+        return mapSize; // size first
     }
 
     private static long getRequestedStorageFileSize(int clusterSize, int clusterCount) throws IOException {
@@ -635,7 +654,7 @@ class FATSystem implements Closeable {
 
         // max storage size for 4k cluster: CLUSTER_INDEX*4096 = 3FF FFFF F000
         // 0x3FFFFFFF000/0x10000000000 = 3T - big enough.
-        long sizeFS = length + mapLength;
+        long sizeFS = length + getDataOffset(mapLength);
         if (sizeFS < length)
             throw new IOException("File system is too big. No space for header." );
         return sizeFS;

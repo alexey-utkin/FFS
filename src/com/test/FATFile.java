@@ -77,7 +77,9 @@ public class FATFile {
                 //redirect any file attribute change (ex. size) to new parent
                 parentId = newParent.ts_getFolderId();
                 newParent.ts_ref(this);
-                if (oldParentId != INVALID_FILE_ID) {
+                if (oldParentId == INVALID_FILE_ID) {
+                    success = true;
+                } else{
                     try {
                         fs.ts_getFolder(oldParentId).ts_deRef(this);
                         // commit

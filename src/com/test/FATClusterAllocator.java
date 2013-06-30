@@ -18,7 +18,7 @@ interface FATClusterAllocator {
     /**
      * Initializes FAT System.
      */
-    void initFAT();
+    void initFAT() throws IOException;
 
     /**
      * Allocates a cluster chain.
@@ -45,10 +45,10 @@ interface FATClusterAllocator {
     /**
      * Restores state from storage
      */
-    void initFromFile();
+    void initFromFile() throws IOException;
 
     /**
      * Flush critical data to host system.
      */
-    void force();
+    void force() throws IOException;
 }

@@ -32,7 +32,7 @@ class FATFreeListClusterAllocator implements FATClusterAllocator {
      * Initializes FAT System.
      */
     @Override
-    public void initFAT() {
+    public void initFAT() throws IOException {
         // init FAT32
         for (int i = 0; i < fs.clusterCount - 1; ++i)
             fs.putFatEntry(i, CLUSTER_FREE | (i + 1));
@@ -147,7 +147,7 @@ class FATFreeListClusterAllocator implements FATClusterAllocator {
      * Restores state from storage
      */
     @Override
-    public void initFromFile() {
+    public void initFromFile() throws IOException {
          freeListHead = fs.getFatEntry(-1);
     }
 
@@ -155,7 +155,7 @@ class FATFreeListClusterAllocator implements FATClusterAllocator {
      * Flush critical data to host system.
      */
     @Override
-    public void force() {
+    public void force() throws IOException {
         fs.putFatEntry(-1, freeListHead);
     }
 }

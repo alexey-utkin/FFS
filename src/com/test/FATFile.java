@@ -63,6 +63,12 @@ public class FATFile {
         fs.ts_forceFileContent(this, updateMetadata);
     }
 
+    public FATFolder getFolder() {
+        return isFolder()
+            ? fs.ts_getFolder(fileId)
+            : null;
+    }
+
     /**
      * Moves file to new location.
      *
@@ -280,6 +286,9 @@ public class FATFile {
         // both ids validated in upper calls
         this.fileId = fileId;
         this.parentId = parentId;
+        if (type == TYPE_DELETED) {
+            Arrays.fill(name, (char)0xFFFF);
+        }
     }
 
     /**

@@ -223,15 +223,25 @@ class FATSystem implements Closeable {
     }
 
     void writeRootInfo(ByteBuffer rootInfo) throws IOException {
+        if (rootInfo.remaining() > FATFile.RECORD_SIZE)
+            throw new IOException("Wrong root info.");
+
         synchronized (lockFAT) {
             checkCanWrite();
-            // saves real dirty status
             fatZone.position(ROOT_RECORD_OFFSET);
             fatZone.put(rootInfo);
         }
     }
 
-
+    ByteBuffer getRootInfo() throws IOException {
+        byte[] bb = new byte[FATFile.RECORD_SIZE];
+        synchronized (lockFAT) {
+            checkCanRead();
+            fatZone.position(ROOT_RECORD_OFFSET);
+            fatZone.get(bb);
+            return ByteBuffer.wrap(bb).order(byteOrder);
+        }
+    }
 
     @Override
     public void close() throws IOException {
@@ -688,5 +698,4 @@ class FATSystem implements Closeable {
     public int getClusterSize() {
         return clusterSize;
     }
-
 }

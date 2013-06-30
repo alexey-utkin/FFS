@@ -290,28 +290,6 @@ public class FATFileSystem implements Closeable {
 
 
     /**
-     * Opens folder file.
-     *
-     * @param type   FATFile.TYPE_XXXX const
-     * @param fileId real file id (the index of chain start)
-     * @param parentId owner folder id
-     * @return opened file
-     * @throws IOException
-     */
-    FATFile ts_openFile(int type, int fileId, int parentId) throws IOException {
-        synchronized (fileLock) {
-            // open existent
-            int fatEntry = fat.getFatEntry(fileId);
-            if ((fatEntry & FATClusterAllocator.CLUSTER_ALLOCATED) == 0)
-                throw new IOException("Invalid file id.");
-
-            FATFile ret = new FATFile(this, type, fileId, parentId);
-            fileCache.put(ret.ts_getFileId(), ret);
-            return ret;
-        }
-    }
-
-    /**
      * Opens file from folder record.
      * Returns file that has no connection with folder.
      *
@@ -326,7 +304,13 @@ public class FATFileSystem implements Closeable {
             int type = bf.getInt();
             FATFile ret =  fileCache.get(fileId);
             if (ret == null) {
-                ret =  ts_openFile(type, fileId, parentId);
+                // open existent
+                int fatEntry = fat.getFatEntry(fileId);
+                if ((fatEntry & FATClusterAllocator.CLUSTER_ALLOCATED) == 0)
+                    throw new IOException("Invalid file id.");
+
+                ret = new FATFile(this, type, fileId, parentId);
+                fileCache.put(ret.ts_getFileId(), ret);
             } // else check the type?
             ret.ts_initFromBuffer(bf);
             return ret;
@@ -433,7 +417,7 @@ public class FATFileSystem implements Closeable {
             synchronized (shutdownSignal) {
                 shutdown = true;
                 // just for protection from spurious wakeup
-                // don't wary about longer time in wait for [spurious wakeup]
+                // don't worry about longer time in wait for [spurious wakeup]
                 while (transactionCounter != 0)
                     shutdownSignal.wait(timeout);
             }
@@ -451,5 +435,9 @@ public class FATFileSystem implements Closeable {
 
     void updateRootRecord(ByteBuffer rootInfo) throws IOException {
         fat.writeRootInfo(rootInfo);
+    }
+
+    public ByteBuffer getRootInfo() throws IOException {
+        return fat.getRootInfo();
     }
 }

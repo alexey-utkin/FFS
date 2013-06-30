@@ -49,20 +49,24 @@ public class FATFileSystemTest  extends FATBaseTest {
 
         try (FATFileSystem ffs  = FATFileSystem.create(path, clusterSize, clusterCount, allocatorType)) {
             FATFolder root1 = ffs.getRoot();
-            //1-filled cluster - <root>,  1 free
+            //here: 2 free, 1 <root:empty> record is out of FAT
 
             try {
-                //need 2 cluster: 1 for a record in root, 1 for new folder, but only 1 exists
                 root1.createSubfolder("Test1");
+                //here: 1 free, 1 <root:full>, 1 <Test1:empty>
+                root1.createSubfolder("Test2");
+                //root is full, 2 free clusters need
                 throw new Error("Impossible allocation.");
             } catch (IOException ex) {
-                //check that we does not loose the space.
                 root1.pack();
+                //check that we does not loose the space.
                 if (ffs.getFreeSize() != FATFile.RECORD_SIZE)
                     throw new Error("Lost cluster on folder allocation.");
-
+                root1.findFile("Test1").getFolder().createSubfolder("Test2");
+                //here: 0 free, 1 <root:full>, 1 <Test1:full>, 1 <Test2:empty>
+                if (ffs.getFreeSize() != 0)
+                    throw new Error("Lost cluster on folder allocation 2.");
             }
-
         }
         tearDown(path);
     }
@@ -70,7 +74,7 @@ public class FATFileSystemTest  extends FATBaseTest {
     public void testForwardFolderReservation() throws IOException {
         for (int allocatorType : allocatorTypes) {
             int clusterSize = FATFile.RECORD_SIZE; //fixed!
-            int clusterCount = 2; //fixed!
+            int clusterCount = 3; //fixed!
             logStart(getPath(), clusterSize, clusterCount, allocatorType);
             testForwardFolderReservation(getPath(),
                     clusterSize, clusterCount, allocatorType);
@@ -115,7 +119,7 @@ public class FATFileSystemTest  extends FATBaseTest {
                 FATFile.RECORD_SIZE,
                 4096
         };
-        int clusterCount = 2/*dir + rec*/*3/*empty*/ + 1/*root*/; //fixed in minimal value
+        int clusterCount = 2/* = 1dir-empty + 1rec-in-root*/*3/*folders count*/; //fixed in minimal value
         for (int allocatorType : allocatorTypes) {
             for (int clusterSize : clusterSizes) {
                 logStart(getPath(), clusterSize, clusterCount, allocatorType);

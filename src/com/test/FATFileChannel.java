@@ -23,11 +23,11 @@ public class FATFileChannel implements Closeable {
 
     /**
      * Reads a sequence of bytes from this channel into the given buffer.
-     * <p/>
+     * 
      * <p> Bytes are read starting at this channel's current file position, and
      * then the file position is updated with the number of bytes actually
      * read.  Otherwise this method behaves exactly as specified in the {@link
-     * java.nio.channels.ReadableByteChannel} interface. </p>
+     * java.nio.channels.ReadableByteChannel} interface. 
      */
     public int read(ByteBuffer dst) throws IOException {
         synchronized (fatFile.ts_getLockContent()) {
@@ -47,14 +47,14 @@ public class FATFileChannel implements Closeable {
 
     /**
      * Writes a sequence of bytes to this channel from the given buffer.
-     * <p/>
+     * 
      * <p> Bytes are written starting at this channel's current file position
      * unless the channel is in append mode, in which case the position is
      * first advanced to the end of the file.  The file is grown, if necessary,
      * to accommodate the written bytes, and then the file position is updated
      * with the number of bytes actually written.  Otherwise this method
      * behaves exactly as specified by the {@link java.nio.channels.WritableByteChannel}
-     * interface. </p>
+     * interface. 
      */
     public int write(ByteBuffer src) throws IOException {
         long sizeToWrite = src.limit() - src.position();
@@ -110,14 +110,14 @@ public class FATFileChannel implements Closeable {
 
     /**
      * Sets this channel's file position.
-     * <p/>
+     * 
      * <p> Setting the position to a value that is greater than the file's
      * current size is legal but does not change the size of the file.  A later
      * attempt to read bytes at such a position will immediately return an
      * end-of-file indication.  A later attempt to write bytes at such a
      * position will cause the file to be grown to accommodate the new bytes;
      * the values of any bytes between the previous end-of-file and the
-     * newly-written bytes are unspecified.  </p>
+     * newly-written bytes are unspecified.  
      *
      * @param newPosition The new position, a non-negative integer counting
      *                    the number of bytes from the beginning of the file
@@ -135,7 +135,7 @@ public class FATFileChannel implements Closeable {
 
     /**
      * Returns the current size of this channel's file.
-     * </p>
+     * 
      * @return The current size of this channel's file,
      *         measured in bytes
      * @throws java.nio.channels.ClosedChannelException
@@ -148,13 +148,13 @@ public class FATFileChannel implements Closeable {
 
     /**
      * Truncates this channel's file to the given size.
-     * <p/>
+     * 
      * <p> If the given size is less than the file's current size then the file
      * is truncated, discarding any bytes beyond the new end of the file.  If
      * the given size is greater than or equal to the file's current size then
      * the file is not modified.  In either case, if this channel's file
      * position is greater than the given size then it is set to that size.
-     * </p>
+     * 
      *
      *
      * @param size The new size, a non-negative byte count
@@ -181,16 +181,16 @@ public class FATFileChannel implements Closeable {
     /**
      * Forces any updates to this channel's file to be written to the storage
      * device that contains it.
-     * <p/>
+     * 
      * <p> If this channel's file resides on a local storage device then when
      * this method returns it is guaranteed that all changes made to the file
      * since this channel was created, or since this method was last invoked,
      * will have been written to that device.  This is useful for ensuring that
      * critical information is not lost in the event of a system crash.
-     * <p/>
+     * 
      * <p> If the file does not reside on a local device then no such guarantee
      * is made.
-     * <p/>
+     * 
      * <p> The <tt>metaData</tt> parameter can be used to limit the number of
      * I/O operations that this method is required to perform.  Passing
      * <tt>false</tt> for this parameter indicates that only updates to the
@@ -199,13 +199,13 @@ public class FATFileChannel implements Closeable {
      * written, which generally requires at least one more I/O operation.
      * Whether this parameter actually has any effect is dependent upon the
      * underlying operating system and is therefore unspecified.
-     * <p/>
+     * 
      * <p> Invoking this method may cause an I/O operation to occur even if the
      * channel was only opened for reading.  Some operating systems, for
      * example, maintain a last-access time as part of a file's metadata, and
      * this time is updated whenever the file is read.  Whether or not this is
      * actually done is system-dependent and is therefore unspecified.
-     * <p/>
+     * 
      *
      * @param metaData If <tt>true</tt> then this method is required to force changes
      *                 to both the file's content and metadata to be written to
@@ -225,12 +225,12 @@ public class FATFileChannel implements Closeable {
     /**
      * Reads a sequence of bytes from this channel into the given buffer,
      * starting at the given file position.
-     * <p/>
+     * 
      * <p> This method works in the same manner as the {@link
      * #read(java.nio.ByteBuffer)} method, except that bytes are read starting at the
      * given file position rather than at the channel's current position.  This
      * method does not modify this channel's position.  If the given position
-     * is greater than the file's current size then no bytes are read.  </p>
+     * is greater than the file's current size then no bytes are read.  
      *
      * @param dst      The buffer into which bytes are to be transferred
      * @param position The file position at which the transfer is to begin;
@@ -266,14 +266,14 @@ public class FATFileChannel implements Closeable {
     /**
      * Writes a sequence of bytes to this channel from the given buffer,
      * starting at the given file position.
-     * <p/>
+     * 
      * <p> This method works in the same manner as the {@link
      * #write(java.nio.ByteBuffer)} method, except that bytes are written starting at
      * the given file position rather than at the channel's current position.
      * This method does not modify this channel's position.  If the given
      * position is greater than the file's current size then the file will be
      * grown to accommodate the new bytes; the values of any bytes between the
-     * previous end-of-file and the newly-written bytes are unspecified.  </p>
+     * previous end-of-file and the newly-written bytes are unspecified.  
      *
      * @param src      The buffer from which bytes are to be transferred
      * @param position The file position at which the transfer is to begin;
@@ -309,7 +309,7 @@ public class FATFileChannel implements Closeable {
      * Closes this stream and releases any system resources associated
      * with it. If the stream is already closed then invoking this
      * method has no effect.
-     * <p/>
+     * 
      * <p> As noted in {@link AutoCloseable#close()}, cases where the
      * close may fail require careful attention. It is strongly advised
      * to relinquish the underlying resources and to internally

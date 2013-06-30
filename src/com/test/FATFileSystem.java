@@ -20,7 +20,8 @@ import java.util.HashMap;
  * All public functions have to be [transact-safe] by default.
  *
  * Each public call with r/w operation need to be executed in FS transaction like
- * @code        boolean success = false;
+ * <code>
+ *              boolean success = false;
  *              try {
  *                  begin(isWriteTransaction);
  *                  ...action...
@@ -32,6 +33,7 @@ import java.util.HashMap;
  *                 }
  *                 end();
  *             }
+ * </code>
  */
 public class FATFileSystem implements Closeable {
     private FATSystem fat;
@@ -125,7 +127,7 @@ public class FATFileSystem implements Closeable {
      * Closes this stream and releases any system resources associated
      * with it. If the stream is already closed then invoking this
      * method has no effect.
-     * <p/>
+     * 
      * <p> As noted in {@link AutoCloseable#close()}, cases where the
      * close may fail require careful attention. It is strongly advised
      * to relinquish the underlying resources and to internally
@@ -172,7 +174,7 @@ public class FATFileSystem implements Closeable {
      *
      * No forward reservation for staff objects.
      *
-     * @return the free size in storage. The [<0] means dirty FAT and the
+     * @return the free size in storage. The [&lt;0] means dirty FAT and the
      *         system needs in maintenance.
      */
     public long getFreeSize() {
@@ -394,7 +396,7 @@ public class FATFileSystem implements Closeable {
      * the frozen state and ready to be closed.
      *
      * If there are no active transactions in the thread stack,
-     * the [{@see waitForShutdown}] method could be called directly.
+     * the [{@link #waitForShutdown(long)}] method could be called directly.
      *
      * @return [true] if the file system is ready be closed
      */

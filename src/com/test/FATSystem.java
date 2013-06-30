@@ -2,10 +2,17 @@ package com.test;
 
 import sun.nio.ch.DirectBuffer;
 
-import java.io.*;
-import java.nio.*;
-import java.nio.channels.*;
-import java.nio.file.*;
+import java.io.Closeable;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.MappedByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.file.Path;
+import java.nio.file.Files;
+
 
 /**
  * Created with IntelliJ IDEA.
@@ -21,8 +28,10 @@ class FATSystem implements Closeable {
     final static int ALLOCATOR_FAST_FORWARD = 1;
 
     //file system header with magic number abd etc
-    final static int  HEADER_SIZE = 32;
+    final static int  HEADER_SIZE_RESERVED = 32;
+    final static int  HEADER_SIZE = HEADER_SIZE_RESERVED + FATFile.RECORD_SIZE;
     final static int  FREE_CLUSTER_COUNT_OFFSET = 5*4;
+    final static int  ROOT_RECORD_OFFSET = HEADER_SIZE_RESERVED;
     final static int  VERSION     = 1;
     final static long MAPFILE_SIZE_LIMIT = Integer.MAX_VALUE;
 
@@ -539,10 +548,11 @@ class FATSystem implements Closeable {
             throw new IOException("The storage needs maintenance.");
     }
 
-    /**
+     /**
      * Mark storage as [dirty]
      *
-     * @param message
+     * @param message the message to log.
+     * @param throwException
      * @throws IOException
      */
     void setDirtyStatus(String message, boolean throwException) throws IOException {

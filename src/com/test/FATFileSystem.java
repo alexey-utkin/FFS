@@ -11,6 +11,27 @@ import java.util.HashMap;
  * User: uta
  *
  * The File System over the FAT System.
+ *
+ * All [transact-safe] methods have the [ts_] prefix.
+ * The [transact-safe] means that methods can terminated successfully,
+ *   or restore the object state to initial condition and throw exception,
+ *   or mark system as "dirty" and throw exception (critical error in host FS).
+ *
+ * All public functions have to be [transact-safe] by default.
+ *
+ * Each public call with r/w operation need to be executed in FS transaction like
+ * @code        boolean success = false;
+ *              try {
+ *                  begin(isWriteTransaction);
+ *                  ...action...
+ *                  //commit
+ *                  success = true;
+ *             } finally {
+ *                 if (!success) {
+ *                     //rollback action
+ *                 }
+ *                 end();
+ *             }
  */
 public class FATFileSystem implements Closeable {
     private FATSystem fat;
@@ -172,7 +193,7 @@ public class FATFileSystem implements Closeable {
         return fat.allocateBuffer(recordSize);
     }
 
-    int allocateFileSpace(long size) throws IOException {
+    int ts_allocateFileSpace(long size) throws IOException {
         if (size < 0)
             throw new IOException("Wrong file size.");
 
@@ -275,7 +296,7 @@ public class FATFileSystem implements Closeable {
      * @return opened file
      * @throws IOException
      */
-    FATFile openFile(int type, int fileId, int parentId) throws IOException {
+    FATFile ts_openFile(int type, int fileId, int parentId) throws IOException {
         synchronized (fileLock) {
             // open existent
             int fatEntry = fat.getFatEntry(fileId);
@@ -296,14 +317,14 @@ public class FATFileSystem implements Closeable {
      * @return opened file
      * @throws IOException
      */
-    FATFile openFile(ByteBuffer bf, int parentId) throws IOException {
+    FATFile ts_openFile(ByteBuffer bf, int parentId) throws IOException {
         synchronized (fileLock) {
             // open existent if can
             int fileId = bf.getInt();
             int type = bf.getInt();
             FATFile ret =  fileCache.get(fileId);
             if (ret == null) {
-                ret =  openFile(type, fileId, parentId);
+                ret =  ts_openFile(type, fileId, parentId);
             } // else check the type?
             ret.ts_initFromBuffer(bf);
             return ret;
@@ -322,7 +343,7 @@ public class FATFileSystem implements Closeable {
         synchronized (treeLock) {
             FATFolder ret = folderCache.get(fileId);
             if (ret == null) {
-                ret = new FATFolder(getFile(fileId));
+                ret = new FATFolder(ts_getFile(fileId));
                 folderCache.put(fileId, ret);
             }
             return ret;
@@ -335,7 +356,7 @@ public class FATFileSystem implements Closeable {
      * @param fileId
      * @return
      */
-    FATFile getFile(int fileId) {
+    FATFile ts_getFile(int fileId) {
         synchronized (fileLock) {
             return  fileCache.get(fileId);
         }
@@ -418,7 +439,7 @@ public class FATFileSystem implements Closeable {
     }
 
     /**
-     *
+     * Set system to dirty state.
      *
      * @param message
      */

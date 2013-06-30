@@ -42,7 +42,8 @@ public class FATFolder {
                 FATFile subfolder = findFolder(folderName);
                 if (subfolder != null)
                     throw new FileAlreadyExistsException(folderName);
-                //reserve space fist!
+
+                // reserve space in parent first!
                 ts_ref(FATFile.DELETED_FILE);
 
                 // [access] is the same as in parent by default
@@ -136,10 +137,10 @@ public class FATFolder {
      *
      * Could not be called directly, use [ts_fs().ts_getFolder] instead.
      *
-     * @param _fatFile the folder storage
+     * @param fatFile the folder storage
      */
-    FATFolder(FATFile _fatFile) {
-        fatFile = _fatFile;
+    FATFolder(FATFile fatFile) {
+        this.fatFile = fatFile;
     }
 
 
@@ -187,7 +188,7 @@ public class FATFolder {
         // exclusive access to [ret]
         boolean success = false;
         try {
-            FATFile rootFile = fs.openFile(FATFile.TYPE_FOLDER, ROOT_FILE_ID, ROOT_FILE_ID);
+            FATFile rootFile = fs.ts_openFile(FATFile.TYPE_FOLDER, ROOT_FILE_ID, ROOT_FILE_ID);
             // exclusive access to [ret]
             FATFolder ret = fs.ts_getFolder(rootFile.ts_getFileId());
             rootFile.ts_initSize(FATFile.RECORD_SIZE);// have to be at least one record length
@@ -217,7 +218,7 @@ public class FATFolder {
                     while (folderContent.position() < fatFile.length()) {
                         folderContent.read(bf);
                         bf.flip();
-                        childFiles.add(ts_fs().openFile(bf, ts_getFolderId()));
+                        childFiles.add(ts_fs().ts_openFile(bf, ts_getFolderId()));
                         bf.position(0);
                     }
                     if (folderContent.position() != fatFile.length())
@@ -255,9 +256,11 @@ public class FATFolder {
         try (FATFileChannel folderContent = fatFile.getChannel(false)) {
             folderContent
                 .position(index * FATFile.RECORD_SIZE)
-                .write((ByteBuffer) updateFile
-                        .ts_serialize(ts_fs().ts_allocateBuffer(FATFile.RECORD_SIZE),
-                                ts_fs().getVersion())
+                .write(
+                    (ByteBuffer) updateFile
+                        .ts_serialize(
+                            ts_fs().ts_allocateBuffer(FATFile.RECORD_SIZE),
+                            ts_fs().getVersion())
                         .flip());
             success = true;
         } finally {

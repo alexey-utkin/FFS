@@ -276,7 +276,7 @@ public class FATFile {
      */
     FATFile(FATFileSystem _fs, int _type, long _size, int _access) throws IOException {
         fs = _fs;
-        fileId = fs.allocateFileSpace(size);
+        fileId = fs.ts_allocateFileSpace(size);
         type = _type;
         size = _size;
         timeCreate = FATFileSystem.getCurrentTime();

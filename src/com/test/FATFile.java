@@ -1,5 +1,7 @@
 package com.test;
 
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -52,7 +54,7 @@ public class FATFile {
     /**
      * Creates File in FAT with allocated space.
      *
-     * Could not be called directly, use [fs.createFile] instead.
+     * Could not be called directly, use [fs.ts_createFile] instead.
      *
      * @param _fs
      * @param _type
@@ -81,12 +83,12 @@ public class FATFile {
     }
 
 
-    public FATFileChannel getChannel(boolean appendMode) {
+    public FATFileChannel ts_getChannel(boolean appendMode) {
         return new FATFileChannel(this, appendMode);
     }
 
     public void delete() throws IOException {
-        fs.deleteFile(this);
+        throw new NotImplementedException();
     }
 
     ByteBuffer serialize(ByteBuffer bf, int version) {
@@ -103,10 +105,11 @@ public class FATFile {
         return bf;
     }
 
-    void force(boolean updateMetadata) throws IOException {
+    public void force(boolean updateMetadata) throws IOException {
+
         if (updateMetadata)
-            timeModify = FATFileSystem.getCurrentTime();
-        fs.forceFileContent(this, updateMetadata);
+            setLastModified(FATFileSystem.getCurrentTime());
+        fs.ts_forceFileContent(this, updateMetadata);
     }
 
     /**
@@ -117,7 +120,7 @@ public class FATFile {
      */
     private void updateAttributes() throws IOException {
         if (parentId != INVALID_FILE_ID) {
-            fs.getFolder(parentId).updateFileRecord(this);
+            fs.ts_getFolder(parentId).ts_updateFileRecord(this);
         }
     }
 
@@ -129,23 +132,42 @@ public class FATFile {
      */
     public void moveTo(FATFolder newParent) throws IOException {
         synchronized (lockAttribute) {
+            boolean success = false;
+            int oldParentId = parentId;
             try {
                 fs.begin(true);
                 //redirect any file attribute change (ex. size) to new parent
-                int oldParentId = parentId;
                 parentId = newParent.getFolderId();
-                boolean success = false;
-                try {
-                    newParent.ref(this);
-                    success = true;
-                } finally {
-                    if (!success) {
-                        parentId = oldParentId;
-                    } else if (oldParentId != INVALID_FILE_ID) {
-                        fs.getFolder(oldParentId).deRef(this);
+                newParent.ts_ref(this);
+                if (oldParentId != INVALID_FILE_ID) {
+                    try {
+                        fs.ts_getFolder(oldParentId).ts_deRef(this);
+                        // commit
+                        success = true;
+                    } finally {
+                        if (!success) {
+                            //rollback process
+                            boolean successRollback = false;
+                            try {
+                                newParent.ts_deRef(this);
+                                successRollback = true;
+                            } finally {
+                                if (!successRollback) {
+                                    fs.ts_setDirtyState("Cannot rollback movement of the file. ", false);
+                                }
+                            }
+                        }
                     }
                 }
             } finally {
+                if (!success) {
+                    // rollback
+                    parentId = oldParentId;
+                    if (oldParentId == INVALID_FILE_ID) {
+                        // it was file-to-parent binding
+                        fs.ts_setDirtyState("Lost file problem.", false);
+                    }
+                }
                 fs.end();
             }
         }
@@ -160,13 +182,12 @@ public class FATFile {
                 : ret.substring(0, zeroPos);
     }
 
-    void initSize(long size) {
+    void ts_initSize(long size) {
         this.size = size;
         //no update here! That is init!
-        //updateAttributes();
     }
 
-    void initName(String fileName) {
+    void ts_initName(String fileName) {
         int len = fileName.length();
         if (len > FILE_MAX_NAME)
             throw new IllegalArgumentException("Name is too long. Max length is " + FILE_MAX_NAME);
@@ -174,7 +195,6 @@ public class FATFile {
             Arrays.fill(name, ZAP_CHAR);
             System.arraycopy(fileName.toCharArray(), 0, name, 0, len);
             //no update here! That is init!
-            //updateAttributes();
         }
     }
 
@@ -207,8 +227,9 @@ public class FATFile {
                     if (newLength == size)
                         return;
                     fs.setFileLength(this, newLength, size);
-                    size = newLength;
                     updateAttributes();
+                    // commit
+                    size = newLength;
                 } finally {
                     fs.end();
                 }
@@ -257,8 +278,9 @@ public class FATFile {
         synchronized (lockAttribute) {
             try {
                 fs.begin(true);
-                this.access = access;
                 updateAttributes();
+                // commit
+                this.access = access;
             } finally {
                 fs.end();
             }
@@ -285,8 +307,9 @@ public class FATFile {
         synchronized (lockAttribute) {
             try {
                 fs.begin(true);
-                this.timeCreate = timeCreate;
                 updateAttributes();
+                // commit
+                this.timeCreate = timeCreate;
             } finally {
                 fs.end();
             }
@@ -313,8 +336,9 @@ public class FATFile {
         synchronized (lockAttribute) {
             try {
                 fs.begin(true);
-                this.timeModify = timeModify;
                 updateAttributes();
+                // commit
+                this.timeModify = timeModify;
             } finally {
                 fs.end();
             }

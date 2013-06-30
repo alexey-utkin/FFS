@@ -12,7 +12,8 @@ import java.io.IOException;
  * Bad   point: reverse index sequence in chain.
  * Good  point: O(count)
  *
- * Improvements start release clusters from tail.
+ * PERFORMANCE HINT POINT
+ * Improvements: start release clusters from the tail.
  */
 
 class FATFreeListClusterAllocator implements FATClusterAllocator {
@@ -83,7 +84,7 @@ class FATFreeListClusterAllocator implements FATClusterAllocator {
             }
         }
 
-        fs.setDirtyStatus("[freeClusterCount] has wrong value.");
+        fs.setDirtyStatus("[freeClusterCount] has wrong value.", false);
 
         // rollback allocation.
         if (tailCluster == -1)
@@ -116,7 +117,7 @@ class FATFreeListClusterAllocator implements FATClusterAllocator {
                 headCluster = fatEntry & CLUSTER_INDEX;
             } else {
                 fs.setDirtyStatus("Cluster double free in tail.  Cluster#:" + headCluster
-                        + " Value:" + fatEntry);
+                        + " Value:" + fatEntry, true);
             }
         }
         while (true) {
@@ -137,7 +138,7 @@ class FATFreeListClusterAllocator implements FATClusterAllocator {
                 headCluster = fatEntry & CLUSTER_INDEX;
             } else {
                 fs.setDirtyStatus("Cluster double free. Cluster#:" + headCluster
-                        + " Value:" + fatEntry);
+                        + " Value:" + fatEntry, true);
             }
         }
     }

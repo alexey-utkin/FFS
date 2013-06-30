@@ -3,7 +3,6 @@ package com.test;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
 
 /**
  * Created with IntelliJ IDEA.
@@ -37,6 +36,7 @@ public class FATFileChannel implements Closeable {
                 if (position >= fatFile.length())
                     return -1;
                 int wasRead = fs().readFileContext(fatFile, position, dst);
+                // commit
                 position += wasRead;
                 return wasRead;
             } finally {
@@ -68,11 +68,23 @@ public class FATFileChannel implements Closeable {
                 fs().begin(true);
                 synchronized (fatFile.getLockContent()) {
                     long finalPos = position + sizeToWrite;
+                    long oldLength = fatFile.length(); //rollback info
+                    boolean success = false;
                     if (finalPos > fatFile.length())
                         fatFile.setLength(finalPos);
-
-                    wasWritten = fs().writeFileContext(fatFile, position, src);
-                    position += wasWritten;
+                    else
+                        success = true; //no rollback
+                    try {
+                        wasWritten = fs().writeFileContext(fatFile, position, src);
+                        // commit
+                        success = true;
+                        position += wasWritten;
+                    } finally {
+                        if (!success) {
+                            // rollback
+                            fatFile.setLength(finalPos);
+                        }
+                    }
                 }
             } finally {
                 fs().end();

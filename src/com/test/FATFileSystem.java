@@ -61,7 +61,7 @@ public class FATFileSystem implements Closeable {
         boolean success = false;
         try {
             ret.fat = FATSystem.create(path, clusterSize, clusterCount, allocatorType);
-            ret.root = FATFolder.createRoot(ret, 0);
+            ret.root = FATFolder.ts_createRoot(ret, 0);
             success = true;
         } finally {
             if (!success)
@@ -91,7 +91,7 @@ public class FATFileSystem implements Closeable {
         boolean success = false;
         try {
             ret.fat = FATSystem.open(path, normalMode);
-            ret.root = FATFolder.openRoot(ret);
+            ret.root = FATFolder.ts_openRoot(ret);
             success = true;
         } finally {
             if (!success)
@@ -118,7 +118,7 @@ public class FATFileSystem implements Closeable {
         synchronized (treeLock) {
             synchronized (fileLock) {
                 if (!shutdown())
-                    fat.setDirtyStatus("Alarm shutdown precess.");
+                    fat.setDirtyStatus("Alarm shutdown precess.", true);
                 if (fat != null)
                     fat.close();
             }
@@ -166,7 +166,7 @@ public class FATFileSystem implements Closeable {
         return System.currentTimeMillis();
     }
 
-    ByteBuffer allocateBuffer(int recordSize) {
+    ByteBuffer ts_allocateBuffer(int recordSize) {
         // potentially the Folder record could be in reverse byte order,
         // but it is not a good idea
         return fat.allocateBuffer(recordSize);
@@ -180,33 +180,28 @@ public class FATFileSystem implements Closeable {
         return fat.allocateClusters(-1, fat.getSizeInClusters(size));
     }
 
-    void deleteFile(FATFile fatFile) throws IOException {
-        if (fatFile.getFileId() == FATFile.INVALID_FILE_ID)
-            throw new IOException("Bad file state.");
-        try {
-            begin(true);
-            fat.freeClusters(fatFile.getFileId(), true);
-        } finally {
-            fatFile.setFileId(FATFile.INVALID_FILE_ID);
-            end();
-        }
-    }
-
-    void forceFileContent(FATFile fatFile, boolean updateMetadata) throws IOException {
+    /**
+     * Flush file content.
+     *
+     * @param file the file to flush
+     * @param updateMetadata
+     * @throws IOException
+     */
+    void ts_forceFileContent(FATFile file, boolean updateMetadata) throws IOException {
         fat.forceChannel(updateMetadata);
     }
 
 
-    void setFileLength(FATFile fatFile, long newLength, long oldLength) throws IOException {
-        if (fatFile.getFileId() == FATFile.INVALID_FILE_ID)
+    void setFileLength(FATFile file, long newLength, long oldLength) throws IOException {
+        if (file.getFileId() == FATFile.INVALID_FILE_ID)
             throw new IOException("Bad file state.");
-        fat.adjustClusterChain(fatFile.getFileId(), newLength, oldLength);
+        fat.adjustClusterChain(file.getFileId(), newLength, oldLength);
     }
 
-    int writeFileContext(FATFile fatFile, long position,
+    int writeFileContext(FATFile file, long position,
                                 ByteBuffer src) throws IOException {
         int wasWritten = 0;
-        Integer startCluster = fatFile.getFileId();
+        Integer startCluster = file.getFileId();
         Long pos = position;
         while (src.hasRemaining()) {
             wasWritten += fat.writeChannel(startCluster, pos, src);
@@ -214,10 +209,10 @@ public class FATFileSystem implements Closeable {
         return wasWritten;
     }
 
-    int readFileContext(FATFile fatFile, long position,
+    int readFileContext(FATFile file, long position,
                         ByteBuffer dst) throws IOException {
         int wasRead = 0;
-        Integer startCluster = fatFile.getFileId();
+        Integer startCluster = file.getFileId();
         Long pos = position;
         while (dst.hasRemaining()) {
             int read = fat.readChannel(startCluster, pos, dst);
@@ -241,7 +236,7 @@ public class FATFileSystem implements Closeable {
      * @return created file
      * @throws IOException
      */
-    FATFile createFile(int type, long size, int access) throws IOException {
+    FATFile ts_createFile(int type, long size, int access) throws IOException {
         synchronized (fileLock) {
             // create new
             FATFile ret = new FATFile(this, type, size, access);
@@ -249,6 +244,27 @@ public class FATFileSystem implements Closeable {
             return ret;
         }
     }
+
+    /**
+     * Rollback procedure for [{@see ts_createFile}] return value
+     *
+     * @param file the file for drop.
+     */
+    void ts_dropDirtyFile(FATFile file) throws IOException {
+        synchronized (fileLock) {
+            if (file.getFileId() == FATFile.INVALID_FILE_ID)
+                throw new IOException("Bad file id.");
+            
+            fileCache.remove(file.getFileId());
+            try {
+                fat.freeClusters(file.getFileId(), true);
+            } finally {
+                //no rollback from fat level - set dirty inside
+                file.setFileId(FATFile.INVALID_FILE_ID);
+            }
+        }
+    }
+
 
     /**
      * Opens folder file.
@@ -299,10 +315,10 @@ public class FATFileSystem implements Closeable {
     /**
      * Restores folder from [fileId] or gets it from cache.
      *
-     * @param fileId
-     * @return
+     * @param fileId the [fileId] of folder storage file.
+     * @return the folder object
      */
-    FATFolder getFolder(int fileId) {
+    FATFolder ts_getFolder(int fileId) {
         synchronized (treeLock) {
             FATFolder ret = folderCache.get(fileId);
             if (ret == null) {
@@ -399,5 +415,14 @@ public class FATFileSystem implements Closeable {
                     shutdownSignal.wait(timeout);
             }
         }
+    }
+
+    /**
+     *
+     *
+     * @param message
+     */
+    void ts_setDirtyState(String message, boolean throwExeption) throws IOException {
+        fat.setDirtyStatus(message, throwExeption);
     }
 }

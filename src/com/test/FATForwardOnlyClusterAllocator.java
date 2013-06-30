@@ -93,7 +93,7 @@ class FATForwardOnlyClusterAllocator implements FATClusterAllocator {
                 break;
         }
 
-        fs.setDirtyStatus("[freeClusterCount] has wrong value.");
+        fs.setDirtyStatus("[freeClusterCount] has wrong value.",  false);
 
         // rollback allocation.
         if (tailCluster == -1)
@@ -125,7 +125,7 @@ class FATForwardOnlyClusterAllocator implements FATClusterAllocator {
                 headCluster = fatEntry & CLUSTER_INDEX;
             } else {
                 fs.setDirtyStatus("Cluster double free in tail.  Cluster#:" + headCluster
-                        + " Value:" + fatEntry);
+                        + " Value:" + fatEntry, true);
             }
         }
         while (true) {
@@ -140,7 +140,7 @@ class FATForwardOnlyClusterAllocator implements FATClusterAllocator {
                 headCluster = fatEntry & CLUSTER_INDEX;
             } else {
                 fs.setDirtyStatus("Cluster double free. Cluster#:" + headCluster
-                        + " Value:" + fatEntry);
+                        + " Value:" + fatEntry, true);
             }
         }
     }

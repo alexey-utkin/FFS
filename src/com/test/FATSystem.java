@@ -125,7 +125,7 @@ class FATSystem implements Closeable {
         long sizeFS = getRequestedStorageFileSize(clusterSize, clusterCount);
 
         if (randomAccessFile.length() < sizeFS) {
-            setDirtyStatus("Wrong storage size. Storage was truncated in host FS.");
+            setDirtyStatus("Wrong storage size. Storage was truncated in host FS.", true);
         }
         
         initDenormalized();
@@ -250,7 +250,13 @@ class FATSystem implements Closeable {
     }
 
     public void forceChannel(boolean updateMetadata) throws IOException {
-        fileChannel.force(updateMetadata);
+        boolean success = false;
+        try {
+            fileChannel.force(updateMetadata);
+        } finally {
+            if (!success)
+                throw new IOException("Cannot force data to host FS.");
+        }
     }
 
     public void force() throws IOException {
@@ -417,7 +423,7 @@ class FATSystem implements Closeable {
                 startCluster = fatEntry & FATClusterAllocator.CLUSTER_INDEX;
             } else {
                 setDirtyStatus("Cluster chain is broken. Cluster#:" + startCluster
-                        + " Value:" + fatEntry);
+                        + " Value:" + fatEntry, true);
             }
         }
         return startCluster;
@@ -548,11 +554,18 @@ class FATSystem implements Closeable {
             throw new IOException("The storage needs maintenance.");
     }
 
-    void setDirtyStatus(String message) throws IOException {
+    /**
+     * Mark storage as [dirty]
+     *
+     * @param message
+     * @throws IOException
+     */
+    void setDirtyStatus(String message, boolean throwException) throws IOException {
         if (freeClusterCount >= 0) {
             freeClusterCount = -1;
             LogError(message);
-            checkCanWrite();
+            if (throwException)
+                checkCanWrite();
         }
     }
 

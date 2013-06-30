@@ -18,7 +18,7 @@ public class FATFileChannel implements Closeable {
     public FATFileChannel(FATFile _fatFile, boolean appendMode) {
         fatFile = _fatFile;
         position = appendMode
-                ? fatFile.size
+                ? fatFile.length()
                 : 0;
     }
 
@@ -32,11 +32,16 @@ public class FATFileChannel implements Closeable {
      */
     public int read(ByteBuffer dst) throws IOException {
         synchronized (fatFile.getLockContent()) {
-            if (position >= fatFile.length())
-                return -1;
-            int wasRead = fatFile.fs.readFileContext(fatFile, position, dst);
-            position += wasRead;
-            return wasRead;
+            try {
+                fs().begin(false);
+                if (position >= fatFile.length())
+                    return -1;
+                int wasRead = fs().readFileContext(fatFile, position, dst);
+                position += wasRead;
+                return wasRead;
+            } finally {
+                fs().end();
+            }
         }
     }
 
@@ -59,13 +64,18 @@ public class FATFileChannel implements Closeable {
         int wasWritten = 0;
         //Lock Attribute due to file size change
         synchronized (fatFile.getLockAttribute()) {
-            synchronized (fatFile.getLockContent()) {
-                long finalPos = position + sizeToWrite;
-                if (finalPos > fatFile.length())
-                    fatFile.setLength(finalPos);
+            try {
+                fs().begin(true);
+                synchronized (fatFile.getLockContent()) {
+                    long finalPos = position + sizeToWrite;
+                    if (finalPos > fatFile.length())
+                        fatFile.setLength(finalPos);
 
-                wasWritten = fatFile.fs.writeFileContext(fatFile, position, src);
-                position += wasWritten;
+                    wasWritten = fs().writeFileContext(fatFile, position, src);
+                    position += wasWritten;
+                }
+            } finally {
+                fs().end();
             }
         }
         return wasWritten;
@@ -121,7 +131,7 @@ public class FATFileChannel implements Closeable {
      * @throws java.io.IOException If some other I/O error occurs
      */
     public long size() throws IOException {
-        return 0;  //To change body of implemented methods use File | Settings | File Templates.
+        return fatFile.length();
     }
 
     /**
@@ -134,6 +144,7 @@ public class FATFileChannel implements Closeable {
      * position is greater than the given size then it is set to that size.
      * </p>
      *
+     *
      * @param size The new size, a non-negative byte count
      * @return This file channel
      * @throws java.nio.channels.NonWritableChannelException
@@ -143,8 +154,16 @@ public class FATFileChannel implements Closeable {
      * @throws IllegalArgumentException If the new size is negative
      * @throws java.io.IOException      If some other I/O error occurs
      */
-    public FileChannel truncate(long size) throws IOException {
-        return null;  //To change body of implemented methods use File | Settings | File Templates.
+    public FATFileChannel truncate(long size) throws IOException {
+        synchronized (fatFile.getLockAttribute()) {
+            synchronized (fatFile.getLockContent()) {
+                if (size < size()) {
+                    fatFile.setLength(size);
+                    position = Math.max(position, size);
+                }
+            }
+        }
+        return this;
     }
 
     /**
@@ -185,7 +204,10 @@ public class FATFileChannel implements Closeable {
      * @throws java.io.IOException If some other I/O error occurs
      */
     public void force(boolean metaData) throws IOException {
-        //To change body of implemented methods use File | Settings | File Templates.
+        if (metaData) {
+            fatFile.setLastModified(FATFileSystem.getCurrentTime());
+        }
+        fatFile.force(metaData);
     }
 
     /**
@@ -220,7 +242,13 @@ public class FATFileChannel implements Closeable {
      * @throws java.io.IOException      If some other I/O error occurs
      */
     public int read(ByteBuffer dst, long position) throws IOException {
-        return 0;  //To change body of implemented methods use File | Settings | File Templates.
+        // Lock Attribute due to file size change
+        synchronized (fatFile.getLockAttribute()) {
+            synchronized (fatFile.getLockContent()) {
+                position(position);
+                return read(dst);
+            }
+        }
     }
 
     /**
@@ -280,6 +308,10 @@ public class FATFileChannel implements Closeable {
      */
     @Override
     public void close() throws IOException {
-        fatFile.force(true);
+        force(true);
+    }
+
+    private FATFileSystem fs() {
+        return fatFile.fs;
     }
 }

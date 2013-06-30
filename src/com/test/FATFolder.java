@@ -45,11 +45,11 @@ public class FATFolder {
     static FATFolder createRoot(FATFileSystem fs, int access) throws IOException {
         // exclusive access to [ret]
         FATFile rootFile = fs.createFile(FATFile.TYPE_FOLDER, EMPTY_FILE_SIZE, access);
-        rootFile.size = FATFile.RECORD_SIZE;// have to be at least one record length
         if (rootFile.getFileId() != ROOT_FILE_ID)
-            new IOException("Root already exists.");
+            throw new IOException("Root already exists.");
 
-        rootFile.setName(ROOT_NAME);
+        rootFile.initSize(FATFile.RECORD_SIZE);// have to be at least one record length
+        rootFile.initName(ROOT_NAME);
         // self store
         FATFolder ret = fs.getFolder(rootFile.getFileId());
         rootFile.moveTo(ret);
@@ -67,7 +67,7 @@ public class FATFolder {
         FATFile rootFile = fs.openFile(FATFile.TYPE_FOLDER, ROOT_FILE_ID, ROOT_FILE_ID);
         // exclusive access to [ret]
         FATFolder ret = fs.getFolder(rootFile.getFileId());
-        rootFile.size = FATFile.RECORD_SIZE;// have to be at least one record length
+        rootFile.initSize(FATFile.RECORD_SIZE);// have to be at least one record length
         ret.readContent();
         if (ret.childFiles.isEmpty()
             || !ROOT_NAME.equals(ret.childFiles.get(0).toString()))
@@ -75,15 +75,45 @@ public class FATFolder {
         return ret;
     }
 
+    /**
+     * Creates a child folder.
+     *
+     * @param folderName the name of folder.
+     * @throws IOException
+     */
     public void  createSubfolder(String folderName) throws IOException {
-        FATFile subfolder = findFolder(folderName);
-        if (subfolder != null)
-            throw new FileAlreadyExistsException(folderName);
+        synchronized (fatFile.getLockContent()) {
+            try {
+                fs().begin(true);
+                FATFile subfolder = findFolder(folderName);
+                if (subfolder != null)
+                    throw new FileAlreadyExistsException(folderName);
+                //reserve space fist!
+                ref(FATFile.DELETED_FILE);
 
-        synchronized (fatFile.fs.getTreeLock()) {
-            subfolder = fatFile.fs.createFile(FATFile.TYPE_FOLDER, EMPTY_FILE_SIZE, fatFile.access);
-            subfolder.setName(folderName);
-            subfolder.moveTo(this);
+                // [access] is the same as in parent by default
+                subfolder = fs().createFile(FATFile.TYPE_FOLDER, EMPTY_FILE_SIZE, fatFile.access());
+                subfolder.initName(folderName);
+                subfolder.moveTo(this);
+            } finally {
+                fs().end();
+            }
+        }
+    }
+
+    /**
+     * Packs the folder in external memory.
+     *
+     * @return the number of bytes that were free.
+     */
+    public int pack() throws IOException {
+        synchronized (fatFile.getLockContent()) {
+            try {
+                fs().begin(true);
+                return 0;
+            } finally {
+                fs().end();
+            }
         }
     }
 
@@ -110,23 +140,25 @@ public class FATFolder {
 
     private void readContent() throws IOException {
         synchronized (fatFile.getLockContent()) {
-            try (FATFileChannel folderContent = fatFile.getChannel(false)) {
-                ByteBuffer bf = fatFile.fs.allocateBuffer(FATFile.RECORD_SIZE);
-                // for the root folder the [fatFile.size] will updated at fist read to actual value.
-                while (folderContent.position() < fatFile.length()) {
-                    folderContent.read(bf);
-                    bf.flip();
-                    childFiles.add(fatFile.fs.openFile(bf, getFolderId()));
-                    bf.position(0);
+            try {
+                fs().begin(false);
+                try (FATFileChannel folderContent = fatFile.getChannel(false)) {
+                    ByteBuffer bf = fs().allocateBuffer(FATFile.RECORD_SIZE);
+                    // for the root folder the [fatFile.size]
+                    // will updated at fist read to actual value.
+                    while (folderContent.position() < fatFile.length()) {
+                        folderContent.read(bf);
+                        bf.flip();
+                        childFiles.add(fs().openFile(bf, getFolderId()));
+                        bf.position(0);
+                    }
+                    if (folderContent.position() != fatFile.length())
+                        throw new IOException("Folder is damaged!");
                 }
-                if (folderContent.position() != fatFile.length())
-                    throw new IOException("Folder is damaged!");
+            } finally {
+                fs().end();
             }
         }
-    }
-
-    public static FATFolder create(FATFolder parent, String name, int access) throws IOException {
-        return null;
     }
 
     public int getFolderId() {
@@ -138,8 +170,8 @@ public class FATFolder {
             folderContent
                 .position(index * FATFile.RECORD_SIZE)
                 .write((ByteBuffer) updateFile
-                        .serialize(fatFile.fs.allocateBuffer(FATFile.RECORD_SIZE),
-                                fatFile.fs.getVersion())
+                        .serialize(fs().allocateBuffer(FATFile.RECORD_SIZE),
+                                fs().getVersion())
                         .flip());
         }
     }
@@ -155,8 +187,14 @@ public class FATFolder {
 
     void ref(FATFile addFile) throws IOException {
         synchronized (fatFile.getLockContent()) {
-            childFiles.add(addFile);
-            updateFileRecord(childFiles.size() - 1, addFile);
+            int pos = childFiles.indexOf(FATFile.DELETED_FILE);
+            if (pos >= 0) {
+                childFiles.set(pos, addFile);
+            } else {
+                childFiles.add(addFile);
+                pos = childFiles.size() - 1;
+            }
+            updateFileRecord(pos, addFile);
         }
     }
 
@@ -172,4 +210,7 @@ public class FATFolder {
         }
     }
 
+    private FATFileSystem fs() {
+        return fatFile.fs;
+    }
 }

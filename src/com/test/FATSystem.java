@@ -535,12 +535,12 @@ class FATSystem implements Closeable {
         normalMode = _normalMode;
     }
 
-    private void checkCanRead() throws IOException {
+    void checkCanRead() throws IOException {
         if (!isOpen())
             throw new IOException("The storage is closed.");
     }
 
-    private void checkCanWrite() throws IOException {
+    void checkCanWrite() throws IOException {
         checkCanRead();
 
         // check for dirty FAT

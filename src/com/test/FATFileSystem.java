@@ -15,12 +15,22 @@ import java.util.HashMap;
 public class FATFileSystem implements Closeable {
     private FATSystem fat;
     private FATFolder root;
+
     private HashMap<Integer, FATFolder> folderCache = new HashMap<>();
     private HashMap<Integer, FATFile>   fileCache = new HashMap<>();
 
     // treeLock->fileLock lock sequence
     final Object treeLock = new Object();
     final Object fileLock = new Object();
+
+    // smart termination procedure as
+    //  Transaction counting + shutdown signal + wait for execution finish
+    private boolean shutdown = false;
+    private long transactionCounter = 0L;
+
+    final Object transactionCounterLock = new Object();
+    final Object shutdownSignal = new Object();
+
 
     private FATFileSystem() {}
 
@@ -107,6 +117,8 @@ public class FATFileSystem implements Closeable {
     public void close() throws IOException {
         synchronized (treeLock) {
             synchronized (fileLock) {
+                if (!shutdown())
+                    fat.setDirtyStatus("Alarm shutdown precess.");
                 if (fat != null)
                     fat.close();
             }
@@ -169,12 +181,14 @@ public class FATFileSystem implements Closeable {
     }
 
     void deleteFile(FATFile fatFile) throws IOException {
-        if (fatFile.fileId == FATFile.INVALID_FILE_ID)
+        if (fatFile.getFileId() == FATFile.INVALID_FILE_ID)
             throw new IOException("Bad file state.");
         try {
-            fat.freeClusters(fatFile.fileId, true);
+            begin(true);
+            fat.freeClusters(fatFile.getFileId(), true);
         } finally {
-            fatFile.fileId = FATFile.INVALID_FILE_ID;
+            fatFile.setFileId(FATFile.INVALID_FILE_ID);
+            end();
         }
     }
 
@@ -184,15 +198,15 @@ public class FATFileSystem implements Closeable {
 
 
     void setFileLength(FATFile fatFile, long newLength, long oldLength) throws IOException {
-        if (fatFile.fileId == FATFile.INVALID_FILE_ID)
+        if (fatFile.getFileId() == FATFile.INVALID_FILE_ID)
             throw new IOException("Bad file state.");
-        fat.adjustClusterChain(fatFile.fileId, newLength, oldLength);
+        fat.adjustClusterChain(fatFile.getFileId(), newLength, oldLength);
     }
 
     int writeFileContext(FATFile fatFile, long position,
                                 ByteBuffer src) throws IOException {
         int wasWritten = 0;
-        Integer startCluster = fatFile.fileId;
+        Integer startCluster = fatFile.getFileId();
         Long pos = position;
         while (src.hasRemaining()) {
             wasWritten += fat.writeChannel(startCluster, pos, src);
@@ -203,7 +217,7 @@ public class FATFileSystem implements Closeable {
     int readFileContext(FATFile fatFile, long position,
                         ByteBuffer dst) throws IOException {
         int wasRead = 0;
-        Integer startCluster = fatFile.fileId;
+        Integer startCluster = fatFile.getFileId();
         Long pos = position;
         while (dst.hasRemaining()) {
             int read = fat.readChannel(startCluster, pos, dst);
@@ -317,5 +331,73 @@ public class FATFileSystem implements Closeable {
 
     public Object getTreeLock() {
         return treeLock;
+    }
+
+    /**
+     * Signal to start transaction.
+     */
+    void begin(boolean writeOperation) throws IOException {
+        synchronized (transactionCounterLock) {
+            // we need unwind nested transactions.
+            if (transactionCounter==0 && shutdown)
+                throw new IOException("System shutdown.");
+            transactionCounter += 1;
+            if (writeOperation)
+                fat.checkCanWrite();
+            else
+                fat.checkCanRead();
+        }
+    }
+
+    /**
+     * Signal to end transaction.
+     */
+    void end() {
+        synchronized (transactionCounterLock) {
+            transactionCounter -= 1;
+            if (transactionCounter == 0 && shutdown) {
+                synchronized (shutdownSignal) {
+                    shutdownSignal.notify();
+                }
+            }
+        }
+    }
+
+    /**
+     * Sends shutdown signal to the file system.
+     *
+     * Can be called multiple times. Once all nested
+     * transactions are terminated, the file system goes to
+     * the frozen state and ready to be closed.
+     *
+     * If there are no active transactions in the thread stack,
+     * the [{@see waitForShutdown}] method could be called directly.
+     *
+     * @return [true] if the file system is ready be closed
+     */
+    public boolean shutdown() {
+        synchronized (transactionCounterLock) {
+            shutdown = true;
+            return (transactionCounter == 0);
+        }
+    }
+
+    /**
+     * Waits for the file system shutdown.
+     *
+     * @param  timeout   the maximum time to wait in milliseconds.
+     * @throws InterruptedException
+     * @see    java.lang.Object#wait(long) ()
+     */
+    public void waitForShutdown(long timeout) throws InterruptedException {
+        synchronized (transactionCounterLock) {
+            synchronized (shutdownSignal) {
+                shutdown = true;
+                // just for protection from spurious wakeup
+                // don't wary about longer time in wait for [spurious wakeup]
+                while (transactionCounter != 0)
+                    shutdownSignal.wait(timeout);
+            }
+        }
     }
 }

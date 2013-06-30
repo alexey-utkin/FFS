@@ -28,13 +28,13 @@ public class FATFile {
 
     public static final int RECORD_SIZE = 3*4 + 3*8 + FILE_MAX_NAME*2;  //256 bytes
     // attributes
-    final int type;
-    int fileId;
-    int  access;
-    long size;
-    long timeCreate;
-    long timeModify;
-    final char[] name = new char[FILE_MAX_NAME];
+    private final int type;
+    private int fileId;
+    private int  access;
+    private long size;
+    private long timeCreate;
+    private long timeModify;
+    private final char[] name = new char[FILE_MAX_NAME];
 
     // properties
     private int parentId = INVALID_FILE_ID;
@@ -86,7 +86,6 @@ public class FATFile {
     }
 
     public void delete() throws IOException {
-        //todo: folder case
         fs.deleteFile(this);
     }
 
@@ -104,13 +103,86 @@ public class FATFile {
         return bf;
     }
 
-
     void force(boolean updateMetadata) throws IOException {
         if (updateMetadata)
             timeModify = FATFileSystem.getCurrentTime();
         fs.forceFileContent(this, updateMetadata);
     }
 
+    /**
+     * Updates attribute info in parent record if any.
+     *
+     * Have to be called under [lockAttribute].
+     * @throws IOException
+     */
+    private void updateAttributes() throws IOException {
+        if (parentId != INVALID_FILE_ID) {
+            fs.getFolder(parentId).updateFileRecord(this);
+        }
+    }
+
+    /**
+     * Moves file to new location.
+     *
+     * @param newParent new owner of the file
+     * @throws IOException
+     */
+    public void moveTo(FATFolder newParent) throws IOException {
+        synchronized (lockAttribute) {
+            try {
+                fs.begin(true);
+                //redirect any file attribute change (ex. size) to new parent
+                int oldParentId = parentId;
+                parentId = newParent.getFolderId();
+                boolean success = false;
+                try {
+                    newParent.ref(this);
+                    success = true;
+                } finally {
+                    if (!success) {
+                        parentId = oldParentId;
+                    } else if (oldParentId != INVALID_FILE_ID) {
+                        fs.getFolder(oldParentId).deRef(this);
+                    }
+                }
+            } finally {
+                fs.end();
+            }
+        }
+    }
+
+
+    public String toString() {
+        String ret = new String(name);
+        int zeroPos = ret.indexOf(ZAP_CHAR);
+        return (zeroPos == -1)
+                ? ret
+                : ret.substring(0, zeroPos);
+    }
+
+    void initSize(long size) {
+        this.size = size;
+        //no update here! That is init!
+        //updateAttributes();
+    }
+
+    void initName(String fileName) {
+        int len = fileName.length();
+        if (len > FILE_MAX_NAME)
+            throw new IllegalArgumentException("Name is too long. Max length is " + FILE_MAX_NAME);
+        synchronized (lockAttribute) {
+            Arrays.fill(name, ZAP_CHAR);
+            System.arraycopy(fileName.toCharArray(), 0, name, 0, len);
+            //no update here! That is init!
+            //updateAttributes();
+        }
+    }
+
+    /**
+     * Gets the file length.
+     *
+     * @return the file length
+     */
     public long length() {
         return size;
     }
@@ -130,41 +202,15 @@ public class FATFile {
     public void setLength(long newLength) throws IOException {
         synchronized (lockAttribute) {
             synchronized (lockContent) {
-                if (newLength == size)
-                    return;
-                fs.setFileLength(this, newLength, size);
-                size = newLength;
-                updateAttributes();
-            }
-        }
-    }
-
-    /**
-     * Updates attribute info in parent record if any.
-     *
-     * Have to be called under [lockAttribute].
-     * @throws IOException
-     */
-    private void updateAttributes() throws IOException {
-        if (parentId != INVALID_FILE_ID) {
-            fs.getFolder(parentId).updateFileRecord(this);
-        }
-    }
-
-    public void moveTo(FATFolder newParent) throws IOException {
-        synchronized (lockAttribute) {
-            //redirect any file attribute change (ex. size) to new parent
-            int oldParentId = parentId;
-            parentId = newParent.getFolderId();
-            boolean success = false;
-            try {
-                newParent.ref(this);
-                success = true;
-            } finally {
-                if (!success) {
-                    parentId = oldParentId;
-                } else if (oldParentId != INVALID_FILE_ID) {
-                    fs.getFolder(oldParentId).deRef(this);
+                try {
+                    fs.begin(true);
+                    if (newLength == size)
+                        return;
+                    fs.setFileLength(this, newLength, size);
+                    size = newLength;
+                    updateAttributes();
+                } finally {
+                    fs.end();
                 }
             }
         }
@@ -173,6 +219,11 @@ public class FATFile {
     int getFileId() {
         return fileId;
     }
+
+    void setFileId(int fileId) {
+        this.fileId = fileId;
+    }
+
 
     public boolean isFolder() {
         return type == TYPE_FOLDER;
@@ -186,21 +237,87 @@ public class FATFile {
         return lockAttribute;
     }
 
-    public String toString() {
-        String ret = new String(name);
-        int zeroPos = ret.indexOf(ZAP_CHAR);
-        return (zeroPos == -1)
-                ? ret
-                : ret.substring(0, zeroPos);
+    /**
+     * Gets the file access attribute.
+     *
+     * @return the file access state.
+     */
+    public int access() {
+        return access;
     }
 
-    public void setName(String fileName) {
-        int len = fileName.length();
-        if (len > FILE_MAX_NAME)
-            throw new IllegalArgumentException("Name is too long. Max length is " + FILE_MAX_NAME);
+    /**
+     * Sets the file access attribute.
+     *
+     * @param access the file access state.
+     */
+    public void setAccess(int access) throws IOException {
+        if (this.access == access)
+            return;
         synchronized (lockAttribute) {
-            Arrays.fill(name, ZAP_CHAR);
-            System.arraycopy(fileName.toCharArray(), 0, name, 0, len);
+            try {
+                fs.begin(true);
+                this.access = access;
+                updateAttributes();
+            } finally {
+                fs.end();
+            }
+        }
+    }
+
+    /**
+     * Gets the file creation time attribute.
+     *
+     * @return the file creation time in milliseconds.
+     */
+    public long timeCreate() {
+        return timeCreate;
+    }
+
+    /**
+     * Sets the file creation time attribute.
+     *
+     * @param timeCreate the file creation time in milliseconds.
+     */
+    public void setTimeCreate(long timeCreate) throws IOException {
+        if (this.timeCreate == timeCreate)
+            return;
+        synchronized (lockAttribute) {
+            try {
+                fs.begin(true);
+                this.timeCreate = timeCreate;
+                updateAttributes();
+            } finally {
+                fs.end();
+            }
+        }
+    }
+
+    /**
+     * Gets the file modification time attribute.
+     *
+     * @return the file modification time in milliseconds.
+     */
+    public long lastModified() {
+        return timeModify;
+    }
+
+    /**
+     * Sets the file modification time attribute.
+     *
+     * @param timeModify the file modification time in milliseconds.
+     */
+    public void setLastModified(long timeModify) throws IOException {
+        if (this.timeModify == timeModify)
+            return;
+        synchronized (lockAttribute) {
+            try {
+                fs.begin(true);
+                this.timeModify = timeModify;
+                updateAttributes();
+            } finally {
+                fs.end();
+            }
         }
     }
 }

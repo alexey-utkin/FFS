@@ -38,7 +38,7 @@ public class FATFile {
     public static final int RECORD_SIZE = 3*4 + 3*8 + FILE_MAX_NAME*2;  //256 bytes
     // attributes
     private final int type;
-    private int fileId;
+    private int fileId = INVALID_FILE_ID;
     private int  access;
     private long size;
     private long timeCreate;
@@ -255,12 +255,18 @@ public class FATFile {
 
     /**
      * Opens file from id
+     *
+     * @param fs the FS object
+     * @param type the [TYPE_XXXX] const
+     * @param fileId the FS unique file Id (in FATSystem that is the start of file chain)
+     * @param parentId  the FS unique parent file Id. Parent file need to be a folder,
+     *                  parent holds the file attributes.
      */
-    FATFile(FATFileSystem _fs, int _type, int _fileId, int _parentId) {
-        fs = _fs;
-        type = _type;
-        fileId = _fileId;
-        parentId = _parentId;
+    FATFile(FATFileSystem fs, int type, int fileId, int parentId) {
+        this.fs = fs;
+        this.type = type;
+        this.fileId = fileId;
+        this.parentId = parentId;
     }
 
     /**
@@ -268,20 +274,22 @@ public class FATFile {
      *
      * Could not be called directly, use [fs.ts_createFile] instead.
      *
-     * @param _fs
-     * @param _type
-     * @param _size
-     * @param _access
+     * @param fs the FS object
+     * @param name the name of created file
+     * @param type the [TYPE_XXXX] const
+     * @param size the size of created file, that need to be allocated
+     * @param access the desired access
      * @throws IOException
      */
-    FATFile(FATFileSystem _fs, int _type, long _size, int _access) throws IOException {
-        fs = _fs;
+    FATFile(FATFileSystem fs, String name, int type, long size, int access) throws IOException {
+        ts_initName(name);
+        this.fs = fs;
         fileId = fs.ts_allocateFileSpace(size);
-        type = _type;
-        size = _size;
+        this.type = type;
+        this.size = size;
         timeCreate = FATFileSystem.getCurrentTime();
         timeModify = FATFileSystem.getCurrentTime();
-        access = _access;
+        this.access = access;
     }
 
     void ts_initFromBuffer(ByteBuffer bf) {
@@ -325,7 +333,7 @@ public class FATFile {
         //no update here! That is init!
     }
 
-    void ts_initName(String fileName) {
+    private void ts_initName(String fileName) {
         int len = fileName.length();
         if (len > FILE_MAX_NAME)
             throw new IllegalArgumentException("Name is too long. Max length is " + FILE_MAX_NAME);

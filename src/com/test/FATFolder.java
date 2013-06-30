@@ -47,8 +47,8 @@ public class FATFolder {
                 ts_ref(FATFile.DELETED_FILE);
 
                 // [access] is the same as in parent by default
-                subfolder = ts_fs().ts_createFile(FATFile.TYPE_FOLDER, EMPTY_FILE_SIZE, fatFile.access());
-                subfolder.ts_initName(folderName);
+                subfolder = ts_fs().ts_createFile(folderName,
+                        FATFile.TYPE_FOLDER, EMPTY_FILE_SIZE, fatFile.access());
 
                 boolean success = false;
                 try {
@@ -156,12 +156,10 @@ public class FATFolder {
         // exclusive access to [ret]
         boolean success = false;
         try {
-            FATFile rootFile = fs.ts_createFile(FATFile.TYPE_FOLDER, EMPTY_FILE_SIZE, access);
+            FATFile rootFile = fs.ts_createFile(ROOT_NAME, FATFile.TYPE_FOLDER, EMPTY_FILE_SIZE, access);
             if (rootFile.ts_getFileId() != ROOT_FILE_ID)
                 throw new IOException("Root already exists.");
-
             rootFile.ts_initSize(FATFile.RECORD_SIZE);// have to be at least one record length
-            rootFile.ts_initName(ROOT_NAME);
             // self store
             FATFolder ret = fs.ts_getFolder(rootFile.ts_getFileId());
 

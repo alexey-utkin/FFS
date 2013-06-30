@@ -249,18 +249,20 @@ public class FATFileSystem implements Closeable {
 
     /**
      * Creates new file.
+     *
      * Returns file has no connection with folder.
      *
+     * @param fileName the name of created file
      * @param type FATFile.TYPE_XXXX const
      * @param size the space for allocation
      * @param access desired access to file
      * @return created file
      * @throws IOException
      */
-    FATFile ts_createFile(int type, long size, int access) throws IOException {
+    FATFile ts_createFile(String fileName, int type, long size, int access) throws IOException {
         synchronized (fileLock) {
             // create new
-            FATFile ret = new FATFile(this, type, size, access);
+            FATFile ret = new FATFile(this, fileName, type, size, access);
             fileCache.put(ret.ts_getFileId(), ret);
             return ret;
         }

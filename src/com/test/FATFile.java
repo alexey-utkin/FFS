@@ -9,6 +9,13 @@ import java.util.Arrays;
 /**
  * Created with IntelliJ IDEA.
  * User: uta
+ *
+ * All [transact-safe] methods have the [ts_] prefix.
+ * The [transact-safe] means that methods can terminated successfully,
+ *   or restore the object state to initial condition and throw exception,
+ *   or mark system as "dirty" and throw exception (critical error in host FS).
+ *
+ * All public functions have to be [transact-safe] by default.
  */
 public class FATFile {
     public static final int INVALID_FILE_ID = -1;
@@ -41,49 +48,7 @@ public class FATFile {
     // properties
     private int parentId = INVALID_FILE_ID;
 
-    /**
-     * Opens file from id
-     */
-    FATFile(FATFileSystem _fs, int _type, int _fileId, int _parentId) {
-        fs = _fs;
-        type = _type;
-        fileId = _fileId;
-        parentId = _parentId;
-    }
-
-    /**
-     * Creates File in FAT with allocated space.
-     *
-     * Could not be called directly, use [fs.ts_createFile] instead.
-     *
-     * @param _fs
-     * @param _type
-     * @param _size
-     * @param _access
-     * @throws IOException
-     */
-    FATFile(FATFileSystem _fs, int _type, long _size, int _access) throws IOException {
-        fs = _fs;
-        fileId = fs.allocateFileSpace(size);
-        type = _type;
-        size = _size;
-        timeCreate = FATFileSystem.getCurrentTime();
-        timeModify = FATFileSystem.getCurrentTime();
-        access = _access;
-    }
-
-    public void initFromBuffer(ByteBuffer bf) {
-        // [fileId] and [type] was read before for [ctr] call
-        size = bf.getLong();
-        timeCreate = bf.getLong();
-        timeModify = bf.getLong();
-        access = bf.getInt();
-        // only UNICODE name for performance and compatibility reasons
-        bf.asCharBuffer().get(name);
-    }
-
-
-    public FATFileChannel ts_getChannel(boolean appendMode) {
+    public FATFileChannel getChannel(boolean appendMode) {
         return new FATFileChannel(this, appendMode);
     }
 
@@ -91,37 +56,10 @@ public class FATFile {
         throw new NotImplementedException();
     }
 
-    ByteBuffer serialize(ByteBuffer bf, int version) {
-        bf
-            .putInt(fileId)
-            .putInt(type)
-            .putLong(size)
-            .putLong(timeCreate)
-            .putLong(timeModify)
-            .putInt(access);
-        // only UNICODE name for performance and compatibility reasons
-        bf.asCharBuffer().put(name);
-        bf.position(bf.position() + name.length*2);
-        return bf;
-    }
-
     public void force(boolean updateMetadata) throws IOException {
-
         if (updateMetadata)
             setLastModified(FATFileSystem.getCurrentTime());
         fs.ts_forceFileContent(this, updateMetadata);
-    }
-
-    /**
-     * Updates attribute info in parent record if any.
-     *
-     * Have to be called under [lockAttribute].
-     * @throws IOException
-     */
-    private void updateAttributes() throws IOException {
-        if (parentId != INVALID_FILE_ID) {
-            fs.ts_getFolder(parentId).ts_updateFileRecord(this);
-        }
     }
 
     /**
@@ -137,7 +75,7 @@ public class FATFile {
             try {
                 fs.begin(true);
                 //redirect any file attribute change (ex. size) to new parent
-                parentId = newParent.getFolderId();
+                parentId = newParent.ts_getFolderId();
                 newParent.ts_ref(this);
                 if (oldParentId != INVALID_FILE_ID) {
                     try {
@@ -163,39 +101,19 @@ public class FATFile {
                 if (!success) {
                     // rollback
                     parentId = oldParentId;
-                    if (oldParentId == INVALID_FILE_ID) {
-                        // it was file-to-parent binding
-                        fs.ts_setDirtyState("Lost file problem.", false);
-                    }
                 }
                 fs.end();
             }
         }
     }
 
-
+    @Override
     public String toString() {
         String ret = new String(name);
         int zeroPos = ret.indexOf(ZAP_CHAR);
         return (zeroPos == -1)
                 ? ret
                 : ret.substring(0, zeroPos);
-    }
-
-    void ts_initSize(long size) {
-        this.size = size;
-        //no update here! That is init!
-    }
-
-    void ts_initName(String fileName) {
-        int len = fileName.length();
-        if (len > FILE_MAX_NAME)
-            throw new IllegalArgumentException("Name is too long. Max length is " + FILE_MAX_NAME);
-        synchronized (lockAttribute) {
-            Arrays.fill(name, ZAP_CHAR);
-            System.arraycopy(fileName.toCharArray(), 0, name, 0, len);
-            //no update here! That is init!
-        }
     }
 
     /**
@@ -227,7 +145,7 @@ public class FATFile {
                     if (newLength == size)
                         return;
                     fs.setFileLength(this, newLength, size);
-                    updateAttributes();
+                    ts_updateAttributes();
                     // commit
                     size = newLength;
                 } finally {
@@ -237,25 +155,13 @@ public class FATFile {
         }
     }
 
-    int getFileId() {
-        return fileId;
-    }
-
-    void setFileId(int fileId) {
-        this.fileId = fileId;
-    }
-
-
+    /**
+     * Checks the file type against [TYPE_FOLDER] const.
+     *
+     * @return id the file contains folder records.
+     */
     public boolean isFolder() {
         return type == TYPE_FOLDER;
-    }
-
-    Object getLockContent() {
-        return lockContent;
-    }
-
-    Object getLockAttribute() {
-        return lockAttribute;
     }
 
     /**
@@ -278,7 +184,7 @@ public class FATFile {
         synchronized (lockAttribute) {
             try {
                 fs.begin(true);
-                updateAttributes();
+                ts_updateAttributes();
                 // commit
                 this.access = access;
             } finally {
@@ -307,7 +213,7 @@ public class FATFile {
         synchronized (lockAttribute) {
             try {
                 fs.begin(true);
-                updateAttributes();
+                ts_updateAttributes();
                 // commit
                 this.timeCreate = timeCreate;
             } finally {
@@ -336,7 +242,7 @@ public class FATFile {
         synchronized (lockAttribute) {
             try {
                 fs.begin(true);
-                updateAttributes();
+                ts_updateAttributes();
                 // commit
                 this.timeModify = timeModify;
             } finally {
@@ -344,4 +250,104 @@ public class FATFile {
             }
         }
     }
+
+    /**
+     * Opens file from id
+     */
+    FATFile(FATFileSystem _fs, int _type, int _fileId, int _parentId) {
+        fs = _fs;
+        type = _type;
+        fileId = _fileId;
+        parentId = _parentId;
+    }
+
+    /**
+     * Creates File in FAT with allocated space.
+     *
+     * Could not be called directly, use [fs.ts_createFile] instead.
+     *
+     * @param _fs
+     * @param _type
+     * @param _size
+     * @param _access
+     * @throws IOException
+     */
+    FATFile(FATFileSystem _fs, int _type, long _size, int _access) throws IOException {
+        fs = _fs;
+        fileId = fs.allocateFileSpace(size);
+        type = _type;
+        size = _size;
+        timeCreate = FATFileSystem.getCurrentTime();
+        timeModify = FATFileSystem.getCurrentTime();
+        access = _access;
+    }
+
+    void ts_initFromBuffer(ByteBuffer bf) {
+        // [fileId] and [type] was read before for [ctr] call
+        size = bf.getLong();
+        timeCreate = bf.getLong();
+        timeModify = bf.getLong();
+        access = bf.getInt();
+        // only UNICODE name for performance and compatibility reasons
+        bf.asCharBuffer().get(name);
+    }
+
+    ByteBuffer ts_serialize(ByteBuffer bf, int version) {
+        bf
+                .putInt(fileId)
+                .putInt(type)
+                .putLong(size)
+                .putLong(timeCreate)
+                .putLong(timeModify)
+                .putInt(access);
+        // only UNICODE name for performance and compatibility reasons
+        bf.asCharBuffer().put(name);
+        bf.position(bf.position() + name.length*2);
+        return bf;
+    }
+
+    /**
+     * Updates attribute info in parent record if any.
+     *
+     * Have to be called under [lockAttribute].
+     * @throws IOException
+     */
+    private void ts_updateAttributes() throws IOException {
+        if (parentId != INVALID_FILE_ID) {
+            fs.ts_getFolder(parentId).ts_updateFileRecord(this);
+        }
+    }
+
+    void ts_initSize(long size) {
+        this.size = size;
+        //no update here! That is init!
+    }
+
+    void ts_initName(String fileName) {
+        int len = fileName.length();
+        if (len > FILE_MAX_NAME)
+            throw new IllegalArgumentException("Name is too long. Max length is " + FILE_MAX_NAME);
+        synchronized (lockAttribute) {
+            Arrays.fill(name, ZAP_CHAR);
+            System.arraycopy(fileName.toCharArray(), 0, name, 0, len);
+            //no update here! That is init!
+        }
+    }
+
+    int ts_getFileId() {
+        return fileId;
+    }
+
+    void ts_setFileId(int fileId) {
+        this.fileId = fileId;
+    }
+
+    Object ts_getLockContent() {
+        return lockContent;
+    }
+
+    Object ts_getLockAttribute() {
+        return lockAttribute;
+    }
+
 }

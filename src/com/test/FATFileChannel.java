@@ -30,7 +30,7 @@ public class FATFileChannel implements Closeable {
      * java.nio.channels.ReadableByteChannel} interface. </p>
      */
     public int read(ByteBuffer dst) throws IOException {
-        synchronized (fatFile.getLockContent()) {
+        synchronized (fatFile.ts_getLockContent()) {
             try {
                 fs().begin(false);
                 if (position >= fatFile.length())
@@ -63,10 +63,10 @@ public class FATFileChannel implements Closeable {
 
         int wasWritten = 0;
         //Lock Attribute due to file size change
-        synchronized (fatFile.getLockAttribute()) {
+        synchronized (fatFile.ts_getLockAttribute()) {
             try {
                 fs().begin(true);
-                synchronized (fatFile.getLockContent()) {
+                synchronized (fatFile.ts_getLockContent()) {
                     long finalPos = position + sizeToWrite;
                     long oldLength = fatFile.length(); //rollback info
                     boolean success = false;
@@ -127,7 +127,7 @@ public class FATFileChannel implements Closeable {
     public FATFileChannel position(long newPosition) throws IOException {
         if (newPosition < 0)
             throw new IOException("Bad new position.");
-        synchronized (fatFile.getLockContent()) {
+        synchronized (fatFile.ts_getLockContent()) {
             position = newPosition;
         }
         return this;
@@ -167,8 +167,8 @@ public class FATFileChannel implements Closeable {
      * @throws java.io.IOException      If some other I/O error occurs
      */
     public FATFileChannel truncate(long size) throws IOException {
-        synchronized (fatFile.getLockAttribute()) {
-            synchronized (fatFile.getLockContent()) {
+        synchronized (fatFile.ts_getLockAttribute()) {
+            synchronized (fatFile.ts_getLockContent()) {
                 if (size < size()) {
                     fatFile.setLength(size);
                     position = Math.max(position, size);
@@ -255,8 +255,8 @@ public class FATFileChannel implements Closeable {
      */
     public int read(ByteBuffer dst, long position) throws IOException {
         // Lock Attribute due to file size change
-        synchronized (fatFile.getLockAttribute()) {
-            synchronized (fatFile.getLockContent()) {
+        synchronized (fatFile.ts_getLockAttribute()) {
+            synchronized (fatFile.ts_getLockContent()) {
                 position(position);
                 return read(dst);
             }
@@ -296,8 +296,8 @@ public class FATFileChannel implements Closeable {
      */
     public int write(ByteBuffer src, long position) throws IOException {
         // Lock Attribute due to file size change
-        synchronized (fatFile.getLockAttribute()) {
-            synchronized (fatFile.getLockContent()) {
+        synchronized (fatFile.ts_getLockAttribute()) {
+            synchronized (fatFile.ts_getLockContent()) {
                 position(position);
                 return write(src);
             }
@@ -320,7 +320,7 @@ public class FATFileChannel implements Closeable {
      */
     @Override
     public void close() throws IOException {
-        force(true);
+        force(false);
     }
 
     private FATFileSystem fs() {

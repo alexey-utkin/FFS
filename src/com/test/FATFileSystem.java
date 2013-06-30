@@ -193,15 +193,15 @@ public class FATFileSystem implements Closeable {
 
 
     void setFileLength(FATFile file, long newLength, long oldLength) throws IOException {
-        if (file.getFileId() == FATFile.INVALID_FILE_ID)
+        if (file.ts_getFileId() == FATFile.INVALID_FILE_ID)
             throw new IOException("Bad file state.");
-        fat.adjustClusterChain(file.getFileId(), newLength, oldLength);
+        fat.adjustClusterChain(file.ts_getFileId(), newLength, oldLength);
     }
 
     int writeFileContext(FATFile file, long position,
                                 ByteBuffer src) throws IOException {
         int wasWritten = 0;
-        Integer startCluster = file.getFileId();
+        Integer startCluster = file.ts_getFileId();
         Long pos = position;
         while (src.hasRemaining()) {
             wasWritten += fat.writeChannel(startCluster, pos, src);
@@ -212,7 +212,7 @@ public class FATFileSystem implements Closeable {
     int readFileContext(FATFile file, long position,
                         ByteBuffer dst) throws IOException {
         int wasRead = 0;
-        Integer startCluster = file.getFileId();
+        Integer startCluster = file.ts_getFileId();
         Long pos = position;
         while (dst.hasRemaining()) {
             int read = fat.readChannel(startCluster, pos, dst);
@@ -240,7 +240,7 @@ public class FATFileSystem implements Closeable {
         synchronized (fileLock) {
             // create new
             FATFile ret = new FATFile(this, type, size, access);
-            fileCache.put(ret.getFileId(), ret);
+            fileCache.put(ret.ts_getFileId(), ret);
             return ret;
         }
     }
@@ -252,15 +252,15 @@ public class FATFileSystem implements Closeable {
      */
     void ts_dropDirtyFile(FATFile file) throws IOException {
         synchronized (fileLock) {
-            if (file.getFileId() == FATFile.INVALID_FILE_ID)
+            if (file.ts_getFileId() == FATFile.INVALID_FILE_ID)
                 throw new IOException("Bad file id.");
             
-            fileCache.remove(file.getFileId());
+            fileCache.remove(file.ts_getFileId());
             try {
-                fat.freeClusters(file.getFileId(), true);
+                fat.freeClusters(file.ts_getFileId(), true);
             } finally {
                 //no rollback from fat level - set dirty inside
-                file.setFileId(FATFile.INVALID_FILE_ID);
+                file.ts_setFileId(FATFile.INVALID_FILE_ID);
             }
         }
     }
@@ -283,7 +283,7 @@ public class FATFileSystem implements Closeable {
                 throw new IOException("Invalid file id.");
 
             FATFile ret = new FATFile(this, type, fileId, parentId);
-            fileCache.put(ret.getFileId(), ret);
+            fileCache.put(ret.ts_getFileId(), ret);
             return ret;
         }
     }
@@ -305,7 +305,7 @@ public class FATFileSystem implements Closeable {
             if (ret == null) {
                 ret =  openFile(type, fileId, parentId);
             } // else check the type?
-            ret.initFromBuffer(bf);
+            ret.ts_initFromBuffer(bf);
             return ret;
         }
     }

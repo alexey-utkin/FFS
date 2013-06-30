@@ -36,7 +36,7 @@ public class FATFolder {
      * @throws IOException
      */
     public void  createSubfolder(String folderName) throws IOException {
-        synchronized (fatFile.getLockContent()) {
+        synchronized (fatFile.ts_getLockContent()) {
             try {
                 ts_fs().begin(true);
                 FATFile subfolder = findFolder(folderName);
@@ -79,7 +79,7 @@ public class FATFolder {
      * @return the number of bytes that were free.
      */
     public int pack() throws IOException {
-        synchronized (fatFile.getLockContent()) {
+        synchronized (fatFile.ts_getLockContent()) {
 
         //PERFORMANCE HINT POINT
         int startSize = childFiles.size();
@@ -94,7 +94,7 @@ public class FATFolder {
 
         int endSize = _childFiles.size();
         if (startSize != endSize) {
-            //write first, trim after!
+            //write first, truncate after!
             try {
                 ts_fs().begin(true);
                 ts_writeContent();
@@ -121,7 +121,7 @@ public class FATFolder {
     public FATFile findFolder(String folderName) {
         if (folderName == null)
             return null;
-        synchronized (fatFile.getLockContent()) {
+        synchronized (fatFile.ts_getLockContent()) {
             for (FATFile file : childFiles) {
                 if (folderName.equals(file.toString()))
                     return file;
@@ -130,9 +130,6 @@ public class FATFolder {
         return null;
     }
 
-    public int getFolderId() {
-        return fatFile.getFileId();
-    }
 
     /**
      * Creates Folder from File.
@@ -159,13 +156,13 @@ public class FATFolder {
         boolean success = false;
         try {
             FATFile rootFile = fs.ts_createFile(FATFile.TYPE_FOLDER, EMPTY_FILE_SIZE, access);
-            if (rootFile.getFileId() != ROOT_FILE_ID)
+            if (rootFile.ts_getFileId() != ROOT_FILE_ID)
                 throw new IOException("Root already exists.");
 
             rootFile.ts_initSize(FATFile.RECORD_SIZE);// have to be at least one record length
             rootFile.ts_initName(ROOT_NAME);
             // self store
-            FATFolder ret = fs.ts_getFolder(rootFile.getFileId());
+            FATFolder ret = fs.ts_getFolder(rootFile.ts_getFileId());
 
             rootFile.moveTo(ret);
             // commit
@@ -192,7 +189,7 @@ public class FATFolder {
         try {
             FATFile rootFile = fs.openFile(FATFile.TYPE_FOLDER, ROOT_FILE_ID, ROOT_FILE_ID);
             // exclusive access to [ret]
-            FATFolder ret = fs.ts_getFolder(rootFile.getFileId());
+            FATFolder ret = fs.ts_getFolder(rootFile.ts_getFileId());
             rootFile.ts_initSize(FATFile.RECORD_SIZE);// have to be at least one record length
             ret.ts_readContent();
             if (ret.childFiles.isEmpty()
@@ -210,17 +207,17 @@ public class FATFolder {
 
     private void ts_readContent() throws IOException {
         boolean success = false;
-        synchronized (fatFile.getLockContent()) {
+        synchronized (fatFile.ts_getLockContent()) {
             try {
                 ts_fs().begin(false);
-                try (FATFileChannel folderContent = fatFile.ts_getChannel(false)) {
+                try (FATFileChannel folderContent = fatFile.getChannel(false)) {
                     ByteBuffer bf = ts_fs().ts_allocateBuffer(FATFile.RECORD_SIZE);
                     // for the root folder the [fatFile.size]
                     // will updated at fist read to actual value.
                     while (folderContent.position() < fatFile.length()) {
                         folderContent.read(bf);
                         bf.flip();
-                        childFiles.add(ts_fs().openFile(bf, getFolderId()));
+                        childFiles.add(ts_fs().openFile(bf, ts_getFolderId()));
                         bf.position(0);
                     }
                     if (folderContent.position() != fatFile.length())
@@ -239,7 +236,7 @@ public class FATFolder {
 
     private void ts_writeContent() throws IOException {
         boolean success = false;
-        synchronized (fatFile.getLockContent()) {
+        synchronized (fatFile.ts_getLockContent()) {
             try {
                 ts_fs().begin(false);
 
@@ -256,11 +253,11 @@ public class FATFolder {
 
     private void ts_updateFileRecord(int index, FATFile updateFile) throws IOException {
         boolean success = false;
-        try (FATFileChannel folderContent = fatFile.ts_getChannel(false)) {
+        try (FATFileChannel folderContent = fatFile.getChannel(false)) {
             folderContent
                 .position(index * FATFile.RECORD_SIZE)
                 .write((ByteBuffer) updateFile
-                        .serialize(ts_fs().ts_allocateBuffer(FATFile.RECORD_SIZE),
+                        .ts_serialize(ts_fs().ts_allocateBuffer(FATFile.RECORD_SIZE),
                                 ts_fs().getVersion())
                         .flip());
             success = true;
@@ -273,7 +270,7 @@ public class FATFolder {
     }
 
     void ts_updateFileRecord(FATFile updateFile) throws IOException {
-        synchronized (fatFile.getLockContent()) {
+        synchronized (fatFile.ts_getLockContent()) {
             int index = childFiles.indexOf(updateFile);
             if (index == -1)
                 throw new IOException("Cannot update file attributes");
@@ -282,7 +279,7 @@ public class FATFolder {
     }
 
     void ts_ref(FATFile addFile) throws IOException {
-        synchronized (fatFile.getLockContent()) {
+        synchronized (fatFile.ts_getLockContent()) {
             int pos = childFiles.indexOf(FATFile.DELETED_FILE);
             if (pos >= 0) {
                 childFiles.set(pos, addFile);
@@ -295,7 +292,7 @@ public class FATFolder {
     }
 
     void ts_deRef(FATFile removeFile) throws IOException {
-        synchronized (fatFile.getLockContent()) {
+        synchronized (fatFile.ts_getLockContent()) {
             int offset = childFiles.indexOf(removeFile);
             if (offset == -1)
                 throw new IOException("Cannot remove file from folder.");
@@ -304,6 +301,10 @@ public class FATFolder {
             //PERFORMANCE HINT POINT
             //todo: compact folder
         }
+    }
+
+    int ts_getFolderId() {
+        return fatFile.ts_getFileId();
     }
 
     private FATFileSystem ts_fs() {

@@ -253,6 +253,7 @@ class FATSystem implements Closeable {
         boolean success = false;
         try {
             fileChannel.force(updateMetadata);
+            success = true;
         } finally {
             if (!success)
                 throw new IOException("Cannot force data to host FS.");

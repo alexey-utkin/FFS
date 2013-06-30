@@ -60,12 +60,6 @@ public class FATFileSystem implements Closeable {
         return ret;
     }
 
-    private FATFolder createFolder(String name, FATFolder parent) throws IOException {
-        int access = 0;
-        //return FATFolder.create(this, name, parent, access);
-        return null;
-    }
-
 
     /**
      * Opens FS from the exist file in host FS.
@@ -120,6 +114,39 @@ public class FATFileSystem implements Closeable {
     }
 
     /**
+     * Get file system version.
+     *
+     * @return version of file system in action.
+     */
+    public int getVersion() {
+        // single version for all system
+        return fat.getVersion();
+    }
+
+    /**
+     * Returns the capacity of File System.
+     *
+     * No staff info above pure FAT.
+     *
+     * @return the size of storage. That is the [Data Section] size.
+     */
+    public long getSize() {
+        return  fat.getSize();
+    }
+
+    /**
+     * Returns the free capacity of File System
+     *
+     * No forward reservation for staff objects.
+     *
+     * @return the free size in storage. The [<0] means dirty FAT and the
+     *         system needs in maintenance.
+     */
+    public long getFreeSize() {
+        return fat.getFreeSize();
+    }
+
+    /**
      * Returns FS time counter.
      * @return the Java current time in milliseconds.
      */
@@ -131,11 +158,6 @@ public class FATFileSystem implements Closeable {
         // potentially the Folder record could be in reverse byte order,
         // but it is not a good idea
         return fat.allocateBuffer(recordSize);
-    }
-
-    int getVersion() {
-        // single version for all system
-        return fat.getVersion();
     }
 
     int allocateFileSpace(long size) throws IOException {
@@ -161,10 +183,10 @@ public class FATFileSystem implements Closeable {
     }
 
 
-    void setFileLength(FATFile fatFile, long newLength) throws IOException {
+    void setFileLength(FATFile fatFile, long newLength, long oldLength) throws IOException {
         if (fatFile.fileId == FATFile.INVALID_FILE_ID)
             throw new IOException("Bad file state.");
-        fat.adjustClusterChain(fatFile.fileId, newLength, newLength);
+        fat.adjustClusterChain(fatFile.fileId, newLength, oldLength);
     }
 
     int writeFileContext(FATFile fatFile, long position,

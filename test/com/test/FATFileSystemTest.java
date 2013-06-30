@@ -41,6 +41,43 @@ public class FATFileSystemTest  extends FATBaseTest {
     }
 
     /**
+     * Test of forward space reservation in folder store.
+     */
+    static public void testForwardFolderReservation(Path path, int clusterSize, int clusterCount,
+                                                    int allocatorType) throws IOException {
+        startUp(path);
+
+        try (FATFileSystem ffs  = FATFileSystem.create(path, clusterSize, clusterCount, allocatorType)) {
+            FATFolder root1 = ffs.getRoot();
+            //1-filled cluster - <root>,  1 free
+
+            try {
+                //need 2 cluster: 1 for a record in root, 1 for new folder, but only 1 exists
+                root1.createSubfolder("Test1");
+                throw new Error("Impossible allocation.");
+            } catch (IOException ex) {
+                //check that we does not loose the space.
+                if (ffs.getFreeSize() != FATFile.RECORD_SIZE)
+                    throw new Error("Lost cluster on folder allocation.");
+
+            }
+
+        }
+        tearDown(path);
+    }
+    @Test
+    public void testForwardFolderReservation() throws IOException {
+        for (int allocatorType : allocatorTypes) {
+            int clusterSize = FATFile.RECORD_SIZE; //fixed!
+            int clusterCount = 2; //fixed!
+            logStart(getPath(), clusterSize, clusterCount, allocatorType);
+            testForwardFolderReservation(getPath(),
+                    clusterSize, clusterCount, allocatorType);
+            logOk();
+        }
+    }
+
+    /**
      * Test of FS open.
      */
     static public void testFileOpen(Path path, int clusterSize, int clusterCount,
@@ -53,14 +90,12 @@ public class FATFileSystemTest  extends FATBaseTest {
         root1.createSubfolder("Test2");
         root1.createSubfolder("Test3");
 
-        boolean fileAlreadyExistsException = false;
         try {
             root1.createSubfolder("Test2");
-        } catch (FileAlreadyExistsException ex) {
-            fileAlreadyExistsException = true;
-        }
-        if (!fileAlreadyExistsException)
             throw new Error("Can create duplicates.");
+        } catch (FileAlreadyExistsException ex) {
+            //OK
+        }
 
         ffs1.close();
 

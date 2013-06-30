@@ -132,7 +132,7 @@ public class FATFile {
             synchronized (lockContent) {
                 if (newLength == size)
                     return;
-                fs.setFileLength(this, newLength);
+                fs.setFileLength(this, newLength, size);
                 size = newLength;
                 updateAttributes();
             }

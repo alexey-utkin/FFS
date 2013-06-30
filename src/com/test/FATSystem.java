@@ -35,10 +35,11 @@ class FATSystem implements Closeable {
     private int clusterSize;
     int clusterCount;
 
-    //denomalized values
-    private int entryPerCluster;
+    //offsets in file
     private int fatOffset;
     private int dataOffset;
+
+    //the number of free clusters in system
     int freeClusterCount; //can get [-1] on "dirty FAT"
 
     private RandomAccessFile randomAccessFile;
@@ -276,10 +277,6 @@ class FATSystem implements Closeable {
        return fsVersion;
     }
 
-    int getEntryPerCluster() {
-        return entryPerCluster;
-    }
-
     /**
      * Returns the capacity of FS
      * @return the size of storage. That is the [Data Section] size.
@@ -290,14 +287,15 @@ class FATSystem implements Closeable {
 
     /**
      * Returns the free capacity of FS
-     * @return the free size in storage. The [-1] means dirty FAT and the system needs in maintenance.
+     * @return the free size in storage. The [<0] means dirty FAT and the system needs in maintenance.
      */
     public long getFreeSize() {
         return freeClusterCount*clusterSize;
     }
 
     /**
-     * Reads cluster content.
+     * Reads cluster content. Need for maintenance.
+     *
      * @param cluster the index of the cluster in FAT
      * @return cluster content
      * @throws IOException
@@ -475,7 +473,6 @@ class FATSystem implements Closeable {
 
             synchronized (lockData) {
                 int limit = src.limit();
-                long sizeToWrite = limit - src.position();
                 int restOfCluster = (int)(clusterSize - pos);
                 if (restOfCluster > limit) {
                     wasWritten = fileChannel.write(src, startPos);
@@ -512,7 +509,6 @@ class FATSystem implements Closeable {
 
             synchronized (lockData) {
                 int limit = dst.limit();
-                long sizeToRead = limit - dst.position();
                 int restOfCluster = (int)(clusterSize - pos);
                 if (restOfCluster > limit) {
                     wasRead = fileChannel.read(dst, startPos);
@@ -561,7 +557,6 @@ class FATSystem implements Closeable {
     }
 
     private void initDenormalized() {
-        entryPerCluster = clusterSize/FATFile.RECORD_SIZE;
         fatOffset = HEADER_SIZE; //version dependant
         dataOffset = fatOffset + clusterCount*FAT_E_SIZE;
     }

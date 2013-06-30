@@ -2,11 +2,6 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" name="Default" comment="">
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/com/test/FATFile.java" afterPath="$PROJECT_DIR$/src/com/test/FATFile.java" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/com/test/FATFileSystem.java" afterPath="$PROJECT_DIR$/src/com/test/FATFileSystem.java" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/test/com/test/FATFileSystemTest.java" afterPath="$PROJECT_DIR$/test/com/test/FATFileSystemTest.java" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/com/test/FATFolder.java" afterPath="$PROJECT_DIR$/src/com/test/FATFolder.java" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/com/test/FATSystem.java" afterPath="$PROJECT_DIR$/src/com/test/FATSystem.java" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
     </list>
     <ignored path="FileSystem.iws" />
@@ -18,7 +13,7 @@
     <file path="/fragment.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372609540331" ignored="false" />
     <file path="/FolderEntry.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372411595137" ignored="false" />
     <file path="/Folder.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372435311963" ignored="false" />
-    <file path="/Dummy.txt" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372622264070" ignored="false" />
+    <file path="/Dummy.txt" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372627761638" ignored="false" />
     <file path="/FATSystemTests.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372195154152" ignored="false" />
     <file path="/FATClusterAllocator.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372226578454" ignored="false" />
     <file path="/FATForwardOnlyClusterAllocator.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372590108649" ignored="false" />
@@ -791,7 +786,11 @@
       <created>1372622276760</created>
       <updated>1372622276760</updated>
     </task>
-    <option name="localTasksCounter" value="24" />
+    <task id="LOCAL-00024" summary="Alliluya!">
+      <created>1372627778638</created>
+      <updated>1372627778638</updated>
+    </task>
+    <option name="localTasksCounter" value="25" />
     <servers />
   </component>
   <component name="TodoView" selected-index="0">
@@ -885,7 +884,7 @@
     <option name="WRAP_WHEN_TYPING_REACHES_RIGHT_MARGIN" value="false" />
     <option name="FORCE_NON_EMPTY_COMMENT" value="false" />
     <option name="CLEAR_INITIAL_COMMIT_MESSAGE" value="false" />
-    <option name="LAST_COMMIT_MESSAGE" value="Root creation in FSS header." />
+    <option name="LAST_COMMIT_MESSAGE" value="Alliluya!" />
     <option name="MAKE_NEW_CHANGELIST_ACTIVE" value="false" />
     <option name="OPTIMIZE_IMPORTS_BEFORE_PROJECT_COMMIT" value="false" />
     <option name="CHECK_FILES_UP_TO_DATE_BEFORE_COMMIT" value="false" />
@@ -922,6 +921,7 @@
     <MESSAGE value="Prepare storage for root record in header. Old solutions are the best!" />
     <MESSAGE value="Javadoc changes. Minor refactoring." />
     <MESSAGE value="Root creation in FSS header." />
+    <MESSAGE value="Alliluya!" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager />

@@ -19,6 +19,7 @@ import java.util.Arrays;
  */
 public class FATFile {
     public static final int INVALID_FILE_ID = -1;
+    public static final int ROOT_FILE_ID = 0;
     public static final int FILE_MAX_NAME = 110;
     public static final char ZAP_CHAR = 0xCDCD;
 
@@ -78,6 +79,7 @@ public class FATFile {
                 parentId = newParent.ts_getFolderId();
                 newParent.ts_ref(this);
                 if (oldParentId == INVALID_FILE_ID) {
+                    // commit
                     success = true;
                 } else{
                     try {
@@ -254,6 +256,16 @@ public class FATFile {
     }
 
     /**
+     * Check the root status for file.
+     *
+     * @return [true] if it is a root file.
+     */
+    public boolean isRoot() {
+        return (fileId == ROOT_FILE_ID);
+    }
+
+
+    /**
      * Opens file from id
      *
      * @param fs the FS object
@@ -265,6 +277,7 @@ public class FATFile {
     FATFile(FATFileSystem fs, int type, int fileId, int parentId) {
         this.fs = fs;
         this.type = type;
+        // both ids validated in upper calls
         this.fileId = fileId;
         this.parentId = parentId;
     }
@@ -285,6 +298,8 @@ public class FATFile {
         ts_initName(name);
         this.fs = fs;
         fileId = fs.ts_allocateFileSpace(size);
+        if (fileId == ROOT_FILE_ID)
+            parentId = ROOT_FILE_ID;
         this.type = type;
         this.size = size;
         timeCreate = FATFileSystem.getCurrentTime();

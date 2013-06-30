@@ -222,6 +222,17 @@ class FATSystem implements Closeable {
         }
     }
 
+    void writeRootInfo(ByteBuffer rootInfo) throws IOException {
+        synchronized (lockFAT) {
+            checkCanWrite();
+            // saves real dirty status
+            fatZone.position(ROOT_RECORD_OFFSET);
+            fatZone.put(rootInfo);
+        }
+    }
+
+
+
     @Override
     public void close() throws IOException {
         boolean needGCrun = false;
@@ -574,9 +585,13 @@ class FATSystem implements Closeable {
         //return ByteBuffer.allocate(capacity).order(byteOrder);
     }
 
-    private void writeToChannel(ByteBuffer bf) throws IOException {
-        while(bf.hasRemaining()) {
-            fileChannel.write(bf);
+    private void writeToChannel(ByteBuffer bf, long position) throws IOException {
+        synchronized (lockData) {
+            checkCanWrite();
+            fileChannel.position(position);
+            while(bf.hasRemaining()) {
+                fileChannel.write(bf);
+            }
         }
     }
 

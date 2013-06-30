@@ -448,4 +448,8 @@ public class FATFileSystem implements Closeable {
     void ts_setDirtyState(String message, boolean throwExeption) throws IOException {
         fat.setDirtyStatus(message, throwExeption);
     }
+
+    void updateRootRecord(ByteBuffer rootInfo) throws IOException {
+        fat.writeRootInfo(rootInfo);
+    }
 }

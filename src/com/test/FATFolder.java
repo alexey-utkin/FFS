@@ -1,5 +1,7 @@
 package com.test;
 
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.FileAlreadyExistsException;
@@ -21,7 +23,6 @@ public class FATFolder {
     private static final String ROOT_NAME = "<root>";
     //to check long in call params
     private static final long EMPTY_FILE_SIZE = 0L;
-    private static final int  ROOT_FILE_ID = 0;
     final FATFile fatFile;
 
     //PERFORMANCE HINT POINT
@@ -157,13 +158,11 @@ public class FATFolder {
         boolean success = false;
         try {
             FATFile rootFile = fs.ts_createFile(ROOT_NAME, FATFile.TYPE_FOLDER, EMPTY_FILE_SIZE, access);
-            if (rootFile.ts_getFileId() != ROOT_FILE_ID)
+            if (rootFile.ts_getFileId() != FATFile.ROOT_FILE_ID)
                 throw new IOException("Root already exists.");
-            rootFile.ts_initSize(FATFile.RECORD_SIZE);// have to be at least one record length
-            // self store
             FATFolder ret = fs.ts_getFolder(rootFile.ts_getFileId());
-
-            rootFile.moveTo(ret);
+            // update record in header
+            rootFile.setLastModified(FATFileSystem.getCurrentTime());
             // commit
             success = true;
             return ret;
@@ -186,7 +185,7 @@ public class FATFolder {
         // exclusive access to [ret]
         boolean success = false;
         try {
-            FATFile rootFile = fs.ts_openFile(FATFile.TYPE_FOLDER, ROOT_FILE_ID, ROOT_FILE_ID);
+            FATFile rootFile = fs.ts_openFile(FATFile.TYPE_FOLDER, FATFile.ROOT_FILE_ID, FATFile.ROOT_FILE_ID);
             // exclusive access to [ret]
             FATFolder ret = fs.ts_getFolder(rootFile.ts_getFileId());
             rootFile.ts_initSize(FATFile.RECORD_SIZE);// have to be at least one record length
@@ -239,6 +238,7 @@ public class FATFolder {
             try {
                 ts_fs().begin(false);
                 success = true;
+                throw new NotImplementedException();
             } finally {
                 if (!success) {
                     //primitive rollback - cannot restore.
@@ -249,6 +249,13 @@ public class FATFolder {
         }
     }
 
+    /**
+     * Updates the [index] element in folder storage.
+     *
+     * @param index
+     * @param updateFile
+     * @throws IOException
+     */
     private void ts_updateFileRecord(int index, FATFile updateFile) throws IOException {
         boolean success = false;
         try (FATFileChannel folderContent = fatFile.getChannel(false)) {
@@ -260,23 +267,48 @@ public class FATFolder {
                             ts_fs().ts_allocateBuffer(FATFile.RECORD_SIZE),
                             ts_fs().getVersion())
                         .flip());
+            // commit
             success = true;
         } finally {
             if (!success) {
-                //primitive rollback - cannot restore.
+                //primitive rollback - cannot restore (not [ts_] function call in action).
                 ts_fs().ts_setDirtyState("Cannot update folder record", false);
+            }
+        }
+    }
+
+    private void ts_updateRootFileRecord(FATFile rootFile) throws IOException {
+        boolean success = false;
+        try {
+            ts_fs().updateRootRecord(
+                    (ByteBuffer) rootFile
+                            .ts_serialize(
+                                    ts_fs().ts_allocateBuffer(FATFile.RECORD_SIZE),
+                                    ts_fs().getVersion())
+                            .flip());
+            // commit
+            success = true;
+        } finally {
+            if (!success) {
+                //primitive rollback - cannot restore (not [ts_] function call in action).
+                ts_fs().ts_setDirtyState("Cannot update root folder record", false);
             }
         }
     }
 
     void ts_updateFileRecord(FATFile updateFile) throws IOException {
         synchronized (fatFile.ts_getLockContent()) {
-            int index = childFiles.indexOf(updateFile);
-            if (index == -1)
-                throw new IOException("Cannot update file attributes");
-            ts_updateFileRecord(index, updateFile);
+            if (updateFile.isRoot()) {
+                ts_updateRootFileRecord(updateFile);
+            } else {
+                int index = childFiles.indexOf(updateFile);
+                if (index == -1)
+                    throw new IOException("Cannot update file attributes");
+                ts_updateFileRecord(index, updateFile);
+            }
         }
     }
+
 
     void ts_ref(FATFile addFile) throws IOException {
         synchronized (fatFile.ts_getLockContent()) {

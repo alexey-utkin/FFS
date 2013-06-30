@@ -20,7 +20,7 @@ import java.util.HashMap;
  * All public functions have to be [transact-safe] by default.
  *
  * Each public call with r/w operation need to be executed in FS transaction like
- * <code>
+ * <pre><code>
  *              boolean success = false;
  *              try {
  *                  begin(isWriteTransaction);
@@ -33,7 +33,7 @@ import java.util.HashMap;
  *                 }
  *                 end();
  *             }
- * </code>
+ * </code></pre>
  */
 public class FATFileSystem implements Closeable {
     private FATSystem fat;

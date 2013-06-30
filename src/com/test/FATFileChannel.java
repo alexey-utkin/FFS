@@ -155,8 +155,6 @@ public class FATFileChannel implements Closeable {
      * the file is not modified.  In either case, if this channel's file
      * position is greater than the given size then it is set to that size.
      * 
-     *
-     *
      * @param size The new size, a non-negative byte count
      * @return This file channel
      * @throws java.nio.channels.NonWritableChannelException

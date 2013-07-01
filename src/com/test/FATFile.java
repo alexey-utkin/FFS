@@ -433,11 +433,6 @@ public class FATFile {
         }
     }
 
-    void ts_initSize(long size) {
-        this.size = size;
-        //no update here! That is init!
-    }
-
     private void ts_initName(String fileName) {
         int len = fileName.length();
         if (len > FILE_MAX_NAME)

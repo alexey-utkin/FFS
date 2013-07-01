@@ -71,4 +71,12 @@ public class FATBaseTest {
     public Path getPath() {
         return fs.getPath(name.getMethodName() + ".fs");
     }
+
+
+    @Test
+    public void testCriticalFatAllocation() throws IOException {
+        FATFile f1 = new FATFile(null, -1, -1, -1);
+        FATFile f2 = new FATFile(null, -1, -1, -1);
+        boolean res = f1.equals(f2);
+    }
 }

@@ -141,9 +141,13 @@ public class FATFileSystem implements Closeable {
         synchronized (treeLock) {
             synchronized (fileLock) {
                 if (!shutdown())
-                    fat.setDirtyStatus("Alarm shutdown precess.", true);
-                if (fat != null)
+                    throw new IOException("System was now unmounted.");
+
+                if (fat != null) {
+                    // here only [clean] close can happen
+                    // it saves actual value of [dirty] status
                     fat.close();
+                }
             }
         }
     }
@@ -364,8 +368,14 @@ public class FATFileSystem implements Closeable {
     void begin(boolean writeOperation) throws IOException {
         synchronized (transactionCounterLock) {
             // we need unwind nested transactions.
-            if (transactionCounter==0 && shutdown)
-                throw new IOException("System shutdown.");
+            if (transactionCounter == 0) {
+                if (shutdown)
+                    throw new IOException("System shutdown.");
+
+                // We start concurrent transaction pull,
+                // mark state as [dirty] in external memory.
+                fat.markStateDirty();
+            }
             transactionCounter += 1;
             if (writeOperation)
                 fat.checkCanWrite();
@@ -380,9 +390,15 @@ public class FATFileSystem implements Closeable {
     void end() {
         synchronized (transactionCounterLock) {
             transactionCounter -= 1;
-            if (transactionCounter == 0 && shutdown) {
-                synchronized (shutdownSignal) {
-                    shutdownSignal.notify();
+            if (transactionCounter == 0) {
+                // All transactions is finished.
+                // Mark state of FS in external memory by result.
+                fat.markStateActual();
+
+                if (shutdown) {
+                    synchronized (shutdownSignal) {
+                        shutdownSignal.notify();
+                    }
                 }
             }
         }

@@ -27,11 +27,15 @@ class FATSystem implements Closeable {
     final static int ALLOCATOR_CLASSIC_HEAP = 0;
     final static int ALLOCATOR_FAST_FORWARD = 1;
 
-    //file system header with magic number abd etc
-    final static int  HEADER_SIZE_RESERVED = 32;
-    final static int  HEADER_SIZE = HEADER_SIZE_RESERVED + FATFile.RECORD_SIZE;
+    // file system header with magic number abd etc
+    final static int  HEADER_HEAD_SIZE_RESERVED = 28;
+    // FAT Allocator header space just before FAT
+    final static int  HEADER_TAIL_SIZE_RESERVED = 4;
+    final static int  HEADER_SIZE = HEADER_HEAD_SIZE_RESERVED
+                                  + FATFile.RECORD_SIZE
+                                  + HEADER_TAIL_SIZE_RESERVED;
     final static int  FREE_CLUSTER_COUNT_OFFSET = 5*4;
-    final static int  ROOT_RECORD_OFFSET = HEADER_SIZE_RESERVED;
+    final static int  ROOT_RECORD_OFFSET = HEADER_HEAD_SIZE_RESERVED;
     final static int  VERSION     = 1;
     final static long MAPFILE_SIZE_LIMIT = Integer.MAX_VALUE;
 
@@ -142,8 +146,6 @@ class FATSystem implements Closeable {
         fatZone = fileChannel.map(FileChannel.MapMode.READ_WRITE, 0, fatOffset + clusterCount*FAT_E_SIZE);
         clusterAllocator = createAllocator(allocatorType);
         clusterAllocator.initFromFile();
-        //set dirty status
-        writeFreeClusterCount(-1);
         forceFat();
     }
 
@@ -243,18 +245,27 @@ class FATSystem implements Closeable {
         }
     }
 
+    void markStateDirty() {
+        writeFreeClusterCount(-1);
+    }
+
+    void markStateActual() {
+        writeFreeClusterCount(freeClusterCount);
+    }
+
+
     @Override
     public void close() throws IOException {
-        boolean needGCrun = false;
         synchronized (lockFAT) {
             synchronized (lockData) {
                 if (!opened)
                     throw new IOException("Storage was closed earlier.");
+                boolean needGCrun = false;
                 try {
                     if (randomAccessFile != null) {
                         if (fileChannel != null) {
                             if (fatZone != null) {
-                                writeFreeClusterCount(freeClusterCount);
+                                markStateActual();
                                 if (fatZone instanceof DirectBuffer) {
                                     // That is bad, but it is the only available solution
                                     // http://stackoverflow.com/questions/2972986/how-to-unmap-a-file-from-memory-mapped-using-filechannel-in-java
@@ -274,11 +285,11 @@ class FATSystem implements Closeable {
                 } finally {
                     // RIP
                     opened = false;
+                    if (needGCrun)
+                        System.gc();
                 }
             }
         }
-        if (needGCrun)
-            System.gc();
     }
 
     public void forceChannel(boolean updateMetadata) throws IOException {

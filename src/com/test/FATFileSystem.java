@@ -42,18 +42,11 @@ public class FATFileSystem implements Closeable {
     private HashMap<Integer, FATFolder> folderCache = new HashMap<>();
     private HashMap<Integer, FATFile>   fileCache = new HashMap<>();
 
-    // treeLock->fileLock lock sequence
     final Object treeLock = new Object();
-    final Object fileLock = new Object();
-
     // smart termination procedure as
     //  Transaction counting + shutdown signal + wait for execution finish
-    private boolean shutdown = false;
-    private long transactionCounter = 0L;
-
-    final Object transactionCounterLock = new Object();
     final Object shutdownSignal = new Object();
-
+    private long transactionCounter = 0L;
 
     private FATFileSystem() {}
 
@@ -139,15 +132,13 @@ public class FATFileSystem implements Closeable {
     @Override
     public void close() throws IOException {
         synchronized (treeLock) {
-            synchronized (fileLock) {
-                if (!shutdown())
-                    throw new IOException("System was now unmounted.");
+            if (!shutdown())
+                throw new IOException("System was no unmounted.");
 
-                if (fat != null) {
-                    // here only [clean] close can happen
-                    // it saves actual value of [dirty] status
-                    fat.close();
-                }
+            if (fat != null) {
+                // here only [clean] close can happen
+                // it saves actual value of [dirty] status
+                fat.close();
             }
         }
     }
@@ -268,7 +259,7 @@ public class FATFileSystem implements Closeable {
      * @throws IOException
      */
     FATFile ts_createFile(String fileName, int type, long size, int access) throws IOException {
-        synchronized (fileLock) {
+        synchronized (treeLock) {
             // create new
             FATFile ret = new FATFile(this, fileName, type, size, access);
             fileCache.put(ret.ts_getFileId(), ret);
@@ -282,7 +273,7 @@ public class FATFileSystem implements Closeable {
      * @param file the file for drop.
      */
     void ts_dropDirtyFile(FATFile file) throws IOException {
-        synchronized (fileLock) {
+        synchronized (treeLock) {
             if (file.ts_getFileId() == FATFile.INVALID_FILE_ID)
                 throw new IOException("Bad file id.");
             
@@ -305,7 +296,7 @@ public class FATFileSystem implements Closeable {
      * @throws IOException
      */
     FATFile ts_openFile(ByteBuffer bf, int parentId) throws IOException {
-        synchronized (fileLock) {
+        synchronized (treeLock) {
             // open existent if can
             int fileId = bf.getInt();
             int type = bf.getInt();
@@ -323,8 +314,6 @@ public class FATFileSystem implements Closeable {
             return ret;
         }
     }
-
-
 
     /**
      * Restores folder from [fileId] or gets it from cache.
@@ -350,7 +339,7 @@ public class FATFileSystem implements Closeable {
      * @return
      */
     FATFile ts_getFile(int fileId) {
-        synchronized (fileLock) {
+        synchronized (treeLock) {
             return  fileCache.get(fileId);
         }
     }
@@ -359,25 +348,25 @@ public class FATFileSystem implements Closeable {
         return root;
     }
 
-    public Object getTreeLock() {
-        return treeLock;
-    }
-
     /**
      * Signal to start transaction.
      */
     void begin(boolean writeOperation) throws IOException {
-        synchronized (transactionCounterLock) {
-            // we need unwind nested transactions.
+        synchronized (treeLock) {
+            if (fat.state.ordinal() >= FATSystem.SystemState.SHUTDOWN.ordinal())
+                throw new IOException("System down.");   
+            
             if (transactionCounter == 0) {
-                if (shutdown)
-                    throw new IOException("System shutdown.");
-
-                // We start concurrent transaction pull,
-                // mark state as [dirty] in external memory.
-                fat.markStateDirty();
+                // we start concurrent transaction pull,
+                // mark state as [dirty] in external memory. 
+                // Right nested stack restores 
+                // actual state in paired [end] calls.
+                fat.markDiskStateDirty();
             }
-            transactionCounter += 1;
+            // we need unwind nested transactions.
+            // [end] will called in any case!
+            transactionCounter += 1;            
+            
             if (writeOperation)
                 fat.checkCanWrite();
             else
@@ -385,23 +374,28 @@ public class FATFileSystem implements Closeable {
         }
     }
 
+    
+    private void checkEmptyTransactionPool() {
+        if (transactionCounter == 0) {
+            // All transactions are finished.
+            // Mark state of FS in external memory by result
+            fat.markDiskStateActual();
+            if (fat.state == FATSystem.SystemState.SHUTDOWN_REQUEST) {
+                fat.state = FATSystem.SystemState.SHUTDOWN;
+                synchronized (shutdownSignal) {
+                    shutdownSignal.notify();
+                }
+            }
+        }
+    }
+    
     /**
      * Signal to end transaction.
      */
     void end() {
-        synchronized (transactionCounterLock) {
+        synchronized (treeLock) {
             transactionCounter -= 1;
-            if (transactionCounter == 0) {
-                // All transactions is finished.
-                // Mark state of FS in external memory by result.
-                fat.markStateActual();
-
-                if (shutdown) {
-                    synchronized (shutdownSignal) {
-                        shutdownSignal.notify();
-                    }
-                }
-            }
+            checkEmptyTransactionPool();
         }
     }
 
@@ -418,9 +412,12 @@ public class FATFileSystem implements Closeable {
      * @return [true] if the file system is ready be closed
      */
     public boolean shutdown() {
-        synchronized (transactionCounterLock) {
-            shutdown = true;
-            return (transactionCounter == 0);
+        synchronized (treeLock) {
+            if (fat.state.ordinal() <= FATSystem.SystemState.DIRTY.ordinal()) {
+                fat.state = FATSystem.SystemState.SHUTDOWN_REQUEST;
+            }
+            checkEmptyTransactionPool();
+            return (fat.state == FATSystem.SystemState.SHUTDOWN);
         }
     }
 
@@ -432,14 +429,9 @@ public class FATFileSystem implements Closeable {
      * @see    java.lang.Object#wait(long) ()
      */
     public void waitForShutdown(long timeout) throws InterruptedException {
-        synchronized (transactionCounterLock) {
-            synchronized (shutdownSignal) {
-                shutdown = true;
-                // just for protection from spurious wakeup
-                // don't worry about longer time in wait for [spurious wakeup]
-                while (transactionCounter != 0)
-                    shutdownSignal.wait(timeout);
-            }
+        shutdown();
+        synchronized (shutdownSignal) {
+            shutdownSignal.wait(timeout);
         }
     }
 
@@ -449,7 +441,7 @@ public class FATFileSystem implements Closeable {
      * @param message
      */
     void ts_setDirtyState(String message, boolean throwExeption) throws IOException {
-        fat.setDirtyStatus(message, throwExeption);
+        fat.setDirtyState(message, throwExeption);
     }
 
     void updateRootRecord(ByteBuffer rootInfo) throws IOException {

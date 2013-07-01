@@ -84,7 +84,7 @@ class FATFreeListClusterAllocator implements FATClusterAllocator {
             }
         }
 
-        fs.setDirtyStatus("[freeClusterCount] has wrong value.", false);
+        fs.setDirtyState("[freeClusterCount] has wrong value.", false);
 
         // rollback allocation.
         if (tailCluster == -1)
@@ -116,7 +116,7 @@ class FATFreeListClusterAllocator implements FATClusterAllocator {
                 fs.putFatEntry(headCluster, CLUSTER_EOC);
                 headCluster = fatEntry & CLUSTER_INDEX;
             } else {
-                fs.setDirtyStatus("Cluster double free in tail.  Cluster#:" + headCluster
+                fs.setDirtyState("Cluster double free in tail.  Cluster#:" + headCluster
                         + " Value:" + fatEntry, true);
             }
         }
@@ -137,14 +137,14 @@ class FATFreeListClusterAllocator implements FATClusterAllocator {
                     break;
                 headCluster = fatEntry & CLUSTER_INDEX;
             } else {
-                fs.setDirtyStatus("Cluster double free. Cluster#:" + headCluster
+                fs.setDirtyState("Cluster double free. Cluster#:" + headCluster
                         + " Value:" + fatEntry, true);
             }
         }
     }
 
     /**
-     * Restores state from storage
+     * Restores allocator state from storage
      */
     @Override
     public void initFromFile() throws IOException {

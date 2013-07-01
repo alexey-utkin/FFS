@@ -1,0 +1,151 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<hotspot_log version='160 1' process='63388' time_ms='1372688145482'>
+<vm_version>
+<name>
+Java HotSpot(TM) Server VM
+</name>
+<release>
+25.0-b34-fastdebug
+</release>
+<info>
+Java HotSpot(TM) Server VM (25.0-b34-fastdebug) for windows-x86 JRE (1.8.0-internal-_2013_06_06_17_09-b00), built on Jun  6 2013 17:21:30 by &quot;uta&quot; with MS VC++ 10.0 (VS2010)
+</info>
+</vm_version>
+<vm_arguments>
+<args>
+-ea -Xdebug -Xrunjdwp:transport=dt_shmem,address=javadebug 
+</args>
+<command>
+org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner com.test.FATSystemTest filtertrace=true haltOnError=false haltOnFailure=false showoutput=true outputtoformatters=true logfailedtests=true logtestlistenerevents=true formatter=org.apache.tools.ant.taskdefs.optional.junit.BriefJUnitResultFormatter formatter=org.apache.tools.ant.taskdefs.optional.junit.XMLJUnitResultFormatter,C:\Projects\FFS\FileSystem\build\test\results\TEST-com.test.FATSystemTest.xml crashfile=C:\Projects\FFS\FileSystem\build\junitvmwatcher1744647881152229121.properties propsfile=C:\Projects\FFS\FileSystem\build\junit2268449071332653706.properties
+</command>
+<launcher>
+SUN_STANDARD
+</launcher>
+<properties>
+java.vm.specification.name=Java Virtual Machine Specification
+java.vm.version=25.0-b34-fastdebug
+java.vm.name=Java HotSpot(TM) Server VM
+java.vm.info=mixed mode, sharing
+java.ext.dirs=J:\Projects\CoreLib\tl\build\windows-x86-normal-server-fastdebug\jdk\lib\ext;C:\Windows\Sun\Java\lib\ext
+java.endorsed.dirs=J:\Projects\CoreLib\tl\build\windows-x86-normal-server-fastdebug\jdk\lib\endorsed
+sun.boot.library.path=J:\Projects\CoreLib\tl\build\windows-x86-normal-server-fastdebug\jdk\bin
+java.library.path=J:\Projects\CoreLib\tl\build\windows-x86-normal-server-fastdebug\jdk\bin;C:\Windows\Sun\Java\bin;C:\Windows\system32;C:\Windows;C:\Program Files\NVIDIA Corporation\PhysX\Common;C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Program Files\WinMerge;C:\Program Files\Git\cmd;C:\Program Files\Microsoft Windows Performance Toolkit\;c:\Program Files\Microsoft SQL Server\100\Tools\Binn\;c:\Program Files\Microsoft SQL Server\100\DTS\Binn\;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\Program Files\Microsoft Network Monitor 3\;j:\Apps\AMD\bin;C:\Program Files\QuickTime\QTSystem\;.
+java.home=J:\Projects\CoreLib\tl\build\windows-x86-normal-server-fastdebug\jdk
+java.class.path=C:\Projects\FFS\FileSystem\build\classes;C:\Program Files\NetBeans 7.3\platform\modules\ext\junit-4.10.jar;C:\Projects\FFS\FileSystem\build\test\classes;C:\Projects\FFS\FileSystem;C:\work\builds\re\jdk\jdk1.8.0\jre\lib\ext\QTJava.zip;C:\Program Files\NetBeans 7.3\java\ant\lib\ant-launcher.jar;C:\Program Files\NetBeans 7.3\java\ant\lib\ant.jar;C:\Program Files\NetBeans 7.3\java\ant\lib\ant-junit.jar;C:\Program Files\NetBeans 7.3\java\ant\lib\ant-junit4.jar
+sun.boot.class.path=J:\Projects\CoreLib\tl\build\windows-x86-normal-server-fastdebug\jdk\lib\resources.jar;J:\Projects\CoreLib\tl\build\windows-x86-normal-server-fastdebug\jdk\lib\rt.jar;J:\Projects\CoreLib\tl\build\windows-x86-normal-server-fastdebug\jdk\lib\sunrsasign.jar;J:\Projects\CoreLib\tl\build\windows-x86-normal-server-fastdebug\jdk\lib\jsse.jar;J:\Projects\CoreLib\tl\build\windows-x86-normal-server-fastdebug\jdk\lib\jce.jar;J:\Projects\CoreLib\tl\build\windows-x86-normal-server-fastdebug\jdk\lib\charsets.jar;J:\Projects\CoreLib\tl\build\windows-x86-normal-server-fastdebug\jdk\lib\jfr.jar;J:\Projects\CoreLib\tl\build\windows-x86-normal-server-fastdebug\jdk\classes
+java.vm.specification.vendor=Oracle Corporation
+java.vm.specification.version=1.8
+java.vm.vendor=Oracle Corporation
+sun.java.command=org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner com.test.FATSystemTest filtertrace=true haltOnError=false haltOnFailure=false showoutput=true outputtoformatters=true logfailedtests=true logtestlistenerevents=true formatter=org.apache.tools.ant.taskdefs.optional.junit.BriefJUnitResultFormatter formatter=org.apache.tools.ant.taskdefs.optional.junit.XMLJUnitResultFormatter,C:\Projects\FFS\FileSystem\build\test\results\TEST-com.test.FATSystemTest.xml crashfile=C:\Projects\FFS\FileSystem\build\junitvmwatcher1744647881152229121.properties propsfile=C:\Projects\FFS\FileSystem\build\junit2268449071332653706.properties
+sun.java.launcher=SUN_STANDARD
+</properties>
+</vm_arguments>
+<tty>
+<writer thread='63104'/>
+C1 Runtime statistics:
+ _resolve_invoke_virtual_cnt:     0
+ _resolve_invoke_opt_virtual_cnt: 2
+ _resolve_invoke_static_cnt:      2
+ _handle_wrong_method_cnt:        0
+ _ic_miss_cnt:                    0
+ _generic_arraycopy_cnt:          0
+ _generic_arraycopystub_cnt:      0
+ _byte_arraycopy_cnt:             0
+ _short_arraycopy_cnt:            0
+ _int_arraycopy_cnt:              0
+ _long_arraycopy_cnt:             0
+ _primitive_arraycopy_cnt:        0
+ _oop_arraycopy_cnt (C):          0
+ _oop_arraycopy_cnt (stub):       0
+ _arraycopy_slowcase_cnt:         0
+ _arraycopy_checkcast_cnt:        0
+ _arraycopy_checkcast_attempt_cnt:0
+ _new_type_array_slowcase_cnt:    0
+ _new_object_array_slowcase_cnt:  0
+ _new_instance_slowcase_cnt:      0
+ _new_multi_array_slowcase_cnt:   0
+ _monitorenter_slowcase_cnt:      0
+ _monitorexit_slowcase_cnt:       0
+ _patch_code_slowcase_cnt:        0
+ _throw_range_check_exception_count:            0:
+ _throw_index_exception_count:                  0:
+ _throw_div0_exception_count:                   0:
+ _throw_null_pointer_exception_count:           0:
+ _throw_class_cast_exception_count:             0:
+ _throw_incompatible_class_change_error_count:  0:
+ _throw_array_store_exception_count:            0:
+ _throw_count:                                  0:
+
+<statistics type='deoptimization'>
+Deoptimization traps recorded:
+     4 (100.0%) total
+  class_check/maybe_recompile/invokevirtual: 4 (100.0%)
+</statistics>
+<statistics type='SharedRuntime'>
+    1 new array requires GC
+    0 inline cache miss in compiled
+    0 wrong method
+    2 unresolved static call site
+    0 unresolved virtual call site
+    2 unresolved opt virtual call site
+ 1678 slow partial subtype
+   12 byte array copies
+  151 short array copies
+   12 int array copies
+  145 long array copies
+AdapterHandlerTable: empty 209 longest 3 total 103 average 1.226190
+AdapterHandlerTable: lookups 11913 buckets 20109 equals 11810 hits 11810 compact 11810
+</statistics>
+<statistics type='nmethod'>
+Statistics for 3 native nmethods:
+ N. total size  = 1904
+ N. relocation  = 172
+ N. main code   = 1064
+Statistics for 41 bytecoded nmethods:
+ total in heap  = 109492
+ relocation     = 2300
+ constants      = 224
+ main code      = 36544
+ stub code      = 1208
+ oops           = 52
+ scopes data    = 16820
+ scopes pcs     = 39920
+ dependencies   = 464
+ handler table  = 1992
+ nul chk table  = 68
+Debug Data Chunks: 4266, shared 756+1467, non-SP&apos;s elided 18
+PcDesc Statistics:  41 queries, 10.66 comparisons per query
+  caches=41 queries=41/0, hits=0+2, tests=110+327, adds=39
+</statistics>
+<statistics type='opto'>
+--- Compiler Statistics ---
+Methods seen: 192  Methods parsed: 192  Nodes created: 63722
+Blocks parsed: 897  Blocks seen: 926
+661 original NULL checks - 553 elided (83%); optimizer leaves 97,
+6 made implicit ( 6%)
+CCP: 41  constants found: 0
+Total frameslots = 468, Max frameslots = 24
+Inserted 0 spill loads, 0 spill stores, 0 mem-mem moves and 0 copies.
+Total load cost=      0, store cost =      0, mem-mem cost =  0.00, copy cost =     0.
+Adjusted spill cost =       0.
+Conservatively coalesced 281 copies, 0 pairs, 1514 post alloc.
+Used cisc instruction  225,  remained in register 302
+Average allocation trips 1.666667
+High Pressure Blocks = 0, Low Pressure Blocks = 0
+Nops added 0 bytes to total of 37913 bytes, for 0.00%
+Peephole: peephole rules applied: 0
+PhaseIdealLoop=218, sum _unique=186498
+</statistics>
+<statistics type='intrinsic'>
+Compiler intrinsic usage:
+     6 (11.1%) _min (worked)
+    20 (37.0%) _reverseBytes_i (worked)
+     9 (16.7%) _arraycopy (worked)
+     9 (16.7%) _getInt_raw (worked)
+    10 (18.5%) _putInt_raw (worked)
+    54 (100.0%) total (worked)
+</statistics>
+<tty_done stamp='20.634'/>
+</tty>
+<hotspot_log_done stamp='20.634'/>
+</hotspot_log>

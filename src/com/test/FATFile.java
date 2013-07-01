@@ -4,6 +4,7 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.file.DirectoryNotEmptyException;
 import java.util.Arrays;
 
 /**
@@ -49,24 +50,74 @@ public class FATFile {
     // properties
     private int parentId = INVALID_FILE_ID;
 
+    /**
+     * Checks tha file has content and attributes.
+     * @return [true] for helfy file.
+     */
+    boolean checkValid() {
+        return fileId != INVALID_FILE_ID
+            && parentId != INVALID_FILE_ID;
+    }
+
     public FATFileChannel getChannel(boolean appendMode) {
-        return new FATFileChannel(this, appendMode);
+        synchronized (lockAttribute) {
+            synchronized (lockContent) {
+                checkValid();
+                return new FATFileChannel(this, appendMode);
+            }
+        }
     }
 
     public void delete() throws IOException {
-        throw new NotImplementedException();
+        synchronized (lockAttribute) {
+            synchronized (lockContent) {
+                if (isFolder() && length() != 0)
+                    throw new DirectoryNotEmptyException(getName());
+                checkValid();
+                try {
+                    fs.begin(true);
+                    getParent().ts_deRef(this);
+                    fs.ts_dropDirtyFile(this);
+                    //commit
+                } finally {
+                    // primitive rollback - dirty mark in [ts_]
+                    fs.end();
+                }
+            }
+        }
+    }
+
+    private FATFolder getParent() {
+        synchronized (lockAttribute) {
+            checkValid();
+            return fs.ts_getFolder(parentId);
+        }
     }
 
     public void force(boolean updateMetadata) throws IOException {
-        if (updateMetadata)
-            setLastModified(FATFileSystem.getCurrentTime());
-        fs.ts_forceFileContent(this, updateMetadata);
+        synchronized (lockAttribute) {
+            synchronized (lockContent) {
+                checkValid();
+                try {
+                    fs.begin(true);
+                    if (updateMetadata)
+                        setLastModified(FATFileSystem.getCurrentTime());
+                    fs.ts_forceFileContent(this, updateMetadata);
+                } finally {
+                    // primitive rollback - dirty in [ts_dropDirtyFile]
+                    fs.end();
+                }
+            }
+        }
     }
 
     public FATFolder getFolder() {
-        return isFolder()
-            ? fs.ts_getFolder(fileId)
-            : null;
+        synchronized (lockAttribute) {
+            // null-transaction for no-io operation
+            return isFolder()
+                ? fs.ts_getFolder(fileId)
+                : null;
+        }
     }
 
     /**
@@ -77,6 +128,7 @@ public class FATFile {
      */
     public void moveTo(FATFolder newParent) throws IOException {
         synchronized (lockAttribute) {
+            checkValid();
             boolean success = false;
             int oldParentId = parentId;
             try {
@@ -117,13 +169,17 @@ public class FATFile {
         }
     }
 
-    @Override
-    public String toString() {
+    public String getName() {
         String ret = new String(name);
         int zeroPos = ret.indexOf(ZAP_CHAR);
         return (zeroPos == -1)
                 ? ret
                 : ret.substring(0, zeroPos);
+    }
+
+    @Override
+    public String toString() {
+        return getName();
     }
 
     /**
@@ -150,14 +206,15 @@ public class FATFile {
     public void setLength(long newLength) throws IOException {
         synchronized (lockAttribute) {
             synchronized (lockContent) {
+                checkValid();
                 try {
                     fs.begin(true);
                     if (newLength == size)
                         return;
                     fs.setFileLength(this, newLength, size);
-                    ts_updateAttributes();
-                    // commit
                     size = newLength;
+                    // commit
+                    ts_updateAttributes(); //no rollback - [dirty]
                 } finally {
                     fs.end();
                 }
@@ -166,12 +223,27 @@ public class FATFile {
     }
 
     /**
+     * Tests whether the file denoted by this is a directory.
+     *
      * Checks the file type against [TYPE_FOLDER] const.
      *
-     * @return id the file contains folder records.
+     * @return [true] if and only if the file denoted by this
+     *         exists and is a directory; [false] otherwise
      */
     public boolean isFolder() {
         return type == TYPE_FOLDER;
+    }
+
+    /**
+     * Tests whether the file denoted by this is a normal file.
+     *
+     * Checks the file type against [TYPE_FILE] const.
+     *
+     * @return  [true] if and only if the file denoted by this exists and
+     *          is a normal file; [false] otherwise
+     */
+    public boolean isFile()  {
+        return type == TYPE_FILE;
     }
 
     /**
@@ -189,14 +261,15 @@ public class FATFile {
      * @param access the file access state.
      */
     public void setAccess(int access) throws IOException {
-        if (this.access == access)
-            return;
         synchronized (lockAttribute) {
+            checkValid();
+            if (this.access == access)
+                return;
             try {
                 fs.begin(true);
-                ts_updateAttributes();
-                // commit
                 this.access = access;
+                // commit
+                ts_updateAttributes(); //no rollback - [dirty]
             } finally {
                 fs.end();
             }
@@ -218,14 +291,15 @@ public class FATFile {
      * @param timeCreate the file creation time in milliseconds.
      */
     public void setTimeCreate(long timeCreate) throws IOException {
-        if (this.timeCreate == timeCreate)
-            return;
         synchronized (lockAttribute) {
+            checkValid();
+            if (this.timeCreate == timeCreate)
+                return;
             try {
                 fs.begin(true);
-                ts_updateAttributes();
-                // commit
                 this.timeCreate = timeCreate;
+                // commit
+                ts_updateAttributes(); //no rollback - [dirty]
             } finally {
                 fs.end();
             }
@@ -247,14 +321,15 @@ public class FATFile {
      * @param timeModify the file modification time in milliseconds.
      */
     public void setLastModified(long timeModify) throws IOException {
-        if (this.timeModify == timeModify)
-            return;
         synchronized (lockAttribute) {
+            checkValid();
+            if (this.timeModify == timeModify)
+                return;
             try {
                 fs.begin(true);
-                ts_updateAttributes();
-                // commit
                 this.timeModify = timeModify;
+                // commit
+                ts_updateAttributes(); //no rollback - [dirty]
             } finally {
                 fs.end();
             }

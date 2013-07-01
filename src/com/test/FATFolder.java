@@ -19,8 +19,16 @@ import java.util.ArrayList;
 
 public class FATFolder {
     private static final String ROOT_NAME = "<root>";
-    //to check long in call params
+
+    // to check long in call params
     private static final long EMPTY_FILE_SIZE = 0L;
+
+    // SIZE HINT POINT
+    // FS guaranty, that deleted record less then a half.
+    private int deletedCount = 0;
+    // set this flag on folder delete
+    private boolean packForbidden = false;
+
     final FATFile fatFile;
 
     //PERFORMANCE HINT POINT
@@ -36,6 +44,7 @@ public class FATFolder {
      */
     public void  createSubfolder(String folderName) throws IOException {
         synchronized (fatFile.ts_getLockContent()) {
+            fatFile.checkValid();
             try {
                 ts_fs().begin(true);
                 FATFile subfolder = findFile(folderName);
@@ -44,6 +53,7 @@ public class FATFolder {
 
                 // reserve space in parent first!
                 ts_ref(FATFile.DELETED_FILE);
+                ++deletedCount;
 
                 // [access] is the same as in parent by default
                 subfolder = ts_fs().ts_createFile(folderName,
@@ -74,13 +84,53 @@ public class FATFolder {
     }
 
     /**
+     * Cascade folder delete.
+     *
+     * Delete process stops on the first error. No rollback.
+     *
+     * @throws IOException
+     */
+    public void delete() throws IOException {
+        synchronized (fatFile.ts_getLockContent()) {
+            fatFile.checkValid();
+            boolean success = false;
+            try {
+                ts_fs().begin(true);
+                packForbidden = true;
+                int capacity = childFiles.size();
+                for (int i = 0; i < capacity; ++i) {
+                    FATFile current = childFiles.get(i);
+                    if (current != FATFile.DELETED_FILE) {
+                        if (current.isFolder())
+                            current.getFolder().delete();
+                        else
+                            current.delete();
+                    }
+                }
+                // commit
+                success = true;
+                fatFile.delete();
+            } finally {
+                packForbidden = false;
+                // partial delete
+                if (!success)
+                    ts_optionalPack();
+                ts_fs().end();
+            }
+        }
+    }
+
+    /**
      * Packs the folder in external memory.
      *
      * @return the number of bytes that were free.
      */
     public int pack() throws IOException {
         synchronized (fatFile.ts_getLockContent()) {
-            //PERFORMANCE HINT POINT
+            fatFile.checkValid();
+
+            // PERFORMANCE HINT POINT
+            // make it better with alternative collection
             int startSize = childFiles.size();
             ArrayList<FATFile> _childFiles = new ArrayList<FATFile>();
             for (int i = 0; i < startSize; ++i) {
@@ -97,6 +147,7 @@ public class FATFolder {
                 try {
                     ts_fs().begin(true);
                     childFiles = _childFiles;
+                    deletedCount = 0;
                     ts_writeContent();
                     //commit transaction
                 } finally {
@@ -117,9 +168,10 @@ public class FATFolder {
      * @return the found file or [null].
      */
     public FATFile findFile(String folderName) {
-        if (folderName == null)
-            return null;
         synchronized (fatFile.ts_getLockContent()) {
+            fatFile.checkValid();
+            if (folderName == null)
+                return null;
             for (FATFile file : childFiles) {
                 if (folderName.equals(file.toString()))
                     return file;
@@ -304,6 +356,7 @@ public class FATFolder {
 
     void ts_updateFileRecord(FATFile updateFile) throws IOException {
         synchronized (fatFile.ts_getLockContent()) {
+            fatFile.checkValid();
             if (updateFile.isRoot()) {
                 ts_updateRootFileRecord(updateFile);
             } else {
@@ -318,9 +371,11 @@ public class FATFolder {
 
     void ts_ref(FATFile addFile) throws IOException {
         synchronized (fatFile.ts_getLockContent()) {
+            fatFile.checkValid();
             int pos = childFiles.indexOf(FATFile.DELETED_FILE);
             if (pos >= 0) {
                 childFiles.set(pos, addFile);
+                --deletedCount;
             } else {
                 childFiles.add(addFile);
                 pos = childFiles.size() - 1;
@@ -331,14 +386,22 @@ public class FATFolder {
 
     void ts_deRef(FATFile removeFile) throws IOException {
         synchronized (fatFile.ts_getLockContent()) {
+            fatFile.checkValid();
             int offset = childFiles.indexOf(removeFile);
             if (offset == -1)
                 throw new IOException("Cannot remove file from folder.");
             childFiles.set(offset, FATFile.DELETED_FILE);
+            ++deletedCount;
             ts_updateFileRecord(offset, FATFile.DELETED_FILE);
-            //PERFORMANCE HINT POINT
-            //todo: compact folder
+            ts_optionalPack();
         }
+    }
+
+    private void ts_optionalPack() throws IOException {
+        //SIZE HINT POINT
+        //compact folder
+        if (deletedCount > (childFiles.size() >> 1))
+            pack();
     }
 
     int ts_getFolderId() {

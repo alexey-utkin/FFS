@@ -294,7 +294,6 @@ public class FATFileSystem implements Closeable {
         }
     }
 
-
     /**
      * Opens file from folder record.
      * Returns file that has no connection with folder.

@@ -119,12 +119,11 @@ public class FATFile {
     }
 
     public FATFolder getFolder() {
-        synchronized (lockAttribute) {
-            // null-transaction for no-io operation
-            return isFolder()
-                ? fs.ts_getFolder(fileId)
-                : null;
-        }
+        // null-transaction for no-io operation
+        // no lock - type is final.
+        return isFolder()
+            ? fs.ts_getFolder(fileId)
+            : null;
     }
 
     /**

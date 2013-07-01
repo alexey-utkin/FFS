@@ -71,9 +71,12 @@ public class FATFile {
     public void delete() throws IOException {
         synchronized (lockAttribute) {
             synchronized (lockContent) {
-                if (isFolder() && length() != 0)
+                if (isFolder() && !isEmpty())
                     throw new DirectoryNotEmptyException(getName());
+                if (isRoot())
+                    throw new IOException("Cannot delete root.");
                 checkValid();
+
                 try {
                     fs.begin(true);
                     getParent().ts_deRef(this);
@@ -87,7 +90,11 @@ public class FATFile {
         }
     }
 
-    private FATFolder getParent() {
+    public boolean isEmpty() {
+        return length() == 0;
+    }
+
+    public FATFolder getParent() {
         synchronized (lockAttribute) {
             checkValid();
             return fs.ts_getFolder(parentId);

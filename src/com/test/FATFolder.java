@@ -35,14 +35,14 @@ public class FATFolder {
     //use collections adapted for critical operations
     ArrayList<FATFile> childFiles = new ArrayList<>();
 
-
     /**
      * Creates a child folder.
      *
-     * @param folderName the name of folder.
+     * @param folderName
+     * @return
      * @throws IOException
      */
-    public void  createSubfolder(String folderName) throws IOException {
+    public FATFolder createSubfolder(String folderName) throws IOException {
         synchronized (fatFile.ts_getLockContent()) {
             fatFile.checkValid();
             try {
@@ -75,22 +75,26 @@ public class FATFolder {
                                 ts_fs().ts_setDirtyState("Cannot drop unconnected folder.", false);
                             }
                         }
+                    } else {
+                        return subfolder.getFolder();
                     }
                 }
             } finally {
                 ts_fs().end();
             }
         }
+        return null;
     }
 
     /**
-     * Cascade folder delete.
+     * Deletes all children.
      *
-     * Delete process stops on the first error. No rollback.
+     * Deletes all child files and folders.
+     * To delete a folder the {@link #cascadeDelete()} function is called.
      *
      * @throws IOException
      */
-    public void delete() throws IOException {
+    public void deleteChildren() throws IOException {
         synchronized (fatFile.ts_getLockContent()) {
             fatFile.checkValid();
             boolean success = false;
@@ -102,19 +106,42 @@ public class FATFolder {
                     FATFile current = childFiles.get(i);
                     if (current != FATFile.DELETED_FILE) {
                         if (current.isFolder())
-                            current.getFolder().delete();
+                            current.getFolder().cascadeDelete();
                         else
                             current.delete();
                     }
                 }
                 // commit
                 success = true;
-                fatFile.delete();
             } finally {
                 packForbidden = false;
                 // partial delete
                 if (!success)
                     ts_optionalPack();
+                ts_fs().end();
+            }
+        }
+    }
+
+    /**
+     * Cascade folder delete.
+     *
+     * Delete process stops on the first error. No rollback.
+     * Can be called for [root]: that removes children and throw
+     * an exception while root file delete.
+     *
+     * @throws IOException
+     */
+    public void cascadeDelete() throws IOException {
+        synchronized (fatFile.ts_getLockContent()) {
+            fatFile.checkValid();
+            boolean success = false;
+            try {
+                ts_fs().begin(true);
+                deleteChildren();
+                // commit
+                fatFile.delete();
+            } finally {
                 ts_fs().end();
             }
         }

@@ -493,19 +493,19 @@ class FATSystem implements Closeable {
      * @param src the source of bytes
      * @return the number of bytes that were written
      */
-    int writeChannel(Integer startCluster, Long pos, ByteBuffer src) throws IOException {
+    int writeChannel(int[] startCluster, long[] pos, ByteBuffer src) throws IOException {
         int wasWritten;
         synchronized (lockFAT) {
             checkCanWrite();
-            int nextToPos = (int)(pos/clusterSize);
-            startCluster = getShift(startCluster, nextToPos);
-            pos -= nextToPos*clusterSize;
+            int nextToPos = (int)(pos[0]/clusterSize);
+            startCluster[0] = getShift(startCluster[0], nextToPos);
+            pos[0] -= nextToPos*clusterSize;
 
-            long startPos = dataOffset + startCluster*clusterSize + pos;
+            long startPos = dataOffset + startCluster[0]*clusterSize + pos[0];
 
             synchronized (lockData) {
                 int limit = src.limit();
-                int restOfCluster = (int)(clusterSize - pos);
+                int restOfCluster = (int)(clusterSize - pos[0]);
                 if (restOfCluster >= limit) {
                     wasWritten = fileChannel.write(src, startPos);
                 } else {
@@ -513,6 +513,7 @@ class FATSystem implements Closeable {
                     wasWritten = fileChannel.write(src, startPos);
                     src.limit(limit);
                 }
+                pos[0] += wasWritten;
             }
         }
         return wasWritten;
@@ -529,19 +530,19 @@ class FATSystem implements Closeable {
      * @return the number of bytes that were read
      * @throws IOException
      */
-    public int readChannel(Integer startCluster, Long pos, ByteBuffer dst) throws IOException {
+    public int readChannel(int[] startCluster, long[] pos, ByteBuffer dst) throws IOException {
         int wasRead;
         synchronized (lockFAT) {
             checkCanRead();
-            int nextToPos = (int)(pos/clusterSize);
-            startCluster = getShift(startCluster, nextToPos);
-            pos -= nextToPos*clusterSize;
+            int nextToPos = (int)(pos[0]/clusterSize);
+            startCluster[0] = getShift(startCluster[0], nextToPos);
+            pos[0] -= nextToPos*clusterSize;
 
-            long startPos = dataOffset + startCluster*clusterSize + pos;
+            long startPos = dataOffset + startCluster[0]*clusterSize + pos[0];
 
             synchronized (lockData) {
                 int limit = dst.limit();
-                int restOfCluster = (int)(clusterSize - pos);
+                int restOfCluster = (int)(clusterSize - pos[0]);
                 if (restOfCluster > limit) {
                     wasRead = fileChannel.read(dst, startPos);
                 } else {
@@ -549,6 +550,7 @@ class FATSystem implements Closeable {
                     wasRead = fileChannel.read(dst, startPos);
                     dst.limit(limit);
                 }
+                pos[0] += wasRead;
             }
         }
         return wasRead;

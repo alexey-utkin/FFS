@@ -228,8 +228,10 @@ public class FATFileSystem implements Closeable {
     int writeFileContext(FATFile file, long position,
                                 ByteBuffer src) throws IOException {
         int wasWritten = 0;
-        Integer startCluster = file.ts_getFileId();
-        Long pos = position;
+        
+        //pass parameters by reference
+        int[] startCluster = new int[]{file.ts_getFileId()};
+        long[] pos = new long[]{position};
         while (src.hasRemaining()) {
             wasWritten += fat.writeChannel(startCluster, pos, src);
         }
@@ -239,8 +241,8 @@ public class FATFileSystem implements Closeable {
     int readFileContext(FATFile file, long position,
                         ByteBuffer dst) throws IOException {
         int wasRead = 0;
-        Integer startCluster = file.ts_getFileId();
-        Long pos = position;
+        int[] startCluster = new int[]{file.ts_getFileId()};
+        long[] pos = new long[]{position};
         while (dst.hasRemaining()) {
             int read = fat.readChannel(startCluster, pos, dst);
             if (read < 0) {

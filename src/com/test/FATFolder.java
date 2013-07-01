@@ -327,7 +327,7 @@ public class FATFolder {
             } finally {
                 if (!success) {
                     //primitive rollback - cannot restore.
-                    ts_fs().ts_setDirtyState("Cannot read folder content", false);
+                    ts_fs().ts_setDirtyState("Cannot write folder content", false);
                 }
                 ts_fs().end();
             }
@@ -357,7 +357,7 @@ public class FATFolder {
         } finally {
             if (!success) {
                 //primitive rollback - cannot restore (not [ts_] function call in action).
-                ts_fs().ts_setDirtyState("Cannot update folder record", false);
+                ts_fs().ts_setDirtyState("Cannot read folder record", false);
             }
         }
     }

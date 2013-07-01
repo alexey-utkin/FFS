@@ -164,7 +164,7 @@ public class FATFileSystemTest  extends FATBaseTest {
     @Test
     public void testBaseTree() throws IOException {
         for (int allocatorType : allocatorTypes) {
-            int clusterSize = FATFile.RECORD_SIZE;//FATFile.RECORD_SIZE*2/3; //fixed!
+            int clusterSize = FATFile.RECORD_SIZE*3/2; //fixed!
             int clusterCount = 400; //fixed!
             logStart(getPath(), clusterSize, clusterCount, allocatorType);
             testBaseTree(getPath(), clusterSize, clusterCount, allocatorType);

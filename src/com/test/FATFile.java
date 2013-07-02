@@ -87,8 +87,14 @@ public class FATFile {
 
     public FATFolder getParent() throws IOException {
         synchronized (this) {
-            checkValid();
-            return fs.ts_getFolder(parentId);
+            fs.begin(false);
+            try {
+                checkValid();
+                return fs.ts_getFolder(parentId);
+            } finally {
+                // primitive rollback - dirty in [ts_dropDirtyFile]
+                fs.end();
+            }
         }
     }
 
@@ -108,10 +114,18 @@ public class FATFile {
     }
 
     public FATFolder getFolder() throws IOException {
-        // no lock - type is final.
-        return isFolder()
-            ? fs.ts_getFolder(fileId)
-            : null;
+        synchronized (this) {
+            checkValid();
+            fs.begin(false);
+            try {
+                // no lock - type is final.
+                return isFolder()
+                    ? fs.ts_getFolder(fileId)
+                    : null;
+            } finally {
+                fs.end();
+            }
+        }
     }
 
     /**
@@ -130,8 +144,9 @@ public class FATFile {
             try {
                 // we need to lock both storages and avoid deadlock
                 // Let's fix the order.
+                FATFolder oldParent = getParent();
                 FATFile p1 = newParent.fatFile;
-                FATFile p2 = getParent().fatFile;
+                FATFile p2 = oldParent.fatFile;
                 if (p1.fileId < p2.fileId) {
                     FATFile temp = p1;
                     p1 = p2;
@@ -158,7 +173,7 @@ public class FATFile {
                         try {
                             newParent.ts_ref(this);
                             parentId = newParent.ts_getFolderId();
-                            getParent().ts_deRef(this);
+                            oldParent.ts_deRef(this);
                             success = true;
                         } finally {
                             if (!success)
@@ -453,5 +468,9 @@ public class FATFile {
                 + " " + this.fileId;
         //}debug
         this.fileId = fileId;
+    }
+
+    public int getType() {
+        return type;
     }
 }

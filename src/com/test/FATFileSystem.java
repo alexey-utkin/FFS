@@ -302,7 +302,10 @@ public class FATFileSystem implements Closeable {
             // open existent if can
             int fileId = bf.getInt();
             int type = bf.getInt();
-            FATFile ret =  fileCache.get(fileId);
+            if (type == FATFile.TYPE_DELETED)
+               return FATFile.DELETED_FILE;
+
+            FATFile ret = fileCache.get(fileId);
             if (ret == null) {
                 // open existent
                 int fatEntry = fat.getFatEntry(fileId);

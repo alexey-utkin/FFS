@@ -242,6 +242,37 @@ public class FATFolder {
         throw new FileNotFoundException(fileName);
     }
 
+    public String getView() throws IOException {
+        synchronized (fatFile) {
+            ts_fs().begin(false);
+            try {
+                StringBuilder sb = new StringBuilder();
+                sb.append("<folder name=\"");
+                sb.append(fatFile.getName());
+                sb.append("\">");
+                for (FATFile current : childFiles) {
+                    switch (current.getType()) {
+                        case FATFile.TYPE_FILE:
+                            sb.append("<file name=\"");
+                            sb.append(current.getName());
+                            sb.append("\"/>");
+                            break;
+                        case FATFile.TYPE_DELETED:
+                            sb.append("<deleted/>");
+                            break;
+                        case FATFile.TYPE_FOLDER:
+                            sb.append(current.getFolder().getView());
+                            break;
+                    }
+                }
+                sb.append("<\folder>");
+                return sb.toString();
+            } finally {
+                ts_fs().end();
+            }
+        }
+    }
+
     /***
      * Get the folder by name
      *

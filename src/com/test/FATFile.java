@@ -438,7 +438,9 @@ public class FATFile {
         return fileId;
     }
 
+    Throwable ttt;
     void ts_setFileId(int fileId) {
+        ttt = new Throwable();
         this.fileId = fileId;
     }
 

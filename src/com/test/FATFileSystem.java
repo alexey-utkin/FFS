@@ -211,8 +211,10 @@ public class FATFileSystem implements Closeable {
 
 
     void setFileLength(FATFile file, long newLength, long oldLength) throws IOException {
-        if (file.ts_getFileId() == FATFile.INVALID_FILE_ID)
+        if (file.ts_getFileId() == FATFile.INVALID_FILE_ID) {
+            file.ttt.printStackTrace();
             throw new IOException("Bad file state.");
+        }
         fat.adjustClusterChain(file.ts_getFileId(), newLength, oldLength);
     }
 
@@ -430,7 +432,7 @@ public class FATFileSystem implements Closeable {
     public void waitForShutdown() throws InterruptedException {
         if (!shutdownRequest()) {
             synchronized (shutdownSignal) {
-                shutdownSignal.wait(0);
+                shutdownSignal.wait();
             }
         }
     }

@@ -31,6 +31,7 @@ public class FATFileChannel implements Closeable {
      */
     public int read(ByteBuffer dst) throws IOException {
         synchronized (fatFile.ts_getFileLock()) {
+            fatFile.checkValid();
             fs().begin(false);
             try {
                 if (position >= fatFile.length())
@@ -64,26 +65,25 @@ public class FATFileChannel implements Closeable {
         int wasWritten = 0;
         //Lock Attribute due to file size change
         synchronized (fatFile.ts_getFileLock()) {
+            fatFile.checkValid();
             fs().begin(true);
             try {
-                synchronized (fatFile.ts_getFileLock()) {
-                    long finalPos = position + sizeToWrite;
-                    long oldLength = fatFile.length(); //rollback info
-                    boolean success = false;
-                    if (finalPos > fatFile.length())
+                long finalPos = position + sizeToWrite;
+                long oldLength = fatFile.length(); //rollback info
+                boolean success = false;
+                if (finalPos > fatFile.length())
+                    fatFile.setLength(finalPos);
+                else
+                    success = true; //no rollback
+                try {
+                    wasWritten = fs().writeFileContext(fatFile, position, src);
+                    // commit
+                    success = true;
+                    position += wasWritten;
+                } finally {
+                    if (!success) {
+                        // rollback
                         fatFile.setLength(finalPos);
-                    else
-                        success = true; //no rollback
-                    try {
-                        wasWritten = fs().writeFileContext(fatFile, position, src);
-                        // commit
-                        success = true;
-                        position += wasWritten;
-                    } finally {
-                        if (!success) {
-                            // rollback
-                            fatFile.setLength(finalPos);
-                        }
                     }
                 }
             } finally {
@@ -166,11 +166,9 @@ public class FATFileChannel implements Closeable {
      */
     public FATFileChannel truncate(long size) throws IOException {
         synchronized (fatFile.ts_getFileLock()) {
-            synchronized (fatFile.ts_getFileLock()) {
-                if (size < size()) {
-                    fatFile.setLength(size);
-                    position = Math.max(position, size);
-                }
+            if (size < size()) {
+                fatFile.setLength(size);
+                position = Math.max(position, size);
             }
         }
         return this;
@@ -254,10 +252,8 @@ public class FATFileChannel implements Closeable {
     public int read(ByteBuffer dst, long position) throws IOException {
         // Lock Attribute due to file size change
         synchronized (fatFile.ts_getFileLock()) {
-            synchronized (fatFile.ts_getFileLock()) {
-                position(position);
-                return read(dst);
-            }
+            position(position);
+            return read(dst);
         }
     }
 
@@ -295,10 +291,8 @@ public class FATFileChannel implements Closeable {
     public int write(ByteBuffer src, long position) throws IOException {
         // Lock Attribute due to file size change
         synchronized (fatFile.ts_getFileLock()) {
-            synchronized (fatFile.ts_getFileLock()) {
-                position(position);
-                return write(src);
-            }
+            position(position);
+            return write(src);
         }
     }
 

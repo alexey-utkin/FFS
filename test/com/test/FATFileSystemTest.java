@@ -14,9 +14,10 @@ import java.util.concurrent.Executors;
  */
 
 public class FATFileSystemTest  extends FATBaseTest {
-    /**
-     * Test of FS creation.
-     */
+/*    
+    //
+    // Test of FS creation.
+    //
     static public void testFileCreate(Path path, int clusterSize, int clusterCount,
                                       int allocatorType) throws IOException {
         startUp(path);
@@ -42,9 +43,9 @@ public class FATFileSystemTest  extends FATBaseTest {
         }
     }
 
-    /**
-     * Test of forward space reservation in folder store.
-     */
+    //
+    // Test of forward space reservation in folder store.
+    //
     static public void testForwardFolderReservation(Path path, int clusterSize, int clusterCount,
                                                     int allocatorType) throws IOException {
         startUp(path);
@@ -84,9 +85,9 @@ public class FATFileSystemTest  extends FATBaseTest {
         }
     }
 
-    /**
-     * Test of FS open.
-     */
+    //
+    // Test of FS open.
+    //
     static public void testFileOpen(Path path, int clusterSize, int clusterCount,
                                       int allocatorType) throws IOException {
         startUp(path);
@@ -121,7 +122,8 @@ public class FATFileSystemTest  extends FATBaseTest {
                 FATFile.RECORD_SIZE,
                 4096
         };
-        int clusterCount = 2/* = 1dir-empty + 1rec-in-root*/*3/*folders count*/; //fixed in minimal value
+        // = 1dir-empty + 1rec-in-root * 3folders count
+        int clusterCount = 6; //fixed in minimal value
         for (int allocatorType : allocatorTypes) {
             for (int clusterSize : clusterSizes) {
                 logStart(getPath(), clusterSize, clusterCount, allocatorType);
@@ -132,9 +134,9 @@ public class FATFileSystemTest  extends FATBaseTest {
         }
     }
 
-    /**
-     * Test of FS tree test.
-     */
+    //
+    //  Test of FS tree test.
+    //
     static public void testBaseTree(Path path, int clusterSize, int clusterCount,
                                     int allocatorType) throws IOException {
         startUp(path);
@@ -173,7 +175,7 @@ public class FATFileSystemTest  extends FATBaseTest {
             logOk();
         }
     }
-
+*/
     /**
      * Test of FS shutdown test.
      */
@@ -209,7 +211,7 @@ public class FATFileSystemTest  extends FATBaseTest {
         }
 
         try {
-            Thread.sleep(10);
+            Thread.sleep(1);
             ffs1.waitForShutdown();
         } catch (InterruptedException ex) {
             //ok

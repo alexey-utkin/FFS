@@ -43,14 +43,12 @@ public class FATFile {
     // properties
     private int parentId = INVALID_FILE_ID;
 
-    /**
-     * Checks tha file has content and attributes.
-     * @return [true] for helfy file.
-     */
-    void checkValid() throws IOException {
+    void checkSelfValid() throws IOException {
         if (fileId == INVALID_FILE_ID)
-           throw new IOException("Invalid file id.");
+            throw new IOException("Invalid file id.");
+    }
 
+    void checkValid() throws IOException {
         if (parentId == INVALID_FILE_ID)
             throw new IOException("Invalid parent id.");
     }
@@ -124,7 +122,7 @@ public class FATFile {
      */
     public void moveTo(FATFolder newParent) throws IOException {
         synchronized (this) {
-            checkValid();
+            checkSelfValid(); //can add unconnected files. Here is the only point to do it.
             boolean success = false;
             int oldParentId = parentId;
             fs.begin(true);

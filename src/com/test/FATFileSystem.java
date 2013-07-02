@@ -210,10 +210,8 @@ public class FATFileSystem implements Closeable {
 
 
     void setFileLength(FATFile file, long newLength, long oldLength) throws IOException {
-        if (file.ts_getFileId() == FATFile.INVALID_FILE_ID) {
-            file.ttt.printStackTrace();
-            throw new IOException("Bad file state.");
-        }
+        if (file.ts_getFileId() == FATFile.INVALID_FILE_ID)
+            throw new IOException("Bad file state.", file.killer);
         fat.adjustClusterChain(file.ts_getFileId(), newLength, oldLength);
     }
 
@@ -225,7 +223,10 @@ public class FATFileSystem implements Closeable {
         int[] startCluster = new int[]{file.ts_getFileId()};
         long[] pos = new long[]{position};
         while (src.hasRemaining()) {
-            wasWritten += fat.writeChannel(startCluster, pos, src);
+            int written = fat.writeChannel(startCluster, pos, src);
+            if (written == 0)
+                break; //chanel is full (transport?)
+            wasWritten += written;
         }
         return wasWritten;
     }
@@ -252,6 +253,7 @@ public class FATFileSystem implements Closeable {
      *
      * Returns file has no connection with folder.
      *
+     * @param parentId parent folder id
      * @param fileName the name of created file
      * @param type FATFile.TYPE_XXXX const
      * @param size the space for allocation
@@ -259,10 +261,10 @@ public class FATFileSystem implements Closeable {
      * @return created file
      * @throws IOException
      */
-    FATFile ts_createFile(String fileName, int type, long size, int access) throws IOException {
+    FATFile ts_createFile(int parentId, String fileName, int type, long size, int access) throws IOException {
         synchronized (this) {
             // create new
-            FATFile ret = new FATFile(this, fileName, type, size, access);
+            FATFile ret = new FATFile(this, parentId, fileName, type, size, access);
             fileCache.put(ret.ts_getFileId(), ret);
             return ret;
         }

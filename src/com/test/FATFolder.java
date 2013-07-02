@@ -36,58 +36,53 @@ public class FATFolder {
     ArrayList<FATFile> childFiles = new ArrayList<>();
 
     /**
-     * Creates a child folder.
+     * Creates new file
      *
-     * @param folderName
-     * @return
+     * @param fileName the name for created file
+     * @param fileType the file type (FATFile.TYPE_XXXX const)
+     * @return created file
      * @throws IOException
      */
-    public FATFolder createSubfolder(String folderName) throws IOException {
+    private FATFile createFile(String fileName, int fileType) throws IOException {
         synchronized (fatFile) {
             fatFile.checkValid();
             ts_fs().begin(true);
             try {
-                FATFile subfolder = findFile(folderName);
-                if (subfolder != null)
-                    throw new FileAlreadyExistsException(folderName);
+                if (findFile(fileName) != null)
+                    throw new FileAlreadyExistsException(fileName);
 
                 // reserve space in parent first!
                 ts_ref(FATFile.DELETED_FILE);
                 ++deletedCount;
 
                 // [access] is the same as in parent by default
-                subfolder = ts_fs().ts_createFile(folderName,
-                        FATFile.TYPE_FOLDER, EMPTY_FILE_SIZE, fatFile.access());
+                FATFile file = ts_fs().ts_createFile(ts_getFolderId(),
+                        fileName,
+                        fileType, EMPTY_FILE_SIZE, fatFile.access());
 
-                // need a lock from delete in dirty state.
-                synchronized (subfolder) {
-                    boolean success = false;
-                    try {
-                        //since this call the [subfolder] is visible for external world
-                        subfolder.moveTo(this);
-                        // commit
-                        success = true;
-                    } finally {
-                        if (!success) {
-                            // rollback
-                            boolean successRollback = false;
-                            try {
-                                ts_fs().ts_dropDirtyFile(subfolder);
-                            } finally {
-                                if (!successRollback) {
-                                    ts_fs().ts_setDirtyState("Cannot drop unconnected folder.", false);
-                                }
-                            }
-                        } else {
-                            return subfolder.getFolder();
-                        }
+                boolean success = false;
+                try {
+                    ts_ref(file);
+                    // commit
+                    success = true;
+                } finally {
+                    if (!success) {
+                        ts_fs().ts_setDirtyState("Cannot save file record to reserved space.", false);
                     }
                 }
+                return file;
             } finally {
                 ts_fs().end();
             }
         }
-        return null;
+    }
+
+    public FATFolder createFolder(String folderName) throws IOException {
+        return createFile(folderName, FATFile.TYPE_FOLDER).getFolder();
+    }
+
+    public FATFile createFile(String fileName) throws IOException {
+        return createFile(fileName, FATFile.TYPE_FILE);
     }
 
     /**
@@ -105,9 +100,7 @@ public class FATFolder {
             ts_fs().begin(true);
             try {
                 packForbidden = true;
-                int capacity = childFiles.size();
-                for (int i = 0; i < capacity; ++i) {
-                    FATFile current = childFiles.get(i);
+                for (FATFile current : childFiles) {
                     if (current != FATFile.DELETED_FILE) {
                         if (current.isFolder())
                             current.getFolder().cascadeDelete();
@@ -139,10 +132,11 @@ public class FATFolder {
     public void cascadeDelete() throws IOException {
         synchronized (fatFile) {
             fatFile.checkValid();
-            boolean success = false;
             ts_fs().begin(true);
             try {
                 deleteChildren();
+                //PERFORMANCE HINT: make it better!
+                pack();
                 // commit
                 fatFile.delete();
             } finally {
@@ -163,9 +157,8 @@ public class FATFolder {
             // PERFORMANCE HINT POINT
             // make it better with alternative collection
             int startSize = childFiles.size();
-            ArrayList<FATFile> _childFiles = new ArrayList<FATFile>();
-            for (int i = 0; i < startSize; ++i) {
-                FATFile current = childFiles.get(i);
+            ArrayList<FATFile> _childFiles = new ArrayList<>();
+            for (FATFile current : childFiles) {
                 if (current != FATFile.DELETED_FILE) {
                     _childFiles.add(current);
                 }
@@ -236,7 +229,8 @@ public class FATFolder {
         // exclusive access to [ret]
         boolean success = false;
         try {
-            FATFile rootFile = fs.ts_createFile(ROOT_NAME, FATFile.TYPE_FOLDER, EMPTY_FILE_SIZE, access);
+            FATFile rootFile = fs.ts_createFile(FATFile.ROOT_FILE_ID,
+                    ROOT_NAME, FATFile.TYPE_FOLDER, EMPTY_FILE_SIZE, access);
             if (rootFile.ts_getFileId() != FATFile.ROOT_FILE_ID)
                 throw new IOException("Root already exists.");
             FATFolder ret = fs.ts_getFolder(rootFile.ts_getFileId());
@@ -369,12 +363,12 @@ public class FATFolder {
     private void ts_updateRootFileRecord(FATFile rootFile) throws IOException {
         boolean success = false;
         try {
-            ts_fs().updateRootRecord(
-                    (ByteBuffer) rootFile
-                            .ts_serialize(
-                                    ts_fs().ts_allocateBuffer(FATFile.RECORD_SIZE),
-                                    ts_fs().getVersion())
-                            .flip());
+            ByteBuffer store = rootFile
+                .ts_serialize(
+                        ts_fs().ts_allocateBuffer(FATFile.RECORD_SIZE),
+                        ts_fs().getVersion());
+            store.flip();
+            ts_fs().updateRootRecord(store);
             // commit
             success = true;
         } finally {
@@ -431,7 +425,7 @@ public class FATFolder {
     private void ts_optionalPack() throws IOException {
         //SIZE HINT POINT
         //compact folder
-        if (deletedCount > (childFiles.size() >> 1))
+        if (deletedCount > (childFiles.size() >> 1) && !packForbidden)
             pack();
     }
 

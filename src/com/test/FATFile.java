@@ -371,12 +371,11 @@ public class FATFile {
      * @param access the desired access
      * @throws IOException
      */
-    FATFile(FATFileSystem fs, String name, int type, long size, int access) throws IOException {
+    FATFile(FATFileSystem fs, int parentId, String name, int type, long size, int access) throws IOException {
         ts_initName(name);
         this.fs = fs;
         fileId = fs.ts_allocateFileSpace(size);
-        if (fileId == ROOT_FILE_ID)
-            parentId = ROOT_FILE_ID;
+        this.parentId = parentId;
         this.type = type;
         this.size = size;
         timeCreate = FATFileSystem.getCurrentTime();
@@ -435,13 +434,16 @@ public class FATFile {
         return fileId;
     }
 
-    Throwable ttt;
-    String info;
+    //{debug
+    Throwable killer;
+    String infoRIP;
+    //}debug
     void ts_setFileId(int fileId) {
-        synchronized (this) {
-            ttt = new Throwable();
-            info = Thread.currentThread().toString() + " " + this.hashCode() + " " + this + " " + this.fileId;
-            this.fileId = fileId;
-        }
+        //{debug
+        killer = new Throwable();
+        infoRIP = Thread.currentThread().toString()
+                + " " + this.fileId;
+        //}debug
+        this.fileId = fileId;
     }
 }

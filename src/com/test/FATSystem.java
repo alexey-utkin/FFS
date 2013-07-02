@@ -73,7 +73,8 @@ class FATSystem implements Closeable {
         SHUTDOWN_REQUEST,
         SHUTDOWN,
         CLOSED
-    };
+    }
+
     SystemState state = SystemState.INIT;
 
 
@@ -241,7 +242,6 @@ class FATSystem implements Closeable {
     void writeRootInfo(ByteBuffer rootInfo) throws IOException {
         if (rootInfo.remaining() > FATFile.RECORD_SIZE)
             throw new IOException("Wrong root info.");
-
         synchronized (this) {
             checkCanWrite();
             fatZone.position(ROOT_RECORD_OFFSET);
@@ -290,10 +290,10 @@ class FATSystem implements Closeable {
                                 cleaner.clean();
                             } else {
                                 fatZone = null;
-                                needGCrun = true;
                                 LogError("Not Oracle implementation for memory-mapped file."
                                        + "We can get a problem. Trying direct GC call.");
                             }
+                            needGCrun = true;
                         }
                         fileChannel.close();
                     }
@@ -315,7 +315,7 @@ class FATSystem implements Closeable {
             success = true;
         } finally {
             if (!success)
-                throw new IOException("Cannot force data to host FS.");
+                setDirtyState("Cannot force data to host FS.", false);
         }
     }
 
@@ -522,7 +522,7 @@ class FATSystem implements Closeable {
             if (restOfCluster >= limit) {
                 wasWritten = fileChannel.write(src, startPos);
             } else {
-                src.limit(restOfCluster);
+                src.limit(src.position() + restOfCluster);
                 wasWritten = fileChannel.write(src, startPos);
                 src.limit(limit);
             }
@@ -557,7 +557,7 @@ class FATSystem implements Closeable {
             if (restOfCluster > limit) {
                 wasRead = fileChannel.read(dst, startPos);
             } else {
-                dst.limit(restOfCluster);
+                dst.limit(dst.position() + restOfCluster);
                 wasRead = fileChannel.read(dst, startPos);
                 dst.limit(limit);
             }
@@ -597,7 +597,7 @@ class FATSystem implements Closeable {
      * Mark storage as [dirty]
      *
      * @param message the message to log.
-     * @param throwException
+     * @param throwException [true] if we need notify about the problem by exception throw
      * @throws IOException
      */
     void setDirtyState(String message, boolean throwException) throws IOException {
@@ -718,9 +718,5 @@ class FATSystem implements Closeable {
         if (sizeFS < length)
             throw new IOException("File system is too big. No space for header." );
         return sizeFS;
-    }
-
-    public int getClusterSize() {
-        return clusterSize;
     }
 }

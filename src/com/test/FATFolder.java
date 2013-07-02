@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.FileAlreadyExistsException;
 import java.util.ArrayList;
+import java.util.Vector;
 
 /**
  * Created with IntelliJ IDEA.
@@ -85,6 +86,21 @@ public class FATFolder {
         return createFile(fileName, FATFile.TYPE_FILE);
     }
 
+    public FATFile[] listFiles() throws IOException {
+        synchronized (fatFile) {
+            fatFile.checkValid();
+            // PERFORMANCE HINT POINT
+            // make it better!
+            ArrayList<FATFile> _childFiles = new ArrayList<>();
+            for (FATFile current : childFiles) {
+                if (current != FATFile.DELETED_FILE) {
+                    _childFiles.add(current);
+                }
+            }
+            return _childFiles.toArray(new FATFile[_childFiles.size()]);
+        }
+    }
+
     /**
      * Deletes all children.
      *
@@ -155,7 +171,7 @@ public class FATFolder {
             fatFile.checkValid();
 
             // PERFORMANCE HINT POINT
-            // make it better with alternative collection
+            // make it better!
             int startSize = childFiles.size();
             ArrayList<FATFile> _childFiles = new ArrayList<>();
             for (FATFile current : childFiles) {

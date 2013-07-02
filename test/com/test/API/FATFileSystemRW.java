@@ -1,17 +1,21 @@
-package com.test;
+package com.test.API;
 
 /**
  * Basic Read Write operations.
  * User: uta
  */
 
+import com.test.FATBaseTest;
+import com.test.FATFile;
+import com.test.FATFileChannel;
+import com.test.FATFileSystem;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
 
-public class FATFileSystemRW extends  FATBaseTest {
+public class FATFileSystemRW extends FATBaseTest {
 
     //
     //  Test of FS read-write basic

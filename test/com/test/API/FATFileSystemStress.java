@@ -1,10 +1,14 @@
-package com.test;
+package com.test.API;
 
 /**
  * Stress test fo File System.
  * User: uta
  */
 
+import com.test.FATBaseTest;
+import com.test.FATFile;
+import com.test.FATFileSystem;
+import com.test.FATFolder;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -12,7 +16,7 @@ import java.nio.file.Path;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class FATFileSystemStress extends  FATBaseTest {
+public class FATFileSystemStress extends FATBaseTest {
     //
     // Test of FS shutdown test.
     //

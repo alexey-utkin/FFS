@@ -47,12 +47,15 @@ public class FATFile {
      * Checks tha file has content and attributes.
      * @return [true] for helfy file.
      */
-    boolean checkValid() {
-        return fileId != INVALID_FILE_ID
-            && parentId != INVALID_FILE_ID;
+    void checkValid() throws IOException {
+        if (fileId == INVALID_FILE_ID)
+           throw new IOException("Invalid file id.");
+
+        if (parentId == INVALID_FILE_ID)
+            throw new IOException("Invalid parent id.");
     }
 
-    public FATFileChannel getChannel(boolean appendMode) {
+    public FATFileChannel getChannel(boolean appendMode) throws IOException {
         synchronized (this) {
             checkValid();
             return new FATFileChannel(this, appendMode);
@@ -83,7 +86,7 @@ public class FATFile {
         return length() == 0;
     }
 
-    public FATFolder getParent() {
+    public FATFolder getParent() throws IOException {
         synchronized (this) {
             checkValid();
             return fs.ts_getFolder(parentId);
@@ -434,8 +437,12 @@ public class FATFile {
     }
 
     Throwable ttt;
+    String info;
     void ts_setFileId(int fileId) {
-        ttt = new Throwable();
-        this.fileId = fileId;
+        synchronized (this) {
+            ttt = new Throwable();
+            info = Thread.currentThread().toString() + " " + this.hashCode() + " " + this + " " + this.fileId;
+            this.fileId = fileId;
+        }
     }
 }

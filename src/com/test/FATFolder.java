@@ -198,7 +198,7 @@ public class FATFolder {
      * @param folderName the exact name to find, case sensitive.
      * @return the found file or [null].
      */
-    public FATFile findFile(String folderName) {
+    public FATFile findFile(String folderName) throws IOException {
         synchronized (fatFile) {
             fatFile.checkValid();
             if (folderName == null)

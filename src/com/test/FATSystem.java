@@ -134,10 +134,10 @@ class FATSystem implements Closeable {
         clusterCount = bf.getInt();
         freeClusterCount = bf.getInt();
         if (freeClusterCount < 0) {
-            state = SystemState.ACTIVE;
+            state = SystemState.DIRTY;
             LogError("Open for read-only. Dirty state.");
         } else {
-            state = SystemState.DIRTY;
+            state = SystemState.ACTIVE;
         }
 
         // max storage size for 4k cluster: CLUSTER_INDEX*4096 = 3FF FFFF F000

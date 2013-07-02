@@ -45,8 +45,8 @@ public class FATFolder {
     public FATFolder createSubfolder(String folderName) throws IOException {
         synchronized (fatFile.ts_getFileLock()) {
             fatFile.checkValid();
+            ts_fs().begin(true);
             try {
-                ts_fs().begin(true);
                 FATFile subfolder = findFile(folderName);
                 if (subfolder != null)
                     throw new FileAlreadyExistsException(folderName);
@@ -98,8 +98,8 @@ public class FATFolder {
         synchronized (fatFile.ts_getFileLock()) {
             fatFile.checkValid();
             boolean success = false;
+            ts_fs().begin(true);
             try {
-                ts_fs().begin(true);
                 packForbidden = true;
                 int capacity = childFiles.size();
                 for (int i = 0; i < capacity; ++i) {
@@ -136,8 +136,8 @@ public class FATFolder {
         synchronized (fatFile.ts_getFileLock()) {
             fatFile.checkValid();
             boolean success = false;
+            ts_fs().begin(true);
             try {
-                ts_fs().begin(true);
                 deleteChildren();
                 // commit
                 fatFile.delete();
@@ -171,8 +171,8 @@ public class FATFolder {
             int endSize = _childFiles.size();
             if (startSize != endSize) {
                 //write first, truncate after!
+                ts_fs().begin(true);
                 try {
-                    ts_fs().begin(true);
                     childFiles = _childFiles;
                     deletedCount = 0;
                     ts_writeContent();
@@ -282,8 +282,8 @@ public class FATFolder {
     private void ts_readContent() throws IOException {
         boolean success = false;
         synchronized (fatFile.ts_getFileLock()) {
+            ts_fs().begin(false);
             try {
-                ts_fs().begin(false);
                 try (FATFileChannel folderContent = fatFile.getChannel(false)) {
                     ByteBuffer bf = ts_fs().ts_allocateBuffer(FATFile.RECORD_SIZE);
                     long storageSize = fatFile.length();
@@ -310,8 +310,8 @@ public class FATFolder {
     private void ts_writeContent() throws IOException {
         boolean success = false;
         synchronized (fatFile.ts_getFileLock()) {
+            ts_fs().begin(true);
             try {
-                ts_fs().begin(true);
                 try (FATFileChannel folderContent = fatFile.getChannel(false)) {
                     ByteBuffer bf = ts_fs().ts_allocateBuffer(FATFile.RECORD_SIZE);
                     for (FATFile file : childFiles) {

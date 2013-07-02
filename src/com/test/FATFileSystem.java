@@ -22,8 +22,8 @@ import java.util.HashMap;
  * Each public call with r/w operation need to be executed in FS transaction like
  * <pre><code>
  *              boolean success = false;
+ *              begin(isWriteTransaction);
  *              try {
- *                  begin(isWriteTransaction);
  *                  ...action...
  *                  //commit
  *                  success = true;
@@ -132,7 +132,7 @@ public class FATFileSystem implements Closeable {
     @Override
     public void close() throws IOException {
         synchronized (treeLock) {
-            if (!shutdown())
+            if (!shutdownRequest())
                 throw new IOException("System was no unmounted.");
 
             if (fat != null) {
@@ -363,14 +363,14 @@ public class FATFileSystem implements Closeable {
                 // actual state in paired [end] calls.
                 fat.markDiskStateDirty();
             }
-            // we need unwind nested transactions.
-            // [end] will called in any case!
-            transactionCounter += 1;            
-            
             if (writeOperation)
                 fat.checkCanWrite();
             else
                 fat.checkCanRead();
+
+            // we need unwind nested transactions.
+            // [end] will called in any case!
+            transactionCounter += 1;
         }
     }
 
@@ -407,13 +407,13 @@ public class FATFileSystem implements Closeable {
      * the frozen state and ready to be closed.
      *
      * If there are no active transactions in the thread stack,
-     * the [{@link #waitForShutdown(long)}] method could be called directly.
+     * the [{@link #waitForShutdown()}] method could be called directly.
      *
      * @return [true] if the file system is ready be closed
      */
-    public boolean shutdown() {
+    public boolean shutdownRequest() {
         synchronized (treeLock) {
-            if (fat.state.ordinal() <= FATSystem.SystemState.DIRTY.ordinal()) {
+            if (fat.state.ordinal() < FATSystem.SystemState.SHUTDOWN_REQUEST.ordinal()) {
                 fat.state = FATSystem.SystemState.SHUTDOWN_REQUEST;
             }
             checkEmptyTransactionPool();
@@ -424,14 +424,14 @@ public class FATFileSystem implements Closeable {
     /**
      * Waits for the file system shutdown.
      *
-     * @param  timeout   the maximum time to wait in milliseconds.
      * @throws InterruptedException
-     * @see    java.lang.Object#wait(long) ()
+     * @see    java.lang.Object#wait() ()
      */
-    public void waitForShutdown(long timeout) throws InterruptedException {
-        shutdown();
-        synchronized (shutdownSignal) {
-            shutdownSignal.wait(timeout);
+    public void waitForShutdown() throws InterruptedException {
+        if (!shutdownRequest()) {
+            synchronized (shutdownSignal) {
+                shutdownSignal.wait(0);
+            }
         }
     }
 

@@ -72,8 +72,8 @@ public class FATFile {
                 throw new IOException("Cannot delete root.");
             checkValid();
 
+            fs.begin(true);
             try {
-                fs.begin(true);
                 getParent().ts_deRef(this);
                 fs.ts_dropDirtyFile(this);
                 //commit
@@ -98,8 +98,8 @@ public class FATFile {
     public void force(boolean updateMetadata) throws IOException {
         synchronized (fileLock) {
             checkValid();
+            fs.begin(true);
             try {
-                fs.begin(true);
                 if (updateMetadata)
                     setLastModified(FATFileSystem.getCurrentTime());
                 fs.ts_forceFileContent(this, updateMetadata);
@@ -129,8 +129,8 @@ public class FATFile {
             checkValid();
             boolean success = false;
             int oldParentId = parentId;
+            fs.begin(true);
             try {
-                fs.begin(true);
                 //redirect any file attribute change (ex. size) to new parent
                 parentId = newParent.ts_getFolderId();
                 newParent.ts_ref(this);
@@ -204,8 +204,8 @@ public class FATFile {
     public void setLength(long newLength) throws IOException {
         synchronized (fileLock) {
             checkValid();
+            fs.begin(true);
             try {
-                fs.begin(true);
                 if (newLength == size)
                     return;
                 fs.setFileLength(this, newLength, size);
@@ -261,8 +261,8 @@ public class FATFile {
             checkValid();
             if (this.access == access)
                 return;
+            fs.begin(true);
             try {
-                fs.begin(true);
                 this.access = access;
                 // commit
                 ts_updateAttributes(); //no rollback - [dirty]
@@ -291,8 +291,8 @@ public class FATFile {
             checkValid();
             if (this.timeCreate == timeCreate)
                 return;
+            fs.begin(true);
             try {
-                fs.begin(true);
                 this.timeCreate = timeCreate;
                 // commit
                 ts_updateAttributes(); //no rollback - [dirty]
@@ -321,8 +321,8 @@ public class FATFile {
             checkValid();
             if (this.timeModify == timeModify)
                 return;
+            fs.begin(true);
             try {
-                fs.begin(true);
                 this.timeModify = timeModify;
                 // commit
                 ts_updateAttributes(); //no rollback - [dirty]

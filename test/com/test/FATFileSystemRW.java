@@ -91,7 +91,7 @@ public class FATFileSystemRW extends  FATBaseTest {
 
 
     //
-    //  Test of Lost Write Test
+    //  Test of Lost Write Test for append mode
     //
     static int MAX_FILE_SIZE = 0x64000; //1M = 1024*1024
     static public void testLostWrite(Path path, int clusterSize, int clusterCount,
@@ -113,7 +113,7 @@ public class FATFileSystemRW extends  FATBaseTest {
             Thread writerA = new Thread(new Runnable() {
                 @Override public void run() {
                     bufferA.flip();
-                    try (FATFileChannel longFile = file.getChannel(false)) {
+                    try (FATFileChannel longFile = file.getChannel(true)) {
                         while (bufferA.hasRemaining())
                             longFile.write(bufferA);
                     } catch (IOException e) {
@@ -122,18 +122,17 @@ public class FATFileSystemRW extends  FATBaseTest {
                 }
             });
 
-            //writerA.start();
+            writerA.start();
             for(int i = 0; i < 3; ++i) {
                 try (FATFileChannel longFile = file.getChannel(true)) {
                     bufferB.flip();
                     while (bufferB.hasRemaining())
                         longFile.write(bufferB);
-                    ++i;
                 }
             }
 
             try {
-                //writerA.join();
+                writerA.join();
                 Thread.sleep(1);
                 if (problem[0] != null) {
                     problem[0].printStackTrace();
@@ -143,7 +142,7 @@ public class FATFileSystemRW extends  FATBaseTest {
                 try (FATFileChannel longFile = file.getChannel(false)) {
                     boolean eof = false;
                     long countB = 0;
-                    while (eof) {
+                    while (!eof) {
                         bufferB.position(0);
                         while (bufferB.hasRemaining()) {
                             if (longFile.read(bufferB) < 0) {
@@ -153,7 +152,7 @@ public class FATFileSystemRW extends  FATBaseTest {
                         }
                         bufferB.flip();
                         while (bufferB.hasRemaining()) {
-                            if ('B' == bufferA.get())
+                            if ('B' == bufferB.get())
                                 ++countB;
                         }
                     }

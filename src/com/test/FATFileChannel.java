@@ -13,9 +13,19 @@ public class FATFileChannel implements Closeable {
     //hash map on start cluster for exclusive access
     final FATFile fatFile;
     private long position;
+    private boolean appendMode;
 
-    public FATFileChannel(FATFile _fatFile, boolean appendMode) {
-        fatFile = _fatFile;
+    /**
+     * Returns the channel to work with file content
+     *
+     * @param file the FAT file for read-write operations
+     * @param appendMode [true] means, that position moves to
+     *                   the end of file right before {@link #write(java.nio.ByteBuffer)}
+     *                   operation. Look into testLostWrite test.
+     */
+    public FATFileChannel(FATFile file, boolean appendMode) {
+        fatFile = file;
+        this.appendMode = appendMode;
         position = appendMode
                 ? fatFile.length()
                 : 0;
@@ -68,6 +78,8 @@ public class FATFileChannel implements Closeable {
             fatFile.checkValid();
             fs().begin(true);
             try {
+                if (appendMode)
+                    position = fatFile.length();
                 long finalPos = position + sizeToWrite;
                 long oldLength = fatFile.length(); //rollback info
                 boolean success = false;

@@ -131,10 +131,9 @@ public class FATFileSystem implements Closeable {
     @Override
     public void close() throws IOException {
         synchronized (this) {
-            if (!shutdownRequest())
-                throw new IOException("System was no unmounted.");
-
             if (fat != null) {
+                if (!shutdownRequest())
+                    throw new IOException("System was no unmounted.");
                 // here only [clean] close can happen
                 // it saves actual value of [dirty] status
                 fat.close();

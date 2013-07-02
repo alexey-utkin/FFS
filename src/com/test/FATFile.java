@@ -1,7 +1,5 @@
 package com.test;
 
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.DirectoryNotEmptyException;
@@ -32,9 +30,6 @@ public class FATFile {
 
     final FATFileSystem fs;
 
-    private final Object fileLock = new Object();
-
-
     public static final int RECORD_SIZE = 3*4 + 3*8 + FILE_MAX_NAME*2;  //256 bytes
     // attributes
     private final int type;
@@ -58,14 +53,14 @@ public class FATFile {
     }
 
     public FATFileChannel getChannel(boolean appendMode) {
-        synchronized (fileLock) {
+        synchronized (this) {
             checkValid();
             return new FATFileChannel(this, appendMode);
         }
     }
 
     public void delete() throws IOException {
-        synchronized (fileLock) {
+        synchronized (this) {
             if (isFolder() && !isEmpty())
                 throw new DirectoryNotEmptyException(getName());
             if (isRoot())
@@ -89,14 +84,14 @@ public class FATFile {
     }
 
     public FATFolder getParent() {
-        synchronized (fileLock) {
+        synchronized (this) {
             checkValid();
             return fs.ts_getFolder(parentId);
         }
     }
 
     public void force(boolean updateMetadata) throws IOException {
-        synchronized (fileLock) {
+        synchronized (this) {
             checkValid();
             fs.begin(true);
             try {
@@ -125,7 +120,7 @@ public class FATFile {
      * @throws IOException
      */
     public void moveTo(FATFolder newParent) throws IOException {
-        synchronized (fileLock) {
+        synchronized (this) {
             checkValid();
             boolean success = false;
             int oldParentId = parentId;
@@ -202,7 +197,7 @@ public class FATFile {
      * @param newLength The desired length of the file
      */
     public void setLength(long newLength) throws IOException {
-        synchronized (fileLock) {
+        synchronized (this) {
             checkValid();
             fs.begin(true);
             try {
@@ -257,7 +252,7 @@ public class FATFile {
      * @param access the file access state.
      */
     public void setAccess(int access) throws IOException {
-        synchronized (fileLock) {
+        synchronized (this) {
             checkValid();
             if (this.access == access)
                 return;
@@ -287,7 +282,7 @@ public class FATFile {
      * @param timeCreate the file creation time in milliseconds.
      */
     public void setTimeCreate(long timeCreate) throws IOException {
-        synchronized (fileLock) {
+        synchronized (this) {
             checkValid();
             if (this.timeCreate == timeCreate)
                 return;
@@ -317,7 +312,7 @@ public class FATFile {
      * @param timeModify the file modification time in milliseconds.
      */
     public void setLastModified(long timeModify) throws IOException {
-        synchronized (fileLock) {
+        synchronized (this) {
             checkValid();
             if (this.timeModify == timeModify)
                 return;
@@ -427,7 +422,7 @@ public class FATFile {
         int len = fileName.length();
         if (len > FILE_MAX_NAME)
             throw new IllegalArgumentException("Name is too long. Max length is " + FILE_MAX_NAME);
-        synchronized (fileLock) {
+        synchronized (this) {
             Arrays.fill(name, ZAP_CHAR);
             System.arraycopy(fileName.toCharArray(), 0, name, 0, len);
             //no update here! That is init!
@@ -442,9 +437,5 @@ public class FATFile {
     void ts_setFileId(int fileId) {
         ttt = new Throwable();
         this.fileId = fileId;
-    }
-
-    Object ts_getFileLock() {
-        return fileLock;
     }
 }

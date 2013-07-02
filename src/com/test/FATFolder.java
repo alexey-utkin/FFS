@@ -43,7 +43,7 @@ public class FATFolder {
      * @throws IOException
      */
     public FATFolder createSubfolder(String folderName) throws IOException {
-        synchronized (fatFile.ts_getFileLock()) {
+        synchronized (fatFile) {
             fatFile.checkValid();
             ts_fs().begin(true);
             try {
@@ -60,7 +60,7 @@ public class FATFolder {
                         FATFile.TYPE_FOLDER, EMPTY_FILE_SIZE, fatFile.access());
 
                 // need a lock from delete in dirty state.
-                synchronized (subfolder.ts_getFileLock()) {
+                synchronized (subfolder) {
                     boolean success = false;
                     try {
                         //since this call the [subfolder] is visible for external world
@@ -99,7 +99,7 @@ public class FATFolder {
      * @throws IOException
      */
     public void deleteChildren() throws IOException {
-        synchronized (fatFile.ts_getFileLock()) {
+        synchronized (fatFile) {
             fatFile.checkValid();
             boolean success = false;
             ts_fs().begin(true);
@@ -137,7 +137,7 @@ public class FATFolder {
      * @throws IOException
      */
     public void cascadeDelete() throws IOException {
-        synchronized (fatFile.ts_getFileLock()) {
+        synchronized (fatFile) {
             fatFile.checkValid();
             boolean success = false;
             ts_fs().begin(true);
@@ -157,7 +157,7 @@ public class FATFolder {
      * @return the number of bytes that were free.
      */
     public int pack() throws IOException {
-        synchronized (fatFile.ts_getFileLock()) {
+        synchronized (fatFile) {
             fatFile.checkValid();
 
             // PERFORMANCE HINT POINT
@@ -199,7 +199,7 @@ public class FATFolder {
      * @return the found file or [null].
      */
     public FATFile findFile(String folderName) {
-        synchronized (fatFile.ts_getFileLock()) {
+        synchronized (fatFile) {
             fatFile.checkValid();
             if (folderName == null)
                 return null;
@@ -285,7 +285,7 @@ public class FATFolder {
 
     private void ts_readContent() throws IOException {
         boolean success = false;
-        synchronized (fatFile.ts_getFileLock()) {
+        synchronized (fatFile) {
             ts_fs().begin(false);
             try {
                 try (FATFileChannel folderContent = fatFile.getChannel(false)) {
@@ -313,7 +313,7 @@ public class FATFolder {
 
     private void ts_writeContent() throws IOException {
         boolean success = false;
-        synchronized (fatFile.ts_getFileLock()) {
+        synchronized (fatFile) {
             ts_fs().begin(true);
             try {
                 try (FATFileChannel folderContent = fatFile.getChannel(false)) {
@@ -386,7 +386,7 @@ public class FATFolder {
     }
 
     void ts_updateFileRecord(FATFile updateFile) throws IOException {
-        synchronized (fatFile.ts_getFileLock()) {
+        synchronized (fatFile) {
             fatFile.checkValid();
             if (updateFile.isRoot()) {
                 ts_updateRootFileRecord(updateFile);
@@ -401,7 +401,7 @@ public class FATFolder {
 
 
     void ts_ref(FATFile addFile) throws IOException {
-        synchronized (fatFile.ts_getFileLock()) {
+        synchronized (fatFile) {
             fatFile.checkValid();
             int pos = childFiles.indexOf(FATFile.DELETED_FILE);
             if (pos >= 0) {
@@ -416,7 +416,7 @@ public class FATFolder {
     }
 
     void ts_deRef(FATFile removeFile) throws IOException {
-        synchronized (fatFile.ts_getFileLock()) {
+        synchronized (fatFile) {
             fatFile.checkValid();
             int offset = childFiles.indexOf(removeFile);
             if (offset == -1)

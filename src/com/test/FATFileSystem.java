@@ -42,7 +42,6 @@ public class FATFileSystem implements Closeable {
     private HashMap<Integer, FATFolder> folderCache = new HashMap<>();
     private HashMap<Integer, FATFile>   fileCache = new HashMap<>();
 
-    final Object treeLock = new Object();
     // smart termination procedure as
     //  Transaction counting + shutdown signal + wait for execution finish
     final Object shutdownSignal = new Object();
@@ -131,7 +130,7 @@ public class FATFileSystem implements Closeable {
      */
     @Override
     public void close() throws IOException {
-        synchronized (treeLock) {
+        synchronized (this) {
             if (!shutdownRequest())
                 throw new IOException("System was no unmounted.");
 
@@ -261,7 +260,7 @@ public class FATFileSystem implements Closeable {
      * @throws IOException
      */
     FATFile ts_createFile(String fileName, int type, long size, int access) throws IOException {
-        synchronized (treeLock) {
+        synchronized (this) {
             // create new
             FATFile ret = new FATFile(this, fileName, type, size, access);
             fileCache.put(ret.ts_getFileId(), ret);
@@ -275,7 +274,7 @@ public class FATFileSystem implements Closeable {
      * @param file the file for drop.
      */
     void ts_dropDirtyFile(FATFile file) throws IOException {
-        synchronized (treeLock) {
+        synchronized (this) {
             if (file.ts_getFileId() == FATFile.INVALID_FILE_ID)
                 throw new IOException("Bad file id.");
             
@@ -298,7 +297,7 @@ public class FATFileSystem implements Closeable {
      * @throws IOException
      */
     FATFile ts_openFile(ByteBuffer bf, int parentId) throws IOException {
-        synchronized (treeLock) {
+        synchronized (this) {
             // open existent if can
             int fileId = bf.getInt();
             int type = bf.getInt();
@@ -324,7 +323,7 @@ public class FATFileSystem implements Closeable {
      * @return the folder object
      */
     FATFolder ts_getFolder(int fileId) {
-        synchronized (treeLock) {
+        synchronized (this) {
             FATFolder ret = folderCache.get(fileId);
             if (ret == null) {
                 ret = new FATFolder(ts_getFile(fileId));
@@ -341,7 +340,7 @@ public class FATFileSystem implements Closeable {
      * @return
      */
     FATFile ts_getFile(int fileId) {
-        synchronized (treeLock) {
+        synchronized (this) {
             return  fileCache.get(fileId);
         }
     }
@@ -354,7 +353,7 @@ public class FATFileSystem implements Closeable {
      * Signal to start transaction.
      */
     void begin(boolean writeOperation) throws IOException {
-        synchronized (treeLock) {
+        synchronized (this) {
             if (fat.state.ordinal() >= FATSystem.SystemState.SHUTDOWN.ordinal())
                 throw new IOException("System down.");   
             
@@ -395,7 +394,7 @@ public class FATFileSystem implements Closeable {
      * Signal to end transaction.
      */
     void end() {
-        synchronized (treeLock) {
+        synchronized (this) {
             transactionCounter -= 1;
             checkEmptyTransactionPool();
         }
@@ -414,7 +413,7 @@ public class FATFileSystem implements Closeable {
      * @return [true] if the file system is ready be closed
      */
     public boolean shutdownRequest() {
-        synchronized (treeLock) {
+        synchronized (this) {
             if (fat.state.ordinal() < FATSystem.SystemState.SHUTDOWN_REQUEST.ordinal()) {
                 fat.state = FATSystem.SystemState.SHUTDOWN_REQUEST;
             }

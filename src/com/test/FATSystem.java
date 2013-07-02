@@ -10,8 +10,8 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.file.Path;
 import java.nio.file.Files;
+import java.nio.file.Path;
 
 
 /**
@@ -61,7 +61,6 @@ class FATSystem implements Closeable {
     private ByteOrder byteOrder = ByteOrder.BIG_ENDIAN; //default encoding (currently fixed)
     private FATClusterAllocator clusterAllocator;
 
-    private final Object fatLock = new Object();
     private final boolean normalMode;
     
     /**
@@ -227,8 +226,8 @@ class FATSystem implements Closeable {
     }
 
     private void writeFreeClusterCount(int value) {
-        synchronized (fatLock) {
-            //fully construsted FS
+        synchronized (this) {
+            //fully constructed FS
             if (isNormalMode() 
                     && (state != SystemState.CLOSED) 
                     && (fatZone != null)) 
@@ -243,7 +242,7 @@ class FATSystem implements Closeable {
         if (rootInfo.remaining() > FATFile.RECORD_SIZE)
             throw new IOException("Wrong root info.");
 
-        synchronized (fatLock) {
+        synchronized (this) {
             checkCanWrite();
             fatZone.position(ROOT_RECORD_OFFSET);
             fatZone.put(rootInfo);
@@ -252,7 +251,7 @@ class FATSystem implements Closeable {
 
     ByteBuffer getRootInfo() throws IOException {
         byte[] bb = new byte[FATFile.RECORD_SIZE];
-        synchronized (fatLock) {
+        synchronized (this) {
             checkCanRead();
             fatZone.position(ROOT_RECORD_OFFSET);
             fatZone.get(bb);
@@ -271,7 +270,7 @@ class FATSystem implements Closeable {
 
     @Override
     public void close() throws IOException {
-        synchronized (fatLock) {
+        synchronized (this) {
             if (state == SystemState.CLOSED)
                 throw new IOException("Storage was closed earlier.");
             
@@ -321,7 +320,7 @@ class FATSystem implements Closeable {
     }
 
     public void force() throws IOException {
-        synchronized (fatLock) {
+        synchronized (this) {
             // One is not a guaranty for another            
             forceChannel(true);
             forceFat();
@@ -330,7 +329,7 @@ class FATSystem implements Closeable {
 
     /**
      * Flush content to disk.
-     * Have to be called in [fatLock] section
+     * Have to be called in synchronized section
      */
     private void forceFat() throws IOException {
         clusterAllocator.force();
@@ -370,7 +369,7 @@ class FATSystem implements Closeable {
             throw new IOException("Bad cluster index:" + cluster);
 
         ByteBuffer bf = ByteBuffer.allocateDirect(clusterSize);  //check with alloc!
-        synchronized (fatLock) {
+        synchronized (this) {
             checkCanRead();
             fileChannel
                 .position(dataOffset + cluster * clusterSize)
@@ -399,7 +398,7 @@ class FATSystem implements Closeable {
         // - resize if need?
         if (count < 1)
             throw new IOException("Cannot allocate" + count + "clusters.");
-        synchronized (fatLock) {
+        synchronized (this) {
             checkCanWrite();
             if ((tailCluster < clusterCount) && (
                     ((freeClusterCount >= 0) && (count <= freeClusterCount))
@@ -426,7 +425,7 @@ class FATSystem implements Closeable {
      * @throws IOException
      */
      void freeClusters(int headOffset, boolean freeHead) throws IOException {
-        synchronized (fatLock) {
+        synchronized (this) {
             checkCanWrite();
             try {
                 clusterAllocator.freeClusters(headOffset, freeHead);
@@ -449,7 +448,7 @@ class FATSystem implements Closeable {
     /**
      * Finds the [newSizeInClusters] value in the list that starts from [startCluster]
      *
-     * Have to be called under [fatLock] lock.
+     * Have to be called in synchronized section.
      *
      * @param startCluster the start of the chain
      * @param nextCount the number of [next] actions in list.
@@ -479,7 +478,7 @@ class FATSystem implements Closeable {
      * @param newLength the size in bytes to store in the chain
      */
     void adjustClusterChain(int startCluster, long newLength, long oldLength) throws IOException {
-        synchronized (fatLock) {
+        synchronized (this) {
             checkCanWrite();
             // check only public parameters
             if (newLength < 0 || newLength > getSize())
@@ -510,7 +509,7 @@ class FATSystem implements Closeable {
      */
     int writeChannel(int[] startCluster, long[] pos, ByteBuffer src) throws IOException {
         int wasWritten;
-        synchronized (fatLock) {
+        synchronized (this) {
             checkCanWrite();
             int nextToPos = (int)(pos[0]/clusterSize);
             startCluster[0] = getShift(startCluster[0], nextToPos);
@@ -545,7 +544,7 @@ class FATSystem implements Closeable {
      */
     public int readChannel(int[] startCluster, long[] pos, ByteBuffer dst) throws IOException {
         int wasRead;
-        synchronized (fatLock) {
+        synchronized (this) {
             checkCanRead();
             int nextToPos = (int)(pos[0]/clusterSize);
             startCluster[0] = getShift(startCluster[0], nextToPos);
@@ -622,7 +621,7 @@ class FATSystem implements Closeable {
     }
 
     private void writeToChannel(ByteBuffer bf, long position) throws IOException {
-        synchronized (fatLock) {
+        synchronized (this) {
             checkCanWrite();
             fileChannel.position(position);
             while(bf.hasRemaining()) {

@@ -59,24 +59,28 @@ public class FATFolder {
                 subfolder = ts_fs().ts_createFile(folderName,
                         FATFile.TYPE_FOLDER, EMPTY_FILE_SIZE, fatFile.access());
 
-                boolean success = false;
-                try {
-                    subfolder.moveTo(this);
-                    // commit
-                    success = true;
-                } finally {
-                    if (!success) {
-                        // rollback
-                        boolean successRollback = false;
-                        try {
-                            ts_fs().ts_dropDirtyFile(subfolder);
-                        } finally {
-                            if (!successRollback) {
-                                ts_fs().ts_setDirtyState("Cannot drop unconnected folder.", false);
+                // need a lock from delete in dirty state.
+                synchronized (subfolder.ts_getFileLock()) {
+                    boolean success = false;
+                    try {
+                        //since this call the [subfolder] is visible for external world
+                        subfolder.moveTo(this);
+                        // commit
+                        success = true;
+                    } finally {
+                        if (!success) {
+                            // rollback
+                            boolean successRollback = false;
+                            try {
+                                ts_fs().ts_dropDirtyFile(subfolder);
+                            } finally {
+                                if (!successRollback) {
+                                    ts_fs().ts_setDirtyState("Cannot drop unconnected folder.", false);
+                                }
                             }
+                        } else {
+                            return subfolder.getFolder();
                         }
-                    } else {
-                        return subfolder.getFolder();
                     }
                 }
             } finally {

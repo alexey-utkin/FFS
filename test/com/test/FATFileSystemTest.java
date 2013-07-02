@@ -210,7 +210,7 @@ public class FATFileSystemTest  extends FATBaseTest {
 
         try {
             Thread.sleep(100);            
-            ffs1.waitForShutdown(Integer.MAX_VALUE);
+            ffs1.waitForShutdown();
         } catch (InterruptedException ex) {
             //ok
         }

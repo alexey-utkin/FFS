@@ -49,6 +49,7 @@ public class FATFile {
     }
 
     void checkValid() throws IOException {
+        checkSelfValid();
         if (parentId == INVALID_FILE_ID)
             throw new IOException("Invalid parent id.");
     }

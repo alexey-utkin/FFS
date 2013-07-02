@@ -14,7 +14,7 @@ import java.util.concurrent.Executors;
  */
 
 public class FATFileSystemTest  extends FATBaseTest {
-/*    
+/*
     //
     // Test of FS creation.
     //
@@ -201,17 +201,18 @@ public class FATFileSystemTest  extends FATBaseTest {
 
                         root1.createSubfolder("Test2");
                         root1.createSubfolder("Test3");
-                        root1.pack();
+                        //root1.pack();
                     } catch (IOException ex) {
-                        logLN(ex.getMessage());
+                        logLN(ex.toString());
                     }
                 }
             };
+            worker.run();
             executor.execute(worker);
         }
 
         try {
-            Thread.sleep(1);
+            Thread.sleep(100);
             ffs1.waitForShutdown();
         } catch (InterruptedException ex) {
             //ok
@@ -244,5 +245,5 @@ public class FATFileSystemTest  extends FATBaseTest {
             testShutdown(getPath(), clusterSize, clusterCount, allocatorType);
             logOk();
         }
-    }    
+    }
 }

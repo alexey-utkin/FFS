@@ -20,7 +20,7 @@ import java.util.Vector;
  */
 
 public class FATFolder {
-    private static final String ROOT_NAME = "<root>";
+    private static final String ROOT_NAME = "ROOT";
 
     // to check long in call params
     private static final long EMPTY_FILE_SIZE = 0L;
@@ -265,7 +265,7 @@ public class FATFolder {
                             break;
                     }
                 }
-                sb.append("<\folder>");
+                sb.append("<\\folder>");
                 return sb.toString();
             } finally {
                 ts_fs().end();

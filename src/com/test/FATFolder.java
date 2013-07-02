@@ -1,5 +1,6 @@
 package com.test;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.FileAlreadyExistsException;
@@ -52,9 +53,8 @@ public class FATFolder {
                 if (findFile(fileName) != null)
                     throw new FileAlreadyExistsException(fileName);
 
-                // reserve space in parent first!
-                ts_ref(FATFile.DELETED_FILE);
-                ++deletedCount;
+                // reserve space first!
+                ts_reserveRecord();
 
                 // [access] is the same as in parent by default
                 FATFile file = ts_fs().ts_createFile(ts_getFolderId(),
@@ -165,6 +165,7 @@ public class FATFolder {
      * Packs the folder in external memory.
      *
      * @return the number of bytes that were free.
+     * @throws IOException
      */
     public int pack() throws IOException {
         synchronized (fatFile) {
@@ -204,20 +205,57 @@ public class FATFolder {
      * FUNCTIONAL HINT POINT: [folderName] as regexp
      * FUNCTIONAL HINT POINT: Hash map collection for fast Unique test.
      *
-     * @param folderName the exact name to find, case sensitive.
+     * @param fileName the exact name to find, case sensitive.
      * @return the found file or [null].
+     * @throws IOException
      */
-    public FATFile findFile(String folderName) throws IOException {
+    public FATFile findFile(String fileName) throws IOException {
         synchronized (fatFile) {
             fatFile.checkValid();
-            if (folderName == null)
+            if (fileName == null)
                 return null;
             for (FATFile file : childFiles) {
-                if (folderName.equals(file.toString()))
+                if (fileName.equals(file.getName()))
                     return file;
             }
         }
         return null;
+    }
+
+    /***
+     * Get the file by name
+     *
+     * @param fileName the exact name to find, case sensitive.
+     * @return the found file or throws FileNotFoundException.
+     * @throws IOException
+     */
+    public FATFile getChildFile(String fileName) throws IOException {
+        synchronized (fatFile) {
+            fatFile.checkValid();
+            if (fileName == null)
+                throw new IllegalArgumentException();
+            for (FATFile file : childFiles) {
+                if (fileName.equals(file.getName()))
+                    return file;
+            }
+        }
+        throw new FileNotFoundException(fileName);
+    }
+
+    /***
+     * Get the folder by name
+     *
+     * @param folderName the exact name to find, case sensitive.
+     * @return the found folder or throws FileNotFoundException.
+     * @throws IOException
+     */
+    public FATFolder getChildFolder(String folderName) throws IOException {
+        synchronized (fatFile) {
+            FATFile file = getChildFile(folderName);
+            if (file.isFolder())
+                return file.getFolder();
+            throw new IOException("File is not a folder:" + folderName);
+        }
     }
 
 
@@ -225,11 +263,14 @@ public class FATFolder {
      * Creates Folder from File.
      *
      * Could not be called directly, use [ts_fs().ts_getFolder] instead.
+     * [ts_] constructor with [dirty] rollback
      *
      * @param fatFile the folder storage
+     * @throws IOException
      */
-    FATFolder(FATFile fatFile) {
+    FATFolder(FATFile fatFile) throws IOException {
         this.fatFile = fatFile;
+        ts_readContent();
     }
 
 
@@ -282,7 +323,7 @@ public class FATFolder {
             }
 
             FATFolder ret = fs.ts_getFolder(rootFile.ts_getFileId());
-            ret.ts_readContent();
+            //ret.ts_readContent();
             success = true;
             return ret;
         } finally {
@@ -409,6 +450,16 @@ public class FATFolder {
         }
     }
 
+    void ts_reserveRecord() throws IOException {
+        synchronized (fatFile) {
+            int pos = childFiles.indexOf(FATFile.DELETED_FILE);
+            if (pos < 0) {
+                childFiles.add(FATFile.DELETED_FILE);
+                ts_updateFileRecord(childFiles.size() - 1, FATFile.DELETED_FILE);
+                ++deletedCount;
+            }
+        }
+    }
 
     void ts_ref(FATFile addFile) throws IOException {
         synchronized (fatFile) {
@@ -418,6 +469,7 @@ public class FATFolder {
                 childFiles.set(pos, addFile);
                 --deletedCount;
             } else {
+                System.err.println("Unreserved Allocation! Exclusive mode only!");
                 childFiles.add(addFile);
                 pos = childFiles.size() - 1;
             }

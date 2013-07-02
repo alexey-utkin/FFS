@@ -323,10 +323,11 @@ public class FATFileSystem implements Closeable {
      * @param fileId the [fileId] of folder storage file.
      * @return the folder object
      */
-    FATFolder ts_getFolder(int fileId) {
+    FATFolder ts_getFolder(int fileId) throws IOException {
         synchronized (this) {
             FATFolder ret = folderCache.get(fileId);
             if (ret == null) {
+                //ts_ constructor
                 ret = new FATFolder(ts_getFile(fileId));
                 folderCache.put(fileId, ret);
             }

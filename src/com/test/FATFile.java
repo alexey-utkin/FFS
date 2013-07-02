@@ -107,8 +107,7 @@ public class FATFile {
         }
     }
 
-    public FATFolder getFolder() {
-        // null-transaction for no-io operation
+    public FATFolder getFolder() throws IOException {
         // no lock - type is final.
         return isFolder()
             ? fs.ts_getFolder(fileId)
@@ -123,42 +122,51 @@ public class FATFile {
      */
     public void moveTo(FATFolder newParent) throws IOException {
         synchronized (this) {
-            checkSelfValid(); //can add unconnected files. Here is the only point to do it.
-            boolean success = false;
-            int oldParentId = parentId;
+            checkValid();
+            if (newParent.ts_getFolderId() == parentId)
+                return;
+
             fs.begin(true);
             try {
-                //redirect any file attribute change (ex. size) to new parent
-                parentId = newParent.ts_getFolderId();
-                newParent.ts_ref(this);
-                if (oldParentId == INVALID_FILE_ID) {
-                    // commit
-                    success = true;
-                } else{
-                    try {
-                        fs.ts_getFolder(oldParentId).ts_deRef(this);
-                        // commit
-                        success = true;
-                    } finally {
-                        if (!success) {
-                            //rollback process
-                            boolean successRollback = false;
-                            try {
-                                newParent.ts_deRef(this);
-                                successRollback = true;
-                            } finally {
-                                if (!successRollback) {
-                                    fs.ts_setDirtyState("Cannot rollback movement of the file. ", false);
-                                }
-                            }
+                // we need to lock both storages and avoid deadlock
+                // Let's fix the order.
+                FATFile p1 = newParent.fatFile;
+                FATFile p2 = getParent().fatFile;
+                if (p1.fileId < p2.fileId) {
+                    FATFile temp = p1;
+                    p1 = p2;
+                    p2 = temp;
+                }
+
+                synchronized (p1) {
+                    p1.checkValid();
+                    synchronized (p2) {
+                        p2.checkValid();
+                        //Ok! now I go.
+
+                        //PERFORMANCE HIT
+                        // Reserve storage first.
+                        // Yes, I do not support move on partition without space.
+                        // Else I need to take a storage lock. That is dramatically
+                        // reduce parallel operations.
+
+                        newParent.ts_reserveRecord();
+
+                        // storage have a space for new record.
+                        // since now - no way back - maintenance mode only
+                        boolean success = false;
+                        try {
+                            newParent.ts_ref(this);
+                            parentId = newParent.ts_getFolderId();
+                            getParent().ts_deRef(this);
+                            success = true;
+                        } finally {
+                            if (!success)
+                                fs.ts_setDirtyState("Cannot rollback movement of the file. ", false);
                         }
                     }
                 }
             } finally {
-                if (!success) {
-                    // rollback
-                    parentId = oldParentId;
-                }
                 fs.end();
             }
         }

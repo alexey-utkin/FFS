@@ -32,7 +32,7 @@ public class FATBaseTest {
         Files.deleteIfExists(hostPath);
     }
     static public void tearDown(Path hostPath) throws IOException {
-        //Files.deleteIfExists(hostPath);
+        Files.deleteIfExists(hostPath);
     }
     static public void logStart(Path path, int clusterSize, int clusterCount,
                                 int allocatorType)

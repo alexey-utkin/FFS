@@ -40,6 +40,7 @@ class FATForwardOnlyClusterAllocator implements FATClusterAllocator {
 
     /**
      * Allocates a cluster chain. Free haunter algorithm.
+     *
      * Bad   point: O(fs.clusterCount)
      * Good  point: the best monotonic index sequence in chain.
      *              visible watermarks

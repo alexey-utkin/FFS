@@ -40,6 +40,7 @@ class FATFreeListClusterAllocator implements FATClusterAllocator {
 
     /**
      * Allocates a cluster chain. Classical heap-on-array algorithm.
+     *
      * Bad   point: reverse index sequence in chain.
      * Good  point: O(count)
      *

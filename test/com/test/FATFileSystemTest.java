@@ -93,10 +93,10 @@ public class FATFileSystemTest  extends FATBaseTest {
             }    
             for (int i = 0; i < 10; ++i) {
                 System.gc();                
-                logLN("subf File Cach Size:" + ffs.getFileCachSize() 
-                    + " Folder Cach Size:" + ffs.getFolderCachSize());
+                logLN("subf File Cach Size:" + ffs.getFileCacheSize()
+                    + " Folder Cach Size:" + ffs.getFolderCacheSize());
             }
-            if ( ffs.getFileCachSize() >= 2000 || ffs.getFolderCachSize() >= 2000 )
+            if ( ffs.getFileCacheSize() >= 2000 || ffs.getFolderCacheSize() >= 2000 )
                 throw new Error("Memory leaks in subfolders!");
 
             {
@@ -112,10 +112,10 @@ public class FATFileSystemTest  extends FATBaseTest {
             }
             for (int i = 0; i < 10; ++i) {
                 System.gc();                
-                logLN("root File Cach Size:" + ffs.getFileCachSize() 
-                    + " Folder Cach Size:" + ffs.getFolderCachSize());
+                logLN("root File Cach Size:" + ffs.getFileCacheSize()
+                    + " Folder Cach Size:" + ffs.getFolderCacheSize());
             }
-            if ( ffs.getFileCachSize() >= 2000 || ffs.getFolderCachSize() >= 2000 )
+            if ( ffs.getFileCacheSize() >= 2000 || ffs.getFolderCacheSize() >= 2000 )
                 throw new Error("Memory leaks in root!");
         }
         tearDown(path);

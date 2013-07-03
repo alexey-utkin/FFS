@@ -193,7 +193,7 @@ public class FATFileSystem implements Closeable {
      * Flush file content.
      *
      * @param file the file to flush
-     * @param updateMetadata
+     * @param updateMetadata if [true] - update access info like [lastModified]
      * @throws IOException
      */
     void ts_forceFileContent(FATFile file, boolean updateMetadata) throws IOException {
@@ -337,7 +337,7 @@ public class FATFileSystem implements Closeable {
     /**
      * Gets a file object from cache, or return null.
      *
-     * @param fileId
+     * @param fileId  cached FATFile if any.
      * @return
      */
     FATFile ts_getFile(int fileId) throws IOException {
@@ -448,8 +448,8 @@ public class FATFileSystem implements Closeable {
      *
      * @param message
      */
-    void ts_setDirtyState(String message, boolean throwExeption) throws IOException {
-        fat.setDirtyState(message, throwExeption);
+    void ts_setDirtyState(String message, boolean throwException) throws IOException {
+        fat.setDirtyState(message, throwException);
     }
 
     void updateRootRecord(ByteBuffer rootInfo) throws IOException {
@@ -472,13 +472,13 @@ public class FATFileSystem implements Closeable {
     }
 
     //{debug-test
-    int getFileCachSize() {
+    int getFileCacheSize() {
         synchronized (this) {
             return fileCache.size();
         }
     }
     
-    int getFolderCachSize() {
+    int getFolderCacheSize() {
         synchronized (this) {
             return folderCache.size();
         }

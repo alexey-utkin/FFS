@@ -438,7 +438,7 @@ class FATSystem implements Closeable {
             try {
                 clusterAllocator.freeClusters(headOffset, freeHead);
             } finally {
-                forceFat();
+                //forceFat();
             }
         }
     }

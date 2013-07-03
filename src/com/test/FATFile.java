@@ -248,9 +248,7 @@ public class FATFile {
             try {
                 if (newLength == size)
                     return;
-                System.out.print("" + newLength + "->" + size);
                 fs.setFileLength(this, newLength, size);
-                System.out.println(" oK");
                 size = newLength;
                 // commit
                 ts_updateAttributes(); //no rollback - [dirty]

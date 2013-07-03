@@ -3,6 +3,7 @@ package com.test;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.file.Path;
 
 /**
@@ -173,5 +174,39 @@ public class FATFileSystemTest  extends FATBaseTest {
             logOk();
         }
     }
+
+    //
+    // Test of FS Folder Dump.
+    //
+    static public void testFolderDump(Path path, int clusterSize, int clusterCount,
+                                        int allocatorType) throws IOException {
+        startUp(path);
+        try (final FATFileSystem ffs = FATFileSystem.create(path, clusterSize, clusterCount, allocatorType)) {
+            FATFolder root = ffs.getRoot();
+            FATFolder html = root.createFolder("html");
+            html.createFolder("head")
+                    .createFile("title")
+                        .getChannel(false)
+                            .write(ByteBuffer.wrap("That was funny! That was funny! That was funny!".getBytes()));
+            html.createFolder("body")
+                    .createFile("context")
+                       .getChannel(false)
+                          .write(ByteBuffer.wrap("That fun!".getBytes()));
+            log(root.getView());
+        }
+        tearDown(path);
+    }
+    @Test
+    public void testFolderDump() throws IOException {
+        int clusterSize = FATFile.RECORD_SIZE;
+        int clusterCount = 20;
+        for (int allocatorType : allocatorTypes) {
+            logStart(getPath(), clusterSize, clusterCount, allocatorType);
+            testFolderDump(getPath(),
+                    clusterSize, clusterCount, allocatorType);
+            logOk();
+        }
+    }
+
 }
 

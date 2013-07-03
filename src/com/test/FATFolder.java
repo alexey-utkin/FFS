@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.FileAlreadyExistsException;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 /**
  * Provides access to tree structure of File System.
@@ -246,25 +247,48 @@ public class FATFolder {
             ts_fs().begin(false);
             try {
                 StringBuilder sb = new StringBuilder();
+                if (fatFile.isRoot())
+                    sb.append("<?xml version=\"1.0\"?>");
                 sb.append("<folder name=\"");
                 sb.append(fatFile.getName());
-                sb.append("\">");
+                sb.append("\" size=\"");
+                sb.append(fatFile.length());
+                sb.append("\" created=\"");
+                sb.append(fatFile.timeCreate());
+                sb.append("\" lastModified=\"");
+                sb.append(fatFile.lastModified());
+                sb.append("\">\n");
+                byte[] bcontext = new byte[16];
+                ByteBuffer content = ByteBuffer.wrap(bcontext);
                 for (FATFile current : childFiles) {
                     switch (current.getType()) {
                         case FATFile.TYPE_FILE:
                             sb.append("<file name=\"");
                             sb.append(current.getName());
-                            sb.append("\"/>");
+                            sb.append("\" size=\"");
+                            sb.append(current.length());
+                            sb.append("\" created=\"");
+                            sb.append(current.timeCreate());
+                            sb.append("\" lastModified=\"");
+                            sb.append(current.lastModified());
+                            sb.append("\">");
+                            Arrays.fill(bcontext, (byte)' ');
+                            content.clear();
+                            try (FATFileChannel fc = current.getChannel(false)) {
+                                fc.read(content);
+                            }
+                            sb.append(new String(bcontext));
+                            sb.append("</file>\n");
                             break;
                         case FATFile.TYPE_DELETED:
-                            sb.append("<deleted/>");
+                            sb.append("<deleted/>\n");
                             break;
                         case FATFile.TYPE_FOLDER:
                             sb.append(current.getFolder().getView());
                             break;
                     }
                 }
-                sb.append("</folder>");
+                sb.append("</folder>\n");
                 return sb.toString();
             } finally {
                 ts_fs().end();

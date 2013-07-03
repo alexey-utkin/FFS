@@ -326,7 +326,6 @@ public class FATFileChannel implements Closeable {
      */
     @Override
     public void close() throws IOException {
-        fatFile.updateLastModified();
         //force(false);
     }
 

@@ -69,6 +69,7 @@ public class FATFileSystemStress extends FATBaseTest {
             }
         }
 
+        System.gc();
 
         final FATFileSystem ffs2  = FATFileSystem.open(path);
         FATFolder root2 = ffs2.getRoot();
@@ -77,7 +78,7 @@ public class FATFileSystemStress extends FATBaseTest {
         tearDown(path);
     }
     
-    @Test(timeout=66660000)
+    @Test
     public void testShutdown() throws IOException {
         for (int allocatorType : allocatorTypes) {
             //allocatorType =   FATSystem.ALLOCATOR_FAST_FORWARD;

@@ -2,7 +2,8 @@ package com.test.API;
 
 /**
  * Stress test fo File System.
- * User: uta
+ *
+ * Hot Shutdown Test
  */
 
 import com.test.FATBaseTest;

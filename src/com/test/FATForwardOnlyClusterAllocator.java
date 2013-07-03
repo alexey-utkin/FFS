@@ -3,9 +3,6 @@ package com.test;
 import java.io.IOException;
 
 /**
- * Created with IntelliJ IDEA.
- * User: uta
- *
  * Forward Only Allocator. debug/maintenance
  *
  * Allocates cluster chains. Free haunter algorithm.
@@ -15,7 +12,7 @@ import java.io.IOException;
  * Applicable for system with fs.clusterCount ~ count. Perfect for maintenance,
  * when free list is damaged.
  *
- * Improvements (todo): for write-mostly system - support the hint [startOffset]
+ * Improvements: for write-mostly system - support the hint [startOffset]
  * as last allocated index.
  */
 class FATForwardOnlyClusterAllocator implements FATClusterAllocator {

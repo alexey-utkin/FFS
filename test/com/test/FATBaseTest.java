@@ -10,8 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * Created with IntelliJ IDEA.
- * User: uta
+ * Common test machinery.
  */
 public class FATBaseTest {
     protected static FileSystem fs = FileSystems.getDefault();

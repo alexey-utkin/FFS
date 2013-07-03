@@ -1,21 +1,16 @@
 package com.test;
 
-import com.test.FATBaseTest;
-import com.test.FATFile;
-import com.test.FATFileSystem;
-import com.test.FATFolder;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Path;
 
 /**
- * Test for basic File Tree operations
- * User: uta
+ * Tests for basic File System operations with root access.
  */
 
 public class FATFileSystemTest  extends FATBaseTest {
+
     //
     // Test of FS creation.
     //
@@ -43,6 +38,100 @@ public class FATFileSystemTest  extends FATBaseTest {
             }
         }
     }
+
+    //
+    // Test of FS file-as-folder open.
+    //
+    static public void testFileAsFolder(Path path, int clusterSize, int clusterCount,
+                                        int allocatorType) throws IOException {
+        startUp(path);
+        try (final FATFileSystem ffs = FATFileSystem.create(path, clusterSize, clusterCount, allocatorType)) {
+            ffs.getRoot().createFile("test");
+        }
+
+        try (final FATFileSystem ffs = FATFileSystem.open(path)) {
+            try {
+                ffs.getRoot().getChildFolder("test");
+                throw new IOException("Open File as folder");
+            } catch (IOException ex) {
+                //ok
+            }
+        }
+        tearDown(path);
+    }
+    @Test
+    public void testFileCreateOpen() throws IOException {
+        final int[] clusterSizes = new int[] {
+                FATFile.RECORD_SIZE,
+                4096
+        };
+        int clusterCount = 2;
+        for (int allocatorType : allocatorTypes) {
+            for (int clusterSize : clusterSizes) {
+                logStart(getPath(), clusterSize, clusterCount, allocatorType);
+                testFileAsFolder(getPath(),
+                        clusterSize, clusterCount, allocatorType);
+                logOk();
+            }
+        }
+    }
+
+    //
+    // Test of FS file diaposer.
+    //
+    static public void testFileDisposer(Path path, int clusterSize, int clusterCount,
+                                      int allocatorType) throws IOException {
+        startUp(path);
+        try (FATFileSystem ffs  = FATFileSystem.create(path, clusterSize, clusterCount, allocatorType)) {
+            //Root is always in memory - need to be fixed?
+            long freeSpace = ffs.getFreeSize();
+            {
+                FATFolder collector = ffs.getRoot().createFolder("collector");
+                for (int i = 0; i < 2000; ++i) {
+                    collector.createFile("file" + i);
+                }
+            }    
+            for (int i = 0; i < 10; ++i) {
+                System.gc();                
+                logLN("subf File Cach Size:" + ffs.getFileCachSize() 
+                    + " Folder Cach Size:" + ffs.getFolderCachSize());
+            }
+            if ( ffs.getFileCachSize() >= 2000 || ffs.getFolderCachSize() >= 2000 )
+                throw new Error("Memory leaks in subfolders!");
+
+            {
+                FATFolder root = ffs.getRoot();
+                root.deleteChildren();
+                root.pack();
+                if (freeSpace != ffs.getFreeSize())
+                    throw new Error("Space leak.");
+            }
+
+            for (int i = 0; i < 2000; ++i) {
+                ffs.getRoot().createFile("file" + i);
+            }
+            for (int i = 0; i < 10; ++i) {
+                System.gc();                
+                logLN("root File Cach Size:" + ffs.getFileCachSize() 
+                    + " Folder Cach Size:" + ffs.getFolderCachSize());
+            }
+            if ( ffs.getFileCachSize() >= 2000 || ffs.getFolderCachSize() >= 2000 )
+                throw new Error("Memory leaks in root!");
+        }
+        tearDown(path);
+    }
+    @Test
+    public void testFileDisposer() throws IOException {
+        int clusterSize = FATFile.RECORD_SIZE; //fixed!
+        int clusterCount = 2000*3 + 1; //fixed!
+        int allocatorType = allocatorTypes[0];
+
+        logStart(getPath(), clusterSize, clusterCount, allocatorType);
+        testFileDisposer(getPath(),
+                clusterSize, clusterCount, allocatorType);
+        logOk();
+    }
+    
 
     //
     // Test of forward space reservation in folder store.

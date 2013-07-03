@@ -6,8 +6,10 @@ import java.nio.file.DirectoryNotEmptyException;
 import java.util.Arrays;
 
 /**
- * Created with IntelliJ IDEA.
- * User: uta
+ * Provides File object functionality as Attributes and Content storage.
+ * @see FATFileChannel
+ * @see FATFolder
+ *
  *
  * All [transact-safe] methods have the [ts_] prefix.
  * The [transact-safe] means that methods can terminated successfully,
@@ -25,8 +27,8 @@ public class FATFile {
     public static final int TYPE_FILE = 0;
     public static final int TYPE_FOLDER = 1;
     public static final int TYPE_DELETED = -1;
-    
-    static final FATFile DELETED_FILE = new FATFile(null, TYPE_DELETED, INVALID_FILE_ID, INVALID_FILE_ID);
+
+    static final FATFile DELETED_FILE = new FATFile(null, TYPE_DELETED, INVALID_FILE_ID);
 
     final FATFileSystem fs;
 
@@ -39,19 +41,31 @@ public class FATFile {
     private long timeCreate;
     private long timeModify;
     private final char[] name = new char[FILE_MAX_NAME];
+    private boolean initialized = false;
 
     // properties
-    private int parentId = INVALID_FILE_ID;
+    // private int parentId = INVALID_FILE_ID;
+    
+    //PERFORMANCE HINT: bad
+    //hard link to parent
+    private FATFile fatParent; 
 
     void checkSelfValid() throws IOException {
         if (fileId == INVALID_FILE_ID)
             throw new IOException("Invalid file id.");
     }
 
+    void checkParent() throws IOException {
+        if (isRoot())
+            return;
+        if (fatParent == null)
+            throw new IOException("Invalid parent ref.");
+        fatParent.checkSelfValid();
+    }
+    
     void checkValid() throws IOException {
         checkSelfValid();
-        if (parentId == INVALID_FILE_ID)
-            throw new IOException("Invalid parent id.");
+        checkParent();
     }
 
     public FATFileChannel getChannel(boolean appendMode) throws IOException {
@@ -90,7 +104,9 @@ public class FATFile {
             fs.begin(false);
             try {
                 checkValid();
-                return fs.ts_getFolder(parentId);
+                return isRoot()
+                    ? null
+                    : fatParent.getFolder();
             } finally {
                 // primitive rollback - dirty in [ts_dropDirtyFile]
                 fs.end();
@@ -104,7 +120,7 @@ public class FATFile {
             fs.begin(true);
             try {
                 if (updateMetadata)
-                    setLastModified(FATFileSystem.getCurrentTime());
+                    updateLastModified();
                 fs.ts_forceFileContent(this, updateMetadata);
             } finally {
                 // primitive rollback - dirty in [ts_dropDirtyFile]
@@ -137,14 +153,17 @@ public class FATFile {
     public void moveTo(FATFolder newParent) throws IOException {
         synchronized (this) {
             checkValid();
-            if (newParent.ts_getFolderId() == parentId)
+            if (isRoot())
+                throw new IOException("Cannot move the root.");
+
+            FATFolder oldParent = getParent();            
+            if (newParent.ts_getFolderId() == oldParent.ts_getFolderId())
                 return;
 
             fs.begin(true);
             try {
                 // we need to lock both storages and avoid deadlock
                 // Let's fix the order.
-                FATFolder oldParent = getParent();
                 FATFile p1 = newParent.fatFile;
                 FATFile p2 = oldParent.fatFile;
                 if (p1.fileId < p2.fileId) {
@@ -172,7 +191,8 @@ public class FATFile {
                         boolean success = false;
                         try {
                             newParent.ts_ref(this);
-                            parentId = newParent.ts_getFolderId();
+                            ts_setParent(newParent);
+                            //parentId = newParent.ts_getFolderId();
                             oldParent.ts_deRef(this);
                             success = true;
                         } finally {
@@ -228,7 +248,9 @@ public class FATFile {
             try {
                 if (newLength == size)
                     return;
+                System.out.print("" + newLength + "->" + size);
                 fs.setFileLength(this, newLength, size);
+                System.out.println(" oK");
                 size = newLength;
                 // commit
                 ts_updateAttributes(); //no rollback - [dirty]
@@ -331,6 +353,11 @@ public class FATFile {
         return timeModify;
     }
 
+
+    public void updateLastModified() throws IOException {
+        setLastModified(FATFileSystem.getCurrentTime());
+    }
+
     /**
      * Sets the file modification time attribute.
      *
@@ -339,6 +366,7 @@ public class FATFile {
     public void setLastModified(long timeModify) throws IOException {
         synchronized (this) {
             checkValid();
+
             if (this.timeModify == timeModify)
                 return;
             fs.begin(true);
@@ -368,18 +396,18 @@ public class FATFile {
      * @param fs the FS object
      * @param type the [TYPE_XXXX] const
      * @param fileId the FS unique file Id (in FATSystem that is the start of file chain)
-     * @param parentId  the FS unique parent file Id. Parent file need to be a folder,
-     *                  parent holds the file attributes.
      */
-    FATFile(FATFileSystem fs, int type, int fileId, int parentId) {
+    FATFile(FATFileSystem fs, int type, int fileId) {
         this.fs = fs;
         this.type = type;
         // both ids validated in upper calls
         this.fileId = fileId;
-        this.parentId = parentId;
+        //{debug        
         if (type == TYPE_DELETED) {
             Arrays.fill(name, (char)0xFFFF);
         }
+        //}debug        
+        register(fs, fileId);
     }
 
     /**
@@ -394,26 +422,35 @@ public class FATFile {
      * @param access the desired access
      * @throws IOException
      */
-    FATFile(FATFileSystem fs, int parentId, String name, int type, long size, int access) throws IOException {
+    FATFile(FATFileSystem fs, String name, int type, long size, int access) throws IOException {
         ts_initName(name);
         this.fs = fs;
         fileId = fs.ts_allocateFileSpace(size);
-        this.parentId = parentId;
         this.type = type;
         this.size = size;
         timeCreate = FATFileSystem.getCurrentTime();
         timeModify = FATFileSystem.getCurrentTime();
         this.access = access;
+        register(fs, fileId);
     }
 
     void ts_initFromBuffer(ByteBuffer bf) {
         // [fileId] and [type] was read before for [ctr] call
-        size = bf.getLong();
-        timeCreate = bf.getLong();
-        timeModify = bf.getLong();
-        access = bf.getInt();
-        // only UNICODE name for performance and compatibility reasons
-        bf.asCharBuffer().get(name);
+        if (!initialized) {
+            size = bf.getLong();
+            timeCreate = bf.getLong();
+            timeModify = bf.getLong();
+            access = bf.getInt();
+            // only UNICODE name for performance and compatibility reasons
+            bf.asCharBuffer().get(name);
+            //file holds actual value => no more updates from parent stream.
+            initialized = true;
+        } else {
+            // we are here if the parent folder was GC and reloaded
+            // lock is not actual - could be enclosed calls
+            // [fileId] and [type] was read before for [ctr] call: RS-2*4
+            bf.position(bf.position() + FATFile.RECORD_SIZE - 2*4);
+        }
     }
 
     ByteBuffer ts_serialize(ByteBuffer bf, int version) {
@@ -437,8 +474,12 @@ public class FATFile {
      * @throws IOException
      */
     private void ts_updateAttributes() throws IOException {
-        if (parentId != INVALID_FILE_ID) {
-            fs.ts_getFolder(parentId).ts_updateFileRecord(this);
+        //file holds actual value => no more updates from parent stream.
+        initialized = true;
+        if (isRoot())
+            FATFolder.ts_updateRootFileRecord(this);
+        else if (fatParent != null) {
+            getParent().ts_updateFileRecord(this);
         }
     }
 
@@ -472,5 +513,32 @@ public class FATFile {
 
     public int getType() {
         return type;
+    }
+
+    void ts_setParent(FATFolder newParent) throws IOException {
+        if (this == newParent.fatFile)
+            fs.ts_setDirtyState("Cyclic dependence.", true);
+        fatParent = newParent.fatFile;
+    }
+    
+    private static class SelfDisposer implements FATDisposerRecord {
+        private final FATFileSystem fs;        
+        private final int fileId;
+        SelfDisposer(FATFileSystem fs, int fileId) {
+            this.fs = fs;
+            this.fileId = fileId;
+        }
+        @Override 
+        public void dispose() {
+            fs.disposeFile(fileId);
+        }
+    }
+
+    
+    private void register(FATFileSystem fs, int fileId) {
+        //{debug
+        //holder.put(fileId, this);
+        //}debug
+        FATDisposer.addRecord(this, new SelfDisposer(fs, fileId));
     }
 }

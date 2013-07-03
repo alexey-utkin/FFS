@@ -15,8 +15,9 @@ import java.nio.file.Path;
 
 
 /**
- * Created with IntelliJ IDEA.
- * User: uta
+ * Storage object for unmarked chain.
+ *
+ * Realized over the FAT table.
  *
  * Max storage size for 4k cluster: CLUSTER_INDEX*4096 = 3FF FFFF F000
  * 0x3FFFFFFF000/0x10000000000 = 3T - big enough.
@@ -62,7 +63,13 @@ class FATSystem implements Closeable {
     private FATClusterAllocator clusterAllocator;
 
     private final boolean normalMode;
-    
+
+    void checkFileId(int fileId) throws IOException {
+        int fatEntry = getFatEntry(fileId);
+        if ((fatEntry & FATClusterAllocator.CLUSTER_ALLOCATED) == 0)
+            setDirtyState("Invalid file id.", true);
+    }
+
     /**
      * state machine
      */
@@ -280,6 +287,7 @@ class FATSystem implements Closeable {
                     if (fileChannel != null) {
                         if (fatZone != null) {
                             markDiskStateActual();
+                            force();
                             if (fatZone instanceof DirectBuffer) {
                                 // That is bad, but it is the only available solution
                                 // http://stackoverflow.com/questions/2972986/how-to-unmap-a-file-from-memory-mapped-using-filechannel-in-java
@@ -409,7 +417,7 @@ class FATSystem implements Closeable {
                         throw new IOException("Can join the chain with the tail only.");
                     return clusterAllocator.allocateClusters(tailCluster, count);
                 } finally {
-                    forceFat();
+                    //forceFat();
                 }
             }
             throw new IOException("Disk full.");

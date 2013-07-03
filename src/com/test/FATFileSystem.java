@@ -2,6 +2,7 @@ package com.test;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -37,15 +38,15 @@ import java.util.HashMap;
  */
 public class FATFileSystem implements Closeable {
     private FATSystem fat;
-    private FATFolder root;
 
-    private HashMap<Integer, FATFolder> folderCache = new HashMap<>();
-    private HashMap<Integer, FATFile>   fileCache = new HashMap<>();
+    private HashMap<Integer, WeakReference<FATFolder>> folderCache = new HashMap<>();
+    private HashMap<Integer, WeakReference<FATFile>>   fileCache = new HashMap<>();
 
     // smart termination procedure as
     //  Transaction counting + shutdown signal + wait for execution finish
     final Object shutdownSignal = new Object();
     private long transactionCounter = 0L;
+    private FATFile root;
 
     private FATFileSystem() {}
 
@@ -76,7 +77,7 @@ public class FATFileSystem implements Closeable {
         boolean success = false;
         try {
             ret.fat = FATSystem.create(path, clusterSize, clusterCount, allocatorType);
-            ret.root = FATFolder.ts_createRoot(ret, 0);
+            ret.root = FATFolder.ts_createRoot(ret, 0).fatFile;
             success = true;
         } finally {
             if (!success)
@@ -88,6 +89,7 @@ public class FATFileSystem implements Closeable {
 
     /**
      * Opens FS from the exist file in host FS.
+     *
      * @param path the path to storage file in host FS
      * @return In-file FS over the file that opened in host FS.
      */
@@ -97,6 +99,7 @@ public class FATFileSystem implements Closeable {
 
     /**
      * Opens FS from the exist file in host FS.
+     *
      * @param path the path to storage file in host FS
      * @param normalMode the [false] value allows to open dirty FAT for maintenance
      * @return In-file FS over the file that opened in host FS.
@@ -106,7 +109,7 @@ public class FATFileSystem implements Closeable {
         boolean success = false;
         try {
             ret.fat = FATSystem.open(path, normalMode);
-            ret.root = FATFolder.ts_openRoot(ret);
+            ret.root = FATFolder.ts_openRoot(ret).fatFile;
             success = true;
         } finally {
             if (!success)
@@ -116,15 +119,8 @@ public class FATFileSystem implements Closeable {
     }
 
     /**
-     * Closes this stream and releases any system resources associated
-     * with it. If the stream is already closed then invoking this
-     * method has no effect.
-     * 
-     * <p> As noted in {@link AutoCloseable#close()}, cases where the
-     * close may fail require careful attention. It is strongly advised
-     * to relinquish the underlying resources and to internally
-     * <em>mark</em> the {@code Closeable} as closed, prior to throwing
-     * the {@code IOException}.
+     * Closes File System and releases any system resources associated
+     * with it.
      *
      * @throws java.io.IOException if an I/O error occurs
      */
@@ -154,8 +150,6 @@ public class FATFileSystem implements Closeable {
     /**
      * Returns the capacity of File System.
      *
-     * No staff info above pure FAT.
-     *
      * @return the size of storage. That is the [Data Section] size.
      */
     public long getSize() {
@@ -163,9 +157,7 @@ public class FATFileSystem implements Closeable {
     }
 
     /**
-     * Returns the free capacity of File System
-     *
-     * No forward reservation for staff objects.
+     * Returns the free space of File System
      *
      * @return the free size in storage. The [&lt;0] means dirty FAT and the
      *         system needs in maintenance.
@@ -176,6 +168,7 @@ public class FATFileSystem implements Closeable {
 
     /**
      * Returns FS time counter.
+     *
      * @return the Java current time in milliseconds.
      */
     public static long getCurrentTime() {
@@ -263,8 +256,10 @@ public class FATFileSystem implements Closeable {
     FATFile ts_createFile(int parentId, String fileName, int type, long size, int access) throws IOException {
         synchronized (this) {
             // create new
-            FATFile ret = new FATFile(this, parentId, fileName, type, size, access);
-            fileCache.put(ret.ts_getFileId(), ret);
+            FATFile ret = new FATFile(this, fileName, type, size, access);
+            fileCache.put(ret.ts_getFileId(), new WeakReference<>(ret));
+            if (!ret.isRoot())
+                ret.ts_setParent(ts_getFolder(parentId));
             return ret;
         }
     }
@@ -276,9 +271,6 @@ public class FATFileSystem implements Closeable {
      */
     void ts_dropDirtyFile(FATFile file) throws IOException {
         synchronized (this) {
-            if (file.ts_getFileId() == FATFile.INVALID_FILE_ID)
-                throw new IOException("Bad file id.");
-            
             fileCache.remove(file.ts_getFileId());
             try {
                 fat.freeClusters(file.ts_getFileId(), true);
@@ -291,6 +283,7 @@ public class FATFileSystem implements Closeable {
 
     /**
      * Opens file from folder record.
+     *
      * Returns file that has no connection with folder.
      *
      * @param bf the storage of attributes
@@ -305,34 +298,37 @@ public class FATFileSystem implements Closeable {
             if (type == FATFile.TYPE_DELETED)
                return FATFile.DELETED_FILE;
 
-            FATFile ret = fileCache.get(fileId);
+            WeakReference<FATFile> r = fileCache.get(fileId);
+            FATFile ret = (r == null) ? null : r.get();
             if (ret == null) {
                 // open existent
-                int fatEntry = fat.getFatEntry(fileId);
-                if ((fatEntry & FATClusterAllocator.CLUSTER_ALLOCATED) == 0)
-                    throw new IOException("Invalid file id.");
-
-                ret = new FATFile(this, type, fileId, parentId);
-                fileCache.put(ret.ts_getFileId(), ret);
-            } // else check the type?
-            ret.ts_initFromBuffer(bf);
+                fat.checkFileId(fileId); //check & mark dirty
+                ret = new FATFile(this, type, fileId);
+                ret.ts_initFromBuffer(bf);
+                fileCache.put(ret.ts_getFileId(), new WeakReference<>(ret));
+                if (!ret.isRoot())
+                    ret.ts_setParent(ts_getFolder(parentId));
+            } else
+                ret.ts_initFromBuffer(bf);
             return ret;
         }
     }
 
     /**
-     * Restores folder from [fileId] or gets it from cache.
+     * Restores folder from the file unique Id or gets it from cache.
      *
-     * @param fileId the [fileId] of folder storage file.
+     * @param fileId the file unique Id in File System.
      * @return the folder object
      */
     FATFolder ts_getFolder(int fileId) throws IOException {
         synchronized (this) {
-            FATFolder ret = folderCache.get(fileId);
+            WeakReference<FATFolder> r = folderCache.get(fileId);
+            FATFolder ret = (r == null) ? null : r.get();
             if (ret == null) {
                 //ts_ constructor
                 ret = new FATFolder(ts_getFile(fileId));
-                folderCache.put(fileId, ret);
+                folderCache.put(fileId, new WeakReference<>(ret));
+                ret.ts_readContent();
             }
             return ret;
         }
@@ -344,14 +340,20 @@ public class FATFileSystem implements Closeable {
      * @param fileId
      * @return
      */
-    FATFile ts_getFile(int fileId) {
+    FATFile ts_getFile(int fileId) throws IOException {
         synchronized (this) {
-            return  fileCache.get(fileId);
+            WeakReference<FATFile> r = fileCache.get(fileId);
+            FATFile ret = (r == null) ? null : r.get();            
+            if (ret == null) {
+                fat.setDirtyState("Cache damaged", true);
+            }
+            return ret;
         }
     }
 
-    public FATFolder getRoot() {
-        return root;
+    public FATFolder getRoot() throws IOException {
+        //return FATFolder.ts_getRoot(this);
+        return root.getFolder();
     }
 
     /**
@@ -457,4 +459,33 @@ public class FATFileSystem implements Closeable {
     public ByteBuffer getRootInfo() throws IOException {
         return fat.getRootInfo();
     }
+
+    void disposeFile(int fileId) {
+        synchronized (this) {
+            fileCache.remove(fileId);
+        }
+    }
+    void disposeFolder(int folderId) {
+        synchronized (this) {
+            folderCache.remove(folderId);
+        }
+    }
+
+    //{debug-test
+    int getFileCachSize() {
+        synchronized (this) {
+            return fileCache.size();
+        }
+    }
+    
+    int getFolderCachSize() {
+        synchronized (this) {
+            return folderCache.size();
+        }
+    }
+
+    void force() throws IOException {
+        fat.force();
+    }
+    //}debug-test        
 }

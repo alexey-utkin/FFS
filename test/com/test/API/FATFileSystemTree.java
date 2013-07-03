@@ -1,11 +1,13 @@
 package com.test.API;
 
 /**
- * Basic Directory Tree operations.
- * User: uta
+ * Basic File System Tree operations.
  */
 
-import com.test.*;
+import com.test.FATBaseTest;
+import com.test.FATFile;
+import com.test.FATFileSystem;
+import com.test.FATFolder;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -13,7 +15,6 @@ import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Path;
 
 public class FATFileSystemTree extends FATBaseTest {
-/*
     //
     // Test of FS open.
     //
@@ -62,7 +63,7 @@ public class FATFileSystemTree extends FATBaseTest {
             }
         }
     }
-*/
+
     //
     //  Test of FS tree.
     //
@@ -231,5 +232,4 @@ public class FATFileSystemTree extends FATBaseTest {
             logOk();
         }
     }
-
 }

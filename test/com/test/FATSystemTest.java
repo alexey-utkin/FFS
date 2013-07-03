@@ -10,8 +10,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 
 /**
- *
- * @author uta
+ * FAT storage tests.
  */
 public class FATSystemTest extends  FATBaseTest {
     /**
@@ -44,6 +43,35 @@ public class FATSystemTest extends  FATBaseTest {
         }
     }
 
+    /**
+     * Test of FS open stress.
+     */
+    static public void testOpenStress(Path path, int clusterSize, int clusterCount,
+                                  int allocatorType) throws IOException {
+        startUp(path);
+        try (FATSystem ffs  = FATSystem.create(path, clusterSize, clusterCount, allocatorType)) {
+            for (int i = 0; i < 1000; ++i) {
+                int start = ffs.allocateClusters(-1, 1);
+                ffs.allocateClusters(-1, 1);
+                ffs.adjustClusterChain(start, 1, 2);
+                ffs.allocateClusters(-1, 1);
+            }    
+        }
+        tearDown(path);
+    }
+    
+    @Test
+    public void testOpenStress() throws IOException {
+        int clusterCount = 4000;
+        int clusterSize = FATFile.RECORD_SIZE;
+        for (int allocatorType : allocatorTypes) {
+            logStart(getPath(), clusterSize, clusterCount, allocatorType);
+            testOpenStress(getPath(),
+                    clusterSize, clusterCount, allocatorType);
+            logOk();
+        }
+    }
+    
     /**
      * Test of FS Critical Fat Allocation.
      */

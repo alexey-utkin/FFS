@@ -5,8 +5,8 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 /**
- * Created with IntelliJ IDEA.
- * User: uta
+ * Provides access to Content storage.
+ * @see FATFile
  */
 
 public class FATFileChannel implements Closeable {
@@ -89,6 +89,8 @@ public class FATFileChannel implements Closeable {
                     success = true; //no rollback
                 try {
                     wasWritten = fs().writeFileContext(fatFile, position, src);
+                    if (wasWritten != sizeToWrite)
+                        throw new IOException("Chanel write error.");
                     // commit
                     success = true;
                     position += wasWritten;
@@ -225,7 +227,7 @@ public class FATFileChannel implements Closeable {
      */
     public void force(boolean metaData) throws IOException {
         if (metaData) {
-            fatFile.setLastModified(FATFileSystem.getCurrentTime());
+            fatFile.updateLastModified();
         }
         fatFile.force(metaData);
     }
@@ -324,7 +326,8 @@ public class FATFileChannel implements Closeable {
      */
     @Override
     public void close() throws IOException {
-        force(false);
+        fatFile.updateLastModified();
+        //force(false);
     }
 
     private FATFileSystem fs() {

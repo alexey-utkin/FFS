@@ -3,10 +3,8 @@ package com.test;
 import java.io.IOException;
 
 /**
- * Created with IntelliJ IDEA.
- * User: uta
- *
  * Manages allocation of cluster chains.
+ *
  */
 interface FATClusterAllocator {
     final static int CLUSTER_INDEX  = 0x3FFFFFFF;

@@ -4,37 +4,53 @@
     <option name="ANALYZE_TEST_SOURCES" value="false" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" name="Default" comment="">
+    <list default="true" id="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" name="Default" comment="Dump was fixed from escape seq. The name of root folder was changed.">
+      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/src/com/test/FATDisposer.java" />
+      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/src/com/test/FATDisposerRecord.java" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/test/com/test/FATBaseTest.java" afterPath="$PROJECT_DIR$/test/com/test/FATBaseTest.java" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/com/test/FATClusterAllocator.java" afterPath="$PROJECT_DIR$/src/com/test/FATClusterAllocator.java" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/com/test/FATFile.java" afterPath="$PROJECT_DIR$/src/com/test/FATFile.java" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/com/test/FATFileChannel.java" afterPath="$PROJECT_DIR$/src/com/test/FATFileChannel.java" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/com/test/FATFileSystem.java" afterPath="$PROJECT_DIR$/src/com/test/FATFileSystem.java" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/test/com/test/API/FATFileSystemRW.java" afterPath="$PROJECT_DIR$/test/com/test/API/FATFileSystemRW.java" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/test/com/test/API/FATFileSystemStress.java" afterPath="$PROJECT_DIR$/test/com/test/API/FATFileSystemStress.java" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/test/com/test/FATFileSystemTest.java" afterPath="$PROJECT_DIR$/test/com/test/FATFileSystemTest.java" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/test/com/test/API/FATFileSystemTree.java" afterPath="$PROJECT_DIR$/test/com/test/API/FATFileSystemTree.java" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/com/test/FATFolder.java" afterPath="$PROJECT_DIR$/src/com/test/FATFolder.java" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/com/test/FATForwardOnlyClusterAllocator.java" afterPath="$PROJECT_DIR$/src/com/test/FATForwardOnlyClusterAllocator.java" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/com/test/FATFreeListClusterAllocator.java" afterPath="$PROJECT_DIR$/src/com/test/FATFreeListClusterAllocator.java" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/com/test/FATSystem.java" afterPath="$PROJECT_DIR$/src/com/test/FATSystem.java" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/test/com/test/FATSystemTest.java" afterPath="$PROJECT_DIR$/test/com/test/FATSystemTest.java" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
     </list>
     <ignored path="FileSystem.iws" />
     <ignored path=".idea/workspace.xml" />
     <file path="/FAT.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1371893665886" ignored="false" />
     <file path="/FileSystem.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372496119551" ignored="false" />
-    <file path="/FATSystem.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372776983914" ignored="false" />
+    <file path="/FATSystem.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372883598778" ignored="false" />
     <file path="/Main.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372192151971" ignored="false" />
-    <file path="/fragment.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372789153662" ignored="false" />
+    <file path="/fragment.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372878211840" ignored="false" />
     <file path="/FolderEntry.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372411595137" ignored="false" />
     <file path="/Folder.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372435311963" ignored="false" />
-    <file path="/Dummy.txt" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372804687278" ignored="false" />
+    <file path="/Dummy.txt" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372867659082" ignored="false" />
     <file path="/FATSystemTests.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372195154152" ignored="false" />
     <file path="/FATClusterAllocator.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372226578454" ignored="false" />
     <file path="/FATForwardOnlyClusterAllocator.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372590108649" ignored="false" />
-    <file path="/FATSystemTest.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372524248630" ignored="false" />
-    <file path="/FATFile.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372803431333" ignored="false" />
-    <file path="/FATFileChannel.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372786363265" ignored="false" />
-    <file path="/FATFolder.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372802349914" ignored="false" />
-    <file path="/FATFileSystem.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372804512688" ignored="false" />
-    <file path="/FATBaseTest.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372633518453" ignored="false" />
-    <file path="/FATFileSystemTest.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372789079093" ignored="false" />
+    <file path="/FATSystemTest.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372883874097" ignored="false" />
+    <file path="/FATFile.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372885677567" ignored="false" />
+    <file path="/FATFileChannel.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372883153124" ignored="false" />
+    <file path="/FATFolder.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372883196682" ignored="false" />
+    <file path="/FATFileSystem.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372884660420" ignored="false" />
+    <file path="/FATBaseTest.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372883774444" ignored="false" />
+    <file path="/FATFileSystemTest.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372886039052" ignored="false" />
     <file path="/FATFreeListClusterAllocator.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372596037460" ignored="false" />
     <file path="/a.dummy" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372788385179" ignored="false" />
-    <file path="/FATFileSystemRW.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372786948459" ignored="false" />
-    <file path="/FATFileSystemStress.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372785056666" ignored="false" />
+    <file path="/FATFileSystemRW.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372883626694" ignored="false" />
+    <file path="/FATFileSystemStress.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372883665008" ignored="false" />
     <file path="$PROJECT_DIR$/build/test/results/TEST-com.test.FATFileSystemTest.xml" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372789157844" ignored="false" />
-    <file path="/FATFileSystemTree.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372804132118" ignored="false" />
+    <file path="/FATFileSystemTree.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372883715910" ignored="false" />
+    <file path="/FATDisposer.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372882796964" ignored="false" />
+    <file path="/FATDisposerRecord.java" changelist="e7c1a54f-4943-4bb3-9e6f-cc2b6d5a31d0" time="1372883023924" ignored="false" />
     <option name="TRACKING_ENABLED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -49,6 +65,7 @@
     <disable_hints />
   </component>
   <component name="DebuggerManager">
+    <ui_properties default_suspend_policy="SuspendAll" default_condition_enabled="true" />
     <breakpoint_any default_suspend_policy="SuspendAll" default_condition_enabled="true">
       <breakpoint>
         <option name="NOTIFY_CAUGHT" value="true" />
@@ -85,7 +102,6 @@
         <option name="LOG_MESSAGE" value="" />
       </breakpoint>
     </breakpoint_any>
-    <ui_properties default_suspend_policy="SuspendAll" default_condition_enabled="true" />
     <line_breakpoints default_suspend_policy="SuspendAll" default_condition_enabled="true">
       <breakpoint url="jar://P:/Program Files/Java/jdk1.8.0/src.zip!/java/nio/Buffer.java" line="497" class="java.nio.Buffer" package="java.nio">
         <option name="ENABLED" value="true" />
@@ -102,7 +118,7 @@
         <option name="CONDITION" value="" />
         <option name="LOG_MESSAGE" value="" />
       </breakpoint>
-      <breakpoint url="file://$PROJECT_DIR$/src/com/test/FATSystem.java" line="274" class="com.test.FATSystem" package="com.test">
+      <breakpoint url="file://$PROJECT_DIR$/src/com/test/FATSystem.java" line="281" class="com.test.FATSystem" package="com.test">
         <option name="ENABLED" value="true" />
         <option name="LOG_ENABLED" value="false" />
         <option name="LOG_EXPRESSION_ENABLED" value="false" />
@@ -117,7 +133,7 @@
         <option name="CONDITION" value="" />
         <option name="LOG_MESSAGE" value="" />
       </breakpoint>
-      <breakpoint url="file://$PROJECT_DIR$/src/com/test/FATSystem.java" line="293" class="com.test.FATSystem" package="com.test">
+      <breakpoint url="file://$PROJECT_DIR$/src/com/test/FATSystem.java" line="301" class="com.test.FATSystem" package="com.test">
         <option name="ENABLED" value="true" />
         <option name="LOG_ENABLED" value="false" />
         <option name="LOG_EXPRESSION_ENABLED" value="false" />
@@ -132,7 +148,7 @@
         <option name="CONDITION" value="" />
         <option name="LOG_MESSAGE" value="" />
       </breakpoint>
-      <breakpoint url="file://$PROJECT_DIR$/src/com/test/FATFolder.java" line="453" class="com.test.FATFolder" package="com.test">
+      <breakpoint url="file://$PROJECT_DIR$/src/com/test/FATFileSystem.java" line="83" class="com.test.FATFileSystem" package="com.test">
         <option name="ENABLED" value="true" />
         <option name="LOG_ENABLED" value="false" />
         <option name="LOG_EXPRESSION_ENABLED" value="false" />
@@ -144,10 +160,85 @@
         <option name="CONDITION_ENABLED" value="true" />
         <option name="CLASS_FILTERS_ENABLED" value="false" />
         <option name="INSTANCE_FILTERS_ENABLED" value="false" />
-        <option name="CONDITION" value="rootFile.name[0]!='&lt;'&#13;&#13;JAVA" />
-        <option name="LOG_MESSAGE" value="&#13;&#13;JAVA" />
+        <option name="CONDITION" value="" />
+        <option name="LOG_MESSAGE" value="" />
       </breakpoint>
-      <breakpoint url="file://$PROJECT_DIR$/src/com/test/FATFileSystem.java" line="82" class="com.test.FATFileSystem" package="com.test">
+      <breakpoint url="file://$PROJECT_DIR$/src/com/test/FATSystem.java" line="600" class="com.test.FATSystem" package="com.test">
+        <option name="ENABLED" value="true" />
+        <option name="LOG_ENABLED" value="false" />
+        <option name="LOG_EXPRESSION_ENABLED" value="false" />
+        <option name="REMOVE_AFTER_HIT" value="false" />
+        <option name="SUSPEND_POLICY" value="SuspendAll" />
+        <option name="SUSPEND" value="true" />
+        <option name="COUNT_FILTER_ENABLED" value="false" />
+        <option name="COUNT_FILTER" value="0" />
+        <option name="CONDITION_ENABLED" value="true" />
+        <option name="CLASS_FILTERS_ENABLED" value="false" />
+        <option name="INSTANCE_FILTERS_ENABLED" value="false" />
+        <option name="CONDITION" value="" />
+        <option name="LOG_MESSAGE" value="" />
+      </breakpoint>
+      <breakpoint url="file://$PROJECT_DIR$/src/com/test/FATFile.java" line="519" class="com.test.FATFile" package="com.test">
+        <option name="ENABLED" value="true" />
+        <option name="LOG_ENABLED" value="false" />
+        <option name="LOG_EXPRESSION_ENABLED" value="false" />
+        <option name="REMOVE_AFTER_HIT" value="false" />
+        <option name="SUSPEND_POLICY" value="SuspendAll" />
+        <option name="SUSPEND" value="true" />
+        <option name="COUNT_FILTER_ENABLED" value="false" />
+        <option name="COUNT_FILTER" value="0" />
+        <option name="CONDITION_ENABLED" value="true" />
+        <option name="CLASS_FILTERS_ENABLED" value="false" />
+        <option name="INSTANCE_FILTERS_ENABLED" value="false" />
+        <option name="CONDITION" value="" />
+        <option name="LOG_MESSAGE" value="" />
+      </breakpoint>
+      <breakpoint url="file://$PROJECT_DIR$/src/com/test/FATSystem.java" line="416" class="com.test.FATSystem" package="com.test">
+        <option name="ENABLED" value="true" />
+        <option name="LOG_ENABLED" value="false" />
+        <option name="LOG_EXPRESSION_ENABLED" value="false" />
+        <option name="REMOVE_AFTER_HIT" value="false" />
+        <option name="SUSPEND_POLICY" value="SuspendAll" />
+        <option name="SUSPEND" value="true" />
+        <option name="COUNT_FILTER_ENABLED" value="false" />
+        <option name="COUNT_FILTER" value="0" />
+        <option name="CONDITION_ENABLED" value="true" />
+        <option name="CLASS_FILTERS_ENABLED" value="false" />
+        <option name="INSTANCE_FILTERS_ENABLED" value="false" />
+        <option name="CONDITION" value="" />
+        <option name="LOG_MESSAGE" value="" />
+      </breakpoint>
+      <breakpoint url="file://$PROJECT_DIR$/src/com/test/FATFolder.java" line="517" class="com.test.FATFolder" package="com.test">
+        <option name="ENABLED" value="true" />
+        <option name="LOG_ENABLED" value="false" />
+        <option name="LOG_EXPRESSION_ENABLED" value="false" />
+        <option name="REMOVE_AFTER_HIT" value="false" />
+        <option name="SUSPEND_POLICY" value="SuspendAll" />
+        <option name="SUSPEND" value="true" />
+        <option name="COUNT_FILTER_ENABLED" value="false" />
+        <option name="COUNT_FILTER" value="0" />
+        <option name="CONDITION_ENABLED" value="true" />
+        <option name="CLASS_FILTERS_ENABLED" value="false" />
+        <option name="INSTANCE_FILTERS_ENABLED" value="false" />
+        <option name="CONDITION" value="" />
+        <option name="LOG_MESSAGE" value="" />
+      </breakpoint>
+      <breakpoint url="file://$PROJECT_DIR$/src/com/test/FATFileChannel.java" line="92" class="com.test.FATFileChannel" package="com.test">
+        <option name="ENABLED" value="true" />
+        <option name="LOG_ENABLED" value="false" />
+        <option name="LOG_EXPRESSION_ENABLED" value="false" />
+        <option name="REMOVE_AFTER_HIT" value="false" />
+        <option name="SUSPEND_POLICY" value="SuspendAll" />
+        <option name="SUSPEND" value="true" />
+        <option name="COUNT_FILTER_ENABLED" value="false" />
+        <option name="COUNT_FILTER" value="0" />
+        <option name="CONDITION_ENABLED" value="true" />
+        <option name="CLASS_FILTERS_ENABLED" value="false" />
+        <option name="INSTANCE_FILTERS_ENABLED" value="false" />
+        <option name="CONDITION" value="" />
+        <option name="LOG_MESSAGE" value="" />
+      </breakpoint>
+      <breakpoint url="file://$PROJECT_DIR$/src/com/test/FATFolder.java" line="371" class="com.test.FATFolder" package="com.test">
         <option name="ENABLED" value="true" />
         <option name="LOG_ENABLED" value="false" />
         <option name="LOG_EXPRESSION_ENABLED" value="false" />
@@ -175,10 +266,19 @@
   </component>
   <component name="FileEditorManager">
     <leaf>
-      <file leaf-file-name="FATFolder.java" pinned="false" current="true" current-in-tab="true">
+      <file leaf-file-name="FATFolder.java" pinned="false" current="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/com/test/FATFolder.java">
           <provider selected="true" editor-type-id="text-editor">
-            <state line="22" column="49" selection-start="692" selection-end="692" vertical-scroll-proportion="0.24721985">
+            <state line="110" column="16" selection-start="3514" selection-end="3514" vertical-scroll-proportion="-4.12">
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="FATFileChannel.java" pinned="false" current="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/src/com/test/FATFileChannel.java">
+          <provider selected="true" editor-type-id="text-editor">
+            <state line="86" column="0" selection-start="3083" selection-end="3083" vertical-scroll-proportion="0.0">
               <folding />
             </state>
           </provider>
@@ -187,21 +287,8 @@
       <file leaf-file-name="FATBaseTest.java" pinned="false" current="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/test/com/test/FATBaseTest.java">
           <provider selected="true" editor-type-id="text-editor">
-            <state line="15" column="32" selection-start="302" selection-end="302" vertical-scroll-proportion="0.0">
-              <folding>
-                <element signature="imports" expanded="true" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="FATFileSystemTest.java" pinned="false" current="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/test/com/test/FATFileSystemTest.java">
-          <provider selected="true" editor-type-id="text-editor">
-            <state line="86" column="1" selection-start="3134" selection-end="3134" vertical-scroll-proportion="0.0">
-              <folding>
-                <element signature="imports" expanded="true" />
-              </folding>
+            <state line="12" column="25" selection-start="253" selection-end="253" vertical-scroll-proportion="0.0">
+              <folding />
             </state>
           </provider>
         </entry>
@@ -209,8 +296,19 @@
       <file leaf-file-name="FATFileSystem.java" pinned="false" current="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/com/test/FATFileSystem.java">
           <provider selected="true" editor-type-id="text-editor">
-            <state line="306" column="12" selection-start="10320" selection-end="10320" vertical-scroll-proportion="0.0">
+            <state line="111" column="0" selection-start="4204" selection-end="4204" vertical-scroll-proportion="0.0">
               <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="FATFileSystemTest.java" pinned="false" current="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/test/com/test/FATFileSystemTest.java">
+          <provider selected="true" editor-type-id="text-editor">
+            <state line="108" column="24" selection-start="3751" selection-end="3751" vertical-scroll-proportion="0.0">
+              <folding>
+                <element signature="imports" expanded="true" />
+              </folding>
             </state>
           </provider>
         </entry>
@@ -218,16 +316,27 @@
       <file leaf-file-name="FATFile.java" pinned="false" current="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/com/test/FATFile.java">
           <provider selected="true" editor-type-id="text-editor">
-            <state line="68" column="0" selection-start="2092" selection-end="2183" vertical-scroll-proportion="0.0">
+            <state line="138" column="0" selection-start="4080" selection-end="4080" vertical-scroll-proportion="-12.28">
               <folding />
             </state>
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="FATFileSystemTree.java" pinned="false" current="false" current-in-tab="false">
+      <file leaf-file-name="FATSystemTest.java" pinned="false" current="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/test/com/test/FATSystemTest.java">
+          <provider selected="true" editor-type-id="text-editor">
+            <state line="24" column="32" selection-start="722" selection-end="722" vertical-scroll-proportion="0.0">
+              <folding>
+                <element signature="imports" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="FATFileSystemTree.java" pinned="false" current="true" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/test/com/test/API/FATFileSystemTree.java">
           <provider selected="true" editor-type-id="text-editor">
-            <state line="209" column="44" selection-start="6835" selection-end="6835" vertical-scroll-proportion="-11.74">
+            <state line="136" column="44" selection-start="4467" selection-end="4467" vertical-scroll-proportion="1.3014184">
               <folding>
                 <element signature="imports" expanded="true" />
               </folding>
@@ -238,25 +347,7 @@
       <file leaf-file-name="FATSystem.java" pinned="false" current="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/com/test/FATSystem.java">
           <provider selected="true" editor-type-id="text-editor">
-            <state line="622" column="17" selection-start="22175" selection-end="22175" vertical-scroll-proportion="0.0">
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="ReflectiveCallable.class" pinned="false" current="false" current-in-tab="false">
-        <entry file="jar://$APPLICATION_HOME_DIR$/lib/junit-4.10.jar!/org/junit/internal/runners/model/ReflectiveCallable.class">
-          <provider selected="true" editor-type-id="text-editor">
-            <state line="11" column="40" selection-start="388" selection-end="388" vertical-scroll-proportion="-6.8">
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="FrameworkMethod.class" pinned="false" current="false" current-in-tab="false">
-        <entry file="jar://$APPLICATION_HOME_DIR$/lib/junit-4.10.jar!/org/junit/runners/model/FrameworkMethod.class">
-          <provider selected="true" editor-type-id="text-editor">
-            <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="-0.0">
+            <state line="502" column="0" selection-start="18148" selection-end="18148" vertical-scroll-proportion="0.0">
               <folding />
             </state>
           </provider>
@@ -265,7 +356,7 @@
       <file leaf-file-name="FATFileSystemStress.java" pinned="false" current="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/test/com/test/API/FATFileSystemStress.java">
           <provider selected="true" editor-type-id="text-editor">
-            <state line="18" column="13" selection-start="365" selection-end="365" vertical-scroll-proportion="0.0">
+            <state line="76" column="34" selection-start="2254" selection-end="2254" vertical-scroll-proportion="0.0">
               <folding>
                 <element signature="imports" expanded="true" />
               </folding>
@@ -293,22 +384,22 @@
   <component name="IdeDocumentHistory">
     <option name="changedFiles">
       <list>
-        <option value="$PROJECT_DIR$/src/com/test/FileSystem.java" />
-        <option value="$PROJECT_DIR$/test/com/test/FATSystemTest.java" />
+        <option value="$PROJECT_DIR$/src/com/test/FATClusterAllocator.java" />
+        <option value="$PROJECT_DIR$/src/com/test/FATDisposer.java" />
+        <option value="$PROJECT_DIR$/src/com/test/FATDisposerRecord.java" />
+        <option value="$PROJECT_DIR$/src/com/test/FATFileChannel.java" />
         <option value="$PROJECT_DIR$/src/com/test/FATForwardOnlyClusterAllocator.java" />
         <option value="$PROJECT_DIR$/src/com/test/FATFreeListClusterAllocator.java" />
-        <option value="$PROJECT_DIR$/test/com/test/FATBaseTest.java" />
-        <option value="$PROJECT_DIR$/test/com/test/FATFileSystemStress.java" />
-        <option value="$PROJECT_DIR$/src/com/test/FATFileChannel.java" />
-        <option value="$PROJECT_DIR$/test/com/test/FATFileSystemRW.java" />
-        <option value="$PROJECT_DIR$/test/com/test/API/FATFileSystemRW.java" />
         <option value="$PROJECT_DIR$/src/com/test/FATSystem.java" />
-        <option value="$PROJECT_DIR$/test/com/test/API/FATFileSystemTest.java" />
-        <option value="$PROJECT_DIR$/test/com/test/FATFileSystemTest.java" />
-        <option value="$PROJECT_DIR$/src/com/test/FATFile.java" />
+        <option value="$PROJECT_DIR$/test/com/test/API/FATFileSystemRW.java" />
+        <option value="$PROJECT_DIR$/test/com/test/API/FATFileSystemStress.java" />
         <option value="$PROJECT_DIR$/test/com/test/API/FATFileSystemTree.java" />
+        <option value="$PROJECT_DIR$/test/com/test/FATBaseTest.java" />
+        <option value="$PROJECT_DIR$/test/com/test/FATSystemTest.java" />
         <option value="$PROJECT_DIR$/src/com/test/FATFileSystem.java" />
         <option value="$PROJECT_DIR$/src/com/test/FATFolder.java" />
+        <option value="$PROJECT_DIR$/src/com/test/FATFile.java" />
+        <option value="$PROJECT_DIR$/test/com/test/FATFileSystemTest.java" />
       </list>
     </option>
   </component>
@@ -371,16 +462,18 @@
   <component name="ProjectView">
     <navigator currentView="ProjectPane" proportions="" version="1" splitterProportion="0.5">
       <flattenPackages />
-      <showMembers />
+      <showMembers ProjectPane="true" />
       <showModules />
       <showLibraryContents />
-      <hideEmptyPackages />
+      <hideEmptyPackages ProjectPane="false" />
       <abbreviatePackageNames />
       <autoscrollToSource />
       <autoscrollFromSource />
       <sortByType />
     </navigator>
     <panes>
+      <pane id="PackagesPane" />
+      <pane id="Scope" />
       <pane id="ProjectPane">
         <subPane>
           <PATH>
@@ -413,6 +506,10 @@
               <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
             </PATH_ELEMENT>
             <PATH_ELEMENT>
+              <option name="myItemId" value="com" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
               <option name="myItemId" value="test" />
               <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
             </PATH_ELEMENT>
@@ -428,6 +525,10 @@
             </PATH_ELEMENT>
             <PATH_ELEMENT>
               <option name="myItemId" value="test" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="com" />
               <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
             </PATH_ELEMENT>
             <PATH_ELEMENT>
@@ -453,28 +554,30 @@
               <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
             </PATH_ELEMENT>
             <PATH_ELEMENT>
+              <option name="myItemId" value="com" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
               <option name="myItemId" value="test" />
               <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
             </PATH_ELEMENT>
           </PATH>
         </subPane>
       </pane>
-      <pane id="Scope" />
-      <pane id="PackagesPane" />
     </panes>
   </component>
   <component name="PropertiesComponent">
     <property name="project.structure.last.edited" value="Modules" />
-    <property name="FileHistory.git4idea.history.GitHistoryProvider_flatWidth0" value="76" />
     <property name="com.intellij.testIntegration.createTest.CreateTestDialog.defaultLibrary" value="JUnit3" />
-    <property name="OverrideImplement.combined" value="true" />
-    <property name="FileHistory.git4idea.history.GitHistoryProvider_flatWidth1" value="92" />
+    <property name="FileHistory.git4idea.history.GitHistoryProvider_flatWidth0" value="76" />
     <property name="project.structure.proportion" value="0.15" />
+    <property name="FileHistory.git4idea.history.GitHistoryProvider_flatWidth1" value="92" />
+    <property name="OverrideImplement.combined" value="true" />
     <property name="options.splitter.main.proportions" value="0.3" />
-    <property name="recentsLimit" value="5" />
-    <property name="MemberChooser.sorted" value="false" />
-    <property name="FileHistory.git4idea.history.GitHistoryProvider_flatOrder1" value="1" />
     <property name="FileHistory.git4idea.history.GitHistoryProvider_treeWidth0" value="85" />
+    <property name="FileHistory.git4idea.history.GitHistoryProvider_flatOrder1" value="1" />
+    <property name="MemberChooser.sorted" value="false" />
+    <property name="recentsLimit" value="5" />
     <property name="FileHistory.git4idea.history.GitHistoryProvider_flatOrder0" value="0" />
     <property name="last_opened_file_path" value="$APPLICATION_HOME_DIR$/lib/junit-4.10.jar!/" />
     <property name="FileHistory.git4idea.history.GitHistoryProvider_flatWidth2" value="96" />
@@ -489,9 +592,9 @@
     <property name="FullScreen" value="false" />
     <property name="GoToClass.includeLibraries" value="false" />
     <property name="options.splitter.details.proportions" value="0.5914718" />
-    <property name="FileHistory.git4idea.history.GitHistoryProvider_treeOrder0" value="0" />
-    <property name="GoToFile.includeJavaFiles" value="false" />
     <property name="last_directory_selection" value="$PROJECT_DIR$/test/com/test" />
+    <property name="GoToFile.includeJavaFiles" value="false" />
+    <property name="FileHistory.git4idea.history.GitHistoryProvider_treeOrder0" value="0" />
     <property name="FileHistory.git4idea.history.GitHistoryProvider_treeOrder3" value="3" />
     <property name="FileHistory.git4idea.history.GitHistoryProvider_treeOrder1" value="1" />
     <property name="FileHistory.git4idea.history.GitHistoryProvider_treeOrder2" value="2" />
@@ -499,8 +602,8 @@
     <property name="project.structure.side.proportion" value="0.2" />
     <property name="MemberChooser.copyJavadoc" value="false" />
     <property name="com.intellij.testIntegration.createTest.CreateTestDialog.includeInheritedMembers" value="false" />
-    <property name="dynamic.classpath" value="false" />
     <property name="options.searchVisible" value="true" />
+    <property name="dynamic.classpath" value="false" />
   </component>
   <component name="RecentsManager">
     <key name="CreateTestDialog.Recents.Supers">
@@ -520,62 +623,6 @@
     </key>
   </component>
   <component name="RunManager" selected="JUnit.All in FileSystem">
-    <configuration default="false" name="All in FileSystem" type="JUnit" factoryName="JUnit" temporary="true">
-      <module name="FileSystem" />
-      <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="false" />
-      <option name="ALTERNATIVE_JRE_PATH" />
-      <option name="PACKAGE_NAME" value="" />
-      <option name="MAIN_CLASS_NAME" />
-      <option name="METHOD_NAME" />
-      <option name="TEST_OBJECT" value="package" />
-      <option name="VM_PARAMETERS" />
-      <option name="PARAMETERS" />
-      <option name="WORKING_DIRECTORY" />
-      <option name="ENV_VARIABLES" />
-      <option name="PASS_PARENT_ENVS" value="true" />
-      <option name="TEST_SEARCH_SCOPE">
-        <value defaultName="moduleWithDependencies" />
-      </option>
-      <envs />
-      <patterns />
-      <RunnerSettings RunnerId="Debug">
-        <option name="DEBUG_PORT" value="" />
-        <option name="TRANSPORT" value="0" />
-        <option name="LOCAL" value="true" />
-      </RunnerSettings>
-      <RunnerSettings RunnerId="Run" />
-      <ConfigurationWrapper RunnerId="Debug" />
-      <ConfigurationWrapper RunnerId="Run" />
-      <method />
-    </configuration>
-    <configuration default="false" name="FATSystemTest" type="JUnit" factoryName="JUnit" temporary="true">
-      <module name="FileSystem" />
-      <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="false" />
-      <option name="ALTERNATIVE_JRE_PATH" />
-      <option name="PACKAGE_NAME" value="com.test" />
-      <option name="MAIN_CLASS_NAME" value="com.test.FATSystemTest" />
-      <option name="METHOD_NAME" />
-      <option name="TEST_OBJECT" value="class" />
-      <option name="VM_PARAMETERS" />
-      <option name="PARAMETERS" />
-      <option name="WORKING_DIRECTORY" />
-      <option name="ENV_VARIABLES" />
-      <option name="PASS_PARENT_ENVS" value="true" />
-      <option name="TEST_SEARCH_SCOPE">
-        <value defaultName="moduleWithDependencies" />
-      </option>
-      <envs />
-      <patterns />
-      <RunnerSettings RunnerId="Debug">
-        <option name="DEBUG_PORT" value="" />
-        <option name="TRANSPORT" value="0" />
-        <option name="LOCAL" value="true" />
-      </RunnerSettings>
-      <RunnerSettings RunnerId="Run" />
-      <ConfigurationWrapper RunnerId="Debug" />
-      <ConfigurationWrapper RunnerId="Run" />
-      <method />
-    </configuration>
     <configuration default="false" name="FATFileSystemStress" type="JUnit" factoryName="JUnit" temporary="true">
       <module name="FileSystem" />
       <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="false" />
@@ -622,13 +669,7 @@
       </option>
       <envs />
       <patterns />
-      <RunnerSettings RunnerId="Debug">
-        <option name="DEBUG_PORT" value="" />
-        <option name="TRANSPORT" value="0" />
-        <option name="LOCAL" value="true" />
-      </RunnerSettings>
       <RunnerSettings RunnerId="Run" />
-      <ConfigurationWrapper RunnerId="Debug" />
       <ConfigurationWrapper RunnerId="Run" />
       <method />
     </configuration>
@@ -640,6 +681,56 @@
       <option name="MAIN_CLASS_NAME" value="com.test.API.FATFileSystemTree" />
       <option name="METHOD_NAME" />
       <option name="TEST_OBJECT" value="class" />
+      <option name="VM_PARAMETERS" />
+      <option name="PARAMETERS" />
+      <option name="WORKING_DIRECTORY" />
+      <option name="ENV_VARIABLES" />
+      <option name="PASS_PARENT_ENVS" value="true" />
+      <option name="TEST_SEARCH_SCOPE">
+        <value defaultName="moduleWithDependencies" />
+      </option>
+      <envs />
+      <patterns />
+      <RunnerSettings RunnerId="Debug">
+        <option name="DEBUG_PORT" value="" />
+        <option name="TRANSPORT" value="0" />
+        <option name="LOCAL" value="true" />
+      </RunnerSettings>
+      <RunnerSettings RunnerId="Run" />
+      <ConfigurationWrapper RunnerId="Debug" />
+      <ConfigurationWrapper RunnerId="Run" />
+      <method />
+    </configuration>
+    <configuration default="false" name="FATSystemTest" type="JUnit" factoryName="JUnit" temporary="true">
+      <module name="FileSystem" />
+      <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="false" />
+      <option name="ALTERNATIVE_JRE_PATH" />
+      <option name="PACKAGE_NAME" value="com.test" />
+      <option name="MAIN_CLASS_NAME" value="com.test.FATSystemTest" />
+      <option name="METHOD_NAME" />
+      <option name="TEST_OBJECT" value="class" />
+      <option name="VM_PARAMETERS" />
+      <option name="PARAMETERS" />
+      <option name="WORKING_DIRECTORY" />
+      <option name="ENV_VARIABLES" />
+      <option name="PASS_PARENT_ENVS" value="true" />
+      <option name="TEST_SEARCH_SCOPE">
+        <value defaultName="moduleWithDependencies" />
+      </option>
+      <envs />
+      <patterns />
+      <RunnerSettings RunnerId="Run" />
+      <ConfigurationWrapper RunnerId="Run" />
+      <method />
+    </configuration>
+    <configuration default="false" name="All in FileSystem" type="JUnit" factoryName="JUnit" temporary="true">
+      <module name="FileSystem" />
+      <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="false" />
+      <option name="ALTERNATIVE_JRE_PATH" />
+      <option name="PACKAGE_NAME" value="" />
+      <option name="MAIN_CLASS_NAME" />
+      <option name="METHOD_NAME" />
+      <option name="TEST_OBJECT" value="package" />
       <option name="VM_PARAMETERS" />
       <option name="PARAMETERS" />
       <option name="WORKING_DIRECTORY" />
@@ -725,19 +816,19 @@
     </configuration>
     <list size="6">
       <item index="0" class="java.lang.String" itemvalue="JUnit.FATFileSystemTest" />
-      <item index="1" class="java.lang.String" itemvalue="JUnit.All in FileSystem" />
-      <item index="2" class="java.lang.String" itemvalue="JUnit.FATSystemTest" />
-      <item index="3" class="java.lang.String" itemvalue="JUnit.FATFileSystemStress" />
-      <item index="4" class="java.lang.String" itemvalue="JUnit.FATFileSystemRW" />
-      <item index="5" class="java.lang.String" itemvalue="JUnit.FATFileSystemTree" />
+      <item index="1" class="java.lang.String" itemvalue="JUnit.FATFileSystemStress" />
+      <item index="2" class="java.lang.String" itemvalue="JUnit.FATFileSystemRW" />
+      <item index="3" class="java.lang.String" itemvalue="JUnit.FATFileSystemTree" />
+      <item index="4" class="java.lang.String" itemvalue="JUnit.FATSystemTest" />
+      <item index="5" class="java.lang.String" itemvalue="JUnit.All in FileSystem" />
     </list>
     <recent_temporary>
       <list size="5">
         <item index="0" class="java.lang.String" itemvalue="JUnit.All in FileSystem" />
-        <item index="1" class="java.lang.String" itemvalue="JUnit.FATFileSystemTree" />
-        <item index="2" class="java.lang.String" itemvalue="JUnit.FATFileSystemStress" />
-        <item index="3" class="java.lang.String" itemvalue="JUnit.FATFileSystemRW" />
-        <item index="4" class="java.lang.String" itemvalue="JUnit.FATSystemTest" />
+        <item index="1" class="java.lang.String" itemvalue="JUnit.FATFileSystemStress" />
+        <item index="2" class="java.lang.String" itemvalue="JUnit.FATFileSystemTree" />
+        <item index="3" class="java.lang.String" itemvalue="JUnit.FATSystemTest" />
+        <item index="4" class="java.lang.String" itemvalue="JUnit.FATFileSystemRW" />
       </list>
     </recent_temporary>
   </component>
@@ -939,7 +1030,11 @@
       <created>1372804705773</created>
       <updated>1372804705773</updated>
     </task>
-    <option name="localTasksCounter" value="43" />
+    <task id="LOCAL-00043" summary="Dump was fixed from escape seq. The name of root folder was changed.">
+      <created>1372806123827</created>
+      <updated>1372806123827</updated>
+    </task>
+    <option name="localTasksCounter" value="44" />
     <servers />
   </component>
   <component name="TodoView" selected-index="0">
@@ -971,17 +1066,17 @@
       <window_info id="Palette" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.39368302" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Ant Build" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
-      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.3000564" sideWeight="0.76666665" order="3" side_tool="false" content_ui="tabs" />
+      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.41962776" sideWeight="0.76666665" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.54483926" sideWeight="0.23333333" order="7" side_tool="true" content_ui="tabs" />
-      <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.21276596" sideWeight="0.4319222" order="2" side_tool="true" content_ui="tabs" />
+      <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.35555556" sideWeight="0.42752397" order="2" side_tool="true" content_ui="tabs" />
       <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.5899605" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Messages" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.20304568" sideWeight="0.5" order="8" side_tool="false" content_ui="tabs" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.32938522" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
       <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.24951644" sideWeight="0.67048055" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Maven Projects" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Commander" active="false" anchor="right" auto_hide="false" internal_type="SLIDING" type="SLIDING" visible="false" weight="0.4" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
-      <window_info id="Project" active="true" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.24537037" sideWeight="0.6999436" order="0" side_tool="false" content_ui="combo" />
-      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.2600113" sideWeight="0.8601852" order="2" side_tool="false" content_ui="tabs" />
+      <window_info id="Project" active="true" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.35555556" sideWeight="0.571912" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.49858996" sideWeight="0.8601852" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Cvs" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.25" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
       <window_info id="Message" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
       <window_info id="Analyze Dataflow to" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.32938522" sideWeight="0.5" order="8" side_tool="false" content_ui="tabs" />
@@ -1033,7 +1128,7 @@
     <option name="WRAP_WHEN_TYPING_REACHES_RIGHT_MARGIN" value="false" />
     <option name="FORCE_NON_EMPTY_COMMENT" value="false" />
     <option name="CLEAR_INITIAL_COMMIT_MESSAGE" value="false" />
-    <option name="LAST_COMMIT_MESSAGE" value="Deleted record storage procedure was changed." />
+    <option name="LAST_COMMIT_MESSAGE" value="Dump was fixed from escape seq. The name of root folder was changed." />
     <option name="MAKE_NEW_CHANGELIST_ACTIVE" value="false" />
     <option name="OPTIMIZE_IMPORTS_BEFORE_PROJECT_COMMIT" value="false" />
     <option name="CHECK_FILES_UP_TO_DATE_BEFORE_COMMIT" value="false" />
@@ -1047,7 +1142,6 @@
     <option name="UPDATE_FILTER_BY_SCOPE" value="false" />
     <option name="SHOW_FILE_HISTORY_AS_TREE" value="false" />
     <option name="FILE_HISTORY_SPLITTER_PROPORTION" value="0.6" />
-    <MESSAGE value="System shutdown process was implemented." />
     <MESSAGE value="Transaction-safe strategy was partially reallied." />
     <MESSAGE value="Before memory map fix." />
     <MESSAGE value="Memory map problem localized and fixed.." />
@@ -1072,6 +1166,7 @@
     <MESSAGE value="FATFile[] listFiles() was implemented for folder." />
     <MESSAGE value="Folder storage procedure was fixed." />
     <MESSAGE value="Deleted record storage procedure was changed." />
+    <MESSAGE value="Dump was fixed from escape seq. The name of root folder was changed." />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager />
@@ -1081,76 +1176,92 @@
     <option name="FILTER_TARGETS" value="false" />
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/src/com/test/FATFileChannel.java">
+    <entry file="file://$PROJECT_DIR$/src/com/test/FATClusterAllocator.java">
       <provider selected="true" editor-type-id="text-editor">
-        <state line="11" column="13" selection-start="168" selection-end="168" vertical-scroll-proportion="0.0">
+        <state line="6" column="1" selection-start="94" selection-end="94" vertical-scroll-proportion="0.0">
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/com/test/FATDisposer.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="9" column="0" selection-start="198" selection-end="198" vertical-scroll-proportion="0.0">
+          <folding>
+            <element signature="imports" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/com/test/FATDisposerRecord.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="9" column="0" selection-start="133" selection-end="133" vertical-scroll-proportion="0.0">
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/com/test/FATForwardOnlyClusterAllocator.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="15" column="15" selection-start="506" selection-end="506" vertical-scroll-proportion="0.0">
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/com/test/FATFreeListClusterAllocator.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="5" column="0" selection-start="52" selection-end="52" vertical-scroll-proportion="0.0">
           <folding />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/test/com/test/API/FATFileSystemRW.java">
       <provider selected="true" editor-type-id="text-editor">
-        <state line="27" column="8" selection-start="608" selection-end="639" vertical-scroll-proportion="0.0">
+        <state line="16" column="13" selection-start="314" selection-end="314" vertical-scroll-proportion="0.0">
           <folding>
             <element signature="imports" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="jar://$APPLICATION_HOME_DIR$/lib/junit-4.10.jar!/org/junit/internal/runners/statements/RunAfters.class">
+    <entry file="file://$PROJECT_DIR$/test/com/test/FATBaseTest.java">
       <provider selected="true" editor-type-id="text-editor">
-        <state line="13" column="16" selection-start="612" selection-end="612" vertical-scroll-proportion="-8.16">
+        <state line="12" column="25" selection-start="253" selection-end="253" vertical-scroll-proportion="0.0">
           <folding />
         </state>
       </provider>
     </entry>
-    <entry file="jar://$APPLICATION_HOME_DIR$/lib/junit-4.10.jar!/org/junit/rules/TestWatcher.class">
+    <entry file="file://$PROJECT_DIR$/test/com/test/FATSystemTest.java">
       <provider selected="true" editor-type-id="text-editor">
-        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0">
+        <state line="24" column="32" selection-start="722" selection-end="722" vertical-scroll-proportion="0.0">
+          <folding>
+            <element signature="imports" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/com/test/FATFileChannel.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="86" column="0" selection-start="3083" selection-end="3083" vertical-scroll-proportion="0.0">
           <folding />
         </state>
       </provider>
     </entry>
-    <entry file="jar://$APPLICATION_HOME_DIR$/lib/junit-4.10.jar!/org/junit/runners/ParentRunner.class">
+    <entry file="file://$PROJECT_DIR$/src/com/test/FATSystem.java">
       <provider selected="true" editor-type-id="text-editor">
-        <state line="44" column="25" selection-start="2400" selection-end="2400" vertical-scroll-proportion="-27.52">
+        <state line="502" column="0" selection-start="18148" selection-end="18148" vertical-scroll-proportion="0.0">
           <folding />
         </state>
       </provider>
     </entry>
-    <entry file="jar://$APPLICATION_HOME_DIR$/lib/junit-4.10.jar!/org/junit/runners/BlockJUnit4ClassRunner.class">
+    <entry file="file://$PROJECT_DIR$/src/com/test/FATFile.java">
       <provider selected="true" editor-type-id="text-editor">
-        <state line="9" column="19" selection-start="420" selection-end="420" vertical-scroll-proportion="-5.44">
+        <state line="138" column="0" selection-start="4080" selection-end="4080" vertical-scroll-proportion="-12.28">
           <folding />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/test/com/test/API/FATFileSystemStress.java">
       <provider selected="true" editor-type-id="text-editor">
-        <state line="18" column="13" selection-start="365" selection-end="365" vertical-scroll-proportion="0.0">
-          <folding>
-            <element signature="imports" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="jar://$APPLICATION_HOME_DIR$/lib/junit-4.10.jar!/org/junit/runners/model/FrameworkMethod.class">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0">
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="jar://$APPLICATION_HOME_DIR$/lib/junit-4.10.jar!/org/junit/internal/runners/model/ReflectiveCallable.class">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="11" column="40" selection-start="388" selection-end="388" vertical-scroll-proportion="-6.8">
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/test/com/test/FATBaseTest.java">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="15" column="32" selection-start="302" selection-end="302" vertical-scroll-proportion="0.0">
+        <state line="76" column="34" selection-start="2254" selection-end="2254" vertical-scroll-proportion="0.0">
           <folding>
             <element signature="imports" expanded="true" />
           </folding>
@@ -1159,47 +1270,33 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/src/com/test/FATFileSystem.java">
       <provider selected="true" editor-type-id="text-editor">
-        <state line="306" column="12" selection-start="10320" selection-end="10320" vertical-scroll-proportion="0.0">
+        <state line="111" column="0" selection-start="4204" selection-end="4204" vertical-scroll-proportion="0.0">
           <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/com/test/FATSystem.java">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="622" column="17" selection-start="22175" selection-end="22175" vertical-scroll-proportion="0.0">
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/com/test/FATFile.java">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="68" column="0" selection-start="2092" selection-end="2183" vertical-scroll-proportion="0.0">
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/test/com/test/API/FATFileSystemTree.java">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="209" column="44" selection-start="6835" selection-end="6835" vertical-scroll-proportion="-11.74">
-          <folding>
-            <element signature="imports" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/test/com/test/FATFileSystemTest.java">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="86" column="1" selection-start="3134" selection-end="3134" vertical-scroll-proportion="0.0">
-          <folding>
-            <element signature="imports" expanded="true" />
-          </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/src/com/test/FATFolder.java">
       <provider selected="true" editor-type-id="text-editor">
-        <state line="22" column="49" selection-start="692" selection-end="692" vertical-scroll-proportion="0.24721985">
+        <state line="110" column="16" selection-start="3514" selection-end="3514" vertical-scroll-proportion="-4.12">
           <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/test/com/test/FATFileSystemTest.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="108" column="24" selection-start="3751" selection-end="3751" vertical-scroll-proportion="0.0">
+          <folding>
+            <element signature="imports" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/test/com/test/API/FATFileSystemTree.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="136" column="44" selection-start="4467" selection-end="4467" vertical-scroll-proportion="1.3014184">
+          <folding>
+            <element signature="imports" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>

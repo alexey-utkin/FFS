@@ -3,9 +3,6 @@ package com.test;
 import java.io.IOException;
 
 /**
- * Created with IntelliJ IDEA.
- * User: uta
- *
  * Classical heap-on-array algorithm.
  *
  * Allocates cluster chains.

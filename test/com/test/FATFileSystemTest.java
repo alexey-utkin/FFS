@@ -78,13 +78,12 @@ public class FATFileSystemTest  extends FATBaseTest {
     }
 
     //
-    // Test of FS file diaposer.
+    // Test of FS file disposer.
     //
     static public void testFileDisposer(Path path, int clusterSize, int clusterCount,
                                       int allocatorType) throws IOException {
         startUp(path);
         try (FATFileSystem ffs  = FATFileSystem.create(path, clusterSize, clusterCount, allocatorType)) {
-            //Root is always in memory - need to be fixed?
             long freeSpace = ffs.getFreeSize();
             {
                 FATFolder collector = ffs.getRoot().createFolder("collector");
@@ -113,8 +112,8 @@ public class FATFileSystemTest  extends FATBaseTest {
             }
             for (int i = 0; i < 10; ++i) {
                 System.gc();                
-                logLN("root File Cach Size:" + ffs.getFileCacheSize()
-                    + " Folder Cach Size:" + ffs.getFolderCacheSize());
+                logLN("root File Cache Size:" + ffs.getFileCacheSize()
+                    + " Folder Cache Size:" + ffs.getFolderCacheSize());
             }
             if ( ffs.getFileCacheSize() >= 2000 || ffs.getFolderCacheSize() >= 2000 )
                 throw new Error("Memory leaks in root!");
@@ -132,7 +131,49 @@ public class FATFileSystemTest  extends FATBaseTest {
                 clusterSize, clusterCount, allocatorType);
         logOk();
     }
-    
+
+    //
+    // Test of FS file disposer 2.
+    //
+    static public void testFileDisposer2(Path path, int clusterSize, int clusterCount,
+                                        int allocatorType) throws IOException {
+        startUp(path);
+        try (FATFileSystem ffs  = FATFileSystem.create(path, clusterSize, clusterCount, allocatorType)) {
+            FATFile ff[] = new FATFile[100];
+            long freeSpace = ffs.getFreeSize();
+            {
+                int fi = 0;
+                FATFolder collector = ffs.getRoot().createFolder("collector");
+                for (int i = 0; i < 2000; ++i) {
+                    FATFile f = collector.createFile("file" + i);
+                    if (fi < ff.length) {
+                        ff[fi++] = f;
+                    }
+                }
+            }
+            for (int i = 0; i < 100; ++i) {
+                System.gc();
+                logLN("File Cache Size:" + ffs.getFileCacheSize()
+                   + " Folder Cache Size:" + ffs.getFolderCacheSize());
+            }
+            if ( ffs.getFileCacheSize() < ff.length)
+                throw new Error("Cache lost!");
+
+        }
+        tearDown(path);
+    }
+    @Test
+    public void testFileDisposer2() throws IOException {
+        int clusterSize = FATFile.RECORD_SIZE; //fixed!
+        int clusterCount = 2000*3 + 1; //fixed!
+        int allocatorType = allocatorTypes[0];
+
+        logStart(getPath(), clusterSize, clusterCount, allocatorType);
+        testFileDisposer2(getPath(),
+                clusterSize, clusterCount, allocatorType);
+        logOk();
+    }
+
 
     //
     // Test of forward space reservation in folder store.

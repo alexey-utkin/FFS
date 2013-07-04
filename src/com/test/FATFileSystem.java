@@ -8,9 +8,6 @@ import java.nio.file.Path;
 import java.util.HashMap;
 
 /**
- * Created with IntelliJ IDEA.
- * User: uta
- *
  * The File System over the FAT System.
  *
  * All [transact-safe] methods have the [ts_] prefix.
@@ -321,6 +318,7 @@ public class FATFileSystem implements Closeable {
      *
      * @param fileId the file unique Id in File System.
      * @return the folder object
+     * @throws IOException
      */
     FATFolder ts_getFolder(int fileId) throws IOException {
         synchronized (this) {
@@ -337,10 +335,11 @@ public class FATFileSystem implements Closeable {
     }
 
     /**
-     * Gets a file object from cache, or return null.
+     * Gets a file object from cache.
      *
      * @param fileId  cached FATFile if any.
-     * @return
+     * @return  file object from cache.
+     * @throws IOException
      */
     FATFile ts_getFile(int fileId) throws IOException {
         synchronized (this) {
@@ -448,7 +447,9 @@ public class FATFileSystem implements Closeable {
     /**
      * Set system to dirty state.
      *
-     * @param message
+     * @param message the reason description
+     * @param throwException throw or not IOException with the reason description
+     * @throws IOException
      */
     void ts_setDirtyState(String message, boolean throwException) throws IOException {
         fat.setDirtyState(message, throwException);

@@ -52,6 +52,7 @@ public class FATFileSystem implements Closeable {
 
     /**
      * Creates new file-based file system.
+     *
      * @param path is the path in host FS for file storage that need be created
      * @param clusterSize  the size of single cluster. Mast be at least [FATFile.RECORD_SIZE] size
      * @param clusterCount the total number of clusters in created file storage.
@@ -64,6 +65,7 @@ public class FATFileSystem implements Closeable {
 
     /**
      * Creates new file-based file system.
+     *
      * @param path is the path in host FS for file storage that need be created
      * @param clusterSize  the size of single cluster. Mast be at least [FATFile.RECORD_SIZE] size
      * @param clusterCount the total number of clusters in created file storage.

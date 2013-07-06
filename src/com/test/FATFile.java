@@ -80,7 +80,8 @@ public class FATFile {
         checkParent();
     }
 
-    public FATFileChannel getChannel(boolean appendMode, boolean write) throws IOException {
+
+    FATFileChannel getChannelInternal(boolean appendMode, boolean write) throws IOException {
         FATLock lock = getLock(write);
         try {
             return new FATFileChannel(this, appendMode);
@@ -89,6 +90,11 @@ public class FATFile {
         }
     }
 
+    public FATFileChannel getChannel(boolean appendMode, boolean write) throws IOException {
+        if (isFolder())
+            throw new IOException("That is a folder.");
+        return getChannelInternal(appendMode, write);
+    }
     /**
      * Deletes the file, if it is not locked
      *

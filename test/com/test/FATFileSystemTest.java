@@ -60,7 +60,7 @@ public class FATFileSystemTest  extends FATBaseTest {
         tearDown(path);
     }
     @Test
-    public void testFileCreateOpen() throws IOException {
+    public void testFileAsFolder() throws IOException {
         final int[] clusterSizes = new int[] {
                 FATFile.RECORD_SIZE,
                 4096
@@ -75,6 +75,41 @@ public class FATFileSystemTest  extends FATBaseTest {
             }
         }
     }
+
+    //
+    // Test of FS Folder-as-file open.
+    //
+    static public void testFolderAsFile(Path path, int clusterSize, int clusterCount,
+                                        int allocatorType) throws IOException {
+        startUp(path);
+        try (final FATFileSystem ffs = FATFileSystem.create(path, clusterSize, clusterCount, allocatorType)) {
+            ffs.getRoot().createFolder("testFolder");
+        }
+
+        try (final FATFileSystem ffs = FATFileSystem.open(path)) {
+            try {
+                //That is ok.
+                FATFile file = ffs.getRoot().getChildFile("testFolder");
+                //That is not ok.
+                file.getChannel(false, false);
+                throw new IOException("Open Folder context as file");
+            } catch (IOException ex) {
+                //ok
+            }
+        }
+        tearDown(path);
+    }
+    @Test
+    public void testFolderAsFile() throws IOException {
+        int clusterSize = FATFile.RECORD_SIZE; //fixed!
+        int clusterCount = 2000*3 + 1; //fixed!
+        int allocatorType = allocatorTypes[0];
+        logStart(getPath(), clusterSize, clusterCount, allocatorType);
+        testFolderAsFile(getPath(),
+                clusterSize, clusterCount, allocatorType);
+        logOk();
+    }
+
 
     //
     // Test of FS file disposer.
@@ -256,6 +291,5 @@ public class FATFileSystemTest  extends FATBaseTest {
             logOk();
         }
     }
-
 }
 

@@ -106,7 +106,7 @@ public class FATFolder {
         FATFile ret = ts_fs().ts_getFileFromCache(fileId);
         if (ret == null) {
             boolean success = false;
-            try (FATFileChannel folderContent = fatFile.getChannel(false, false)) {
+            try (FATFileChannel folderContent = fatFile.getChannelInternal(false, false)) {
                 ByteBuffer fileRecord = ts_fs().ts_allocateBuffer(FATFile.RECORD_SIZE);
                 int wasRead = folderContent
                         .position(index * FATFile.RECORD_SIZE)
@@ -309,7 +309,7 @@ public class FATFolder {
                             sb.append("\">");
                             Arrays.fill(bcontext, (byte)' ');
                             content.clear();
-                            try (FATFileChannel fc = current.getChannel(false, true)) {
+                            try (FATFileChannel fc = current.getChannelInternal(false, true)) {
                                 fc.read(content);
                             }
                             sb.append(new String(bcontext));
@@ -423,7 +423,7 @@ public class FATFolder {
     void ts_rl_readContent() throws IOException {
         boolean success = false;
         try {
-            try (FATFileChannel folderContent = fatFile.getChannel(false, false)) {
+            try (FATFileChannel folderContent = fatFile.getChannelInternal(false, false)) {
                 ByteBuffer bf = ts_fs().ts_allocateBuffer(FATFile.RECORD_SIZE);
                 long storageSize = fatFile.length();
                 while (folderContent.position() < storageSize) {
@@ -458,7 +458,7 @@ public class FATFolder {
     private void ts_wl_writeContent(ArrayList<FATFile> childFATFiles) throws IOException {
         boolean success = false;
         try {
-            try (FATFileChannel folderContent = fatFile.getChannel(false, true)) {
+            try (FATFileChannel folderContent = fatFile.getChannelInternal(false, true)) {
                 ByteBuffer bf = ts_fs().ts_allocateBuffer(FATFile.RECORD_SIZE);
                 for (FATFile file : childFATFiles) {
                     bf.position(0);
@@ -488,7 +488,7 @@ public class FATFolder {
      */
     private void ts_wl_updateFileRecord(int index, FATFile updateFile) throws IOException {
         boolean success = false;
-        try (FATFileChannel folderContent = fatFile.getChannel(false, true)) {
+        try (FATFileChannel folderContent = fatFile.getChannelInternal(false, true)) {
             int wasWritten = folderContent
                 .position(index * FATFile.RECORD_SIZE)
                 .write(

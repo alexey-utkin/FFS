@@ -86,16 +86,21 @@ public class FATFileSystemTest  extends FATBaseTest {
             long freeSpace = ffs.getFreeSize();
             {
                 FATFolder collector = ffs.getRoot().createFolder("collector");
-                for (int i = 0; i < 2000; ++i) {
+                for (int i = 0; i < 4000; ++i) {
                     collector.createFile("file" + i);
                 }
             }
             for (int i = 0; i < 10; ++i) {
-                System.gc();                
+                System.gc();
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    //ok
+                }
                 logLN("subf File Cach Size:" + ffs.getFileCacheSize()
-                    + " Folder Cach Size:" + ffs.getFolderCacheSize());
+                        + " Folder Cach Size:" + ffs.getFolderCacheSize());
             }
-            if ( ffs.getFileCacheSize() >= 2000 || ffs.getFolderCacheSize() >= 2000 )
+            if ( ffs.getFileCacheSize() >= 4000 || ffs.getFolderCacheSize() >= 4000 )
                 throw new Error("Memory leaks in subfolders!");
             {
                 FATFolder root = ffs.getRoot();
@@ -105,15 +110,20 @@ public class FATFileSystemTest  extends FATBaseTest {
                     throw new Error("Space leak.");
             }
 
-            for (int i = 0; i < 2000; ++i) {
+            for (int i = 0; i < 4000; ++i) {
                 ffs.getRoot().createFile("file" + i);
             }
             for (int i = 0; i < 10; ++i) {
-                System.gc();                
+                System.gc();
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    //ok
+                }
                 logLN("root File Cache Size:" + ffs.getFileCacheSize()
                     + " Folder Cache Size:" + ffs.getFolderCacheSize());
             }
-            if ( ffs.getFileCacheSize() >= 2000 || ffs.getFolderCacheSize() >= 2000 )
+            if ( ffs.getFileCacheSize() >= 4000 || ffs.getFolderCacheSize() >= 4000 )
                 throw new Error("Memory leaks in root!");
         }
         tearDown(path);
@@ -121,7 +131,7 @@ public class FATFileSystemTest  extends FATBaseTest {
     @Test
     public void testFileDisposer() throws IOException {
         int clusterSize = FATFile.RECORD_SIZE; //fixed!
-        int clusterCount = 2000*3 + 1; //fixed!
+        int clusterCount = 4000*3 + 1; //fixed!
         int allocatorType = allocatorTypes[0];
 
         logStart(getPath(), clusterSize, clusterCount, allocatorType);

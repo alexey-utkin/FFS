@@ -172,7 +172,7 @@ public class FATFileSystemTest  extends FATBaseTest {
         logOk();
     }
 
-/*
+
     //
     // Test of forward space reservation in folder store.
     //
@@ -225,11 +225,11 @@ public class FATFileSystemTest  extends FATBaseTest {
             FATFolder html = root.createFolder("html");
             html.createFolder("head")
                     .createFile("title")
-                        .getChannel(false)
+                        .getChannel(false, true)
                             .write(ByteBuffer.wrap("That was funny! That was funny! That was funny!".getBytes()));
             html.createFolder("body")
                     .createFile("context")
-                       .getChannel(false)
+                       .getChannel(false, true)
                           .write(ByteBuffer.wrap("That fun!".getBytes()));
             log(root.getView());
         }
@@ -246,6 +246,6 @@ public class FATFileSystemTest  extends FATBaseTest {
             logOk();
         }
     }
-*/
+
 }
 

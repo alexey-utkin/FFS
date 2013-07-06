@@ -89,8 +89,16 @@ public class FATFile {
         }
     }
 
+    /**
+     * Deletes the file, if it is not locked
+     *
+     * @throws IOException
+     * @throws FATFileLockedException
+     */
     public void delete() throws IOException {
-        FATLock lock = getLock(true);
+        FATLock lock = tryLock(true);
+        if (lock == null)
+            throw new FATFileLockedException(this, true);
         try {
             if (isFolder() && !isEmpty())
                 throw new DirectoryNotEmptyException(getName());
@@ -592,7 +600,16 @@ public class FATFile {
         return ret;
     }
 
-    FATLock getLock(boolean write) throws IOException {
+    /**
+     * Locks the file.
+     *
+     * Returns the lock that need to unlocked.
+     *
+     * @param write [true] - locks file for write, [false] - for read operations
+     * @return the FAT lock with enclosed transaction.
+     * @throws IOException
+     */
+    public FATLock getLock(boolean write) throws IOException {
         fs.begin(write);
         Lock lock = write
                 ? lockRW.writeLock()
@@ -601,7 +618,16 @@ public class FATFile {
         return getFATLockAndCheck(fs, lock);
     }
 
-    FATLock tryLock(boolean write) throws IOException {
+    /**
+     * Locks the file if possible
+     *
+     * Returns the lock that need to unlocked, or [null] if lock was not succeeded.
+     *
+     * @param write  [true] - locks file for write, [false] - for read operations
+     * @return the FAT lock with enclosed transaction or [null].
+     * @throws IOException
+     */
+    public FATLock tryLock(boolean write) throws IOException {
         fs.begin(write);
         Lock lock = write
                 ? lockRW.writeLock()

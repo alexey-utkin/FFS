@@ -5,7 +5,7 @@ import java.util.concurrent.locks.Lock;
 /**
  * Transaction terminator with the lock
  */
-class FATLock {
+public class FATLock {
     private final Lock lock;
     private final FATFileSystem fs;
 
@@ -18,5 +18,4 @@ class FATLock {
         lock.unlock();
         fs.end();
     }
-
 }

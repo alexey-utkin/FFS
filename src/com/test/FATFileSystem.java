@@ -117,7 +117,7 @@ public class FATFileSystem implements Closeable {
         synchronized (this) {
             if (fat != null) {
                 if (!shutdownRequest())
-                    throw new IOException("System was no unmounted.");
+                    throw new IOException("System was not unmounted.");
                 // here only [clean] close can happen
                 // it saves actual value of [dirty] status
                 fat.close();

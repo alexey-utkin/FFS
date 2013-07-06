@@ -99,37 +99,6 @@ public class FATFolder {
         }
     }
 
-    /**
-     * Deletes all children.
-     *
-     * Deletes all child files and folders.
-     * To delete a folder the {@link #cascadeDelete()} function is called.
-     *
-     * @throws IOException
-     */
-    public void deleteChildren() throws IOException {
-        FATLock lock = fatFile.getLock(true);
-        try {
-            try {
-                packForbidden = true;
-                for (Integer currentId : childFiles) {
-                    if (currentId != FATFile.INVALID_FILE_ID) {
-                        FATFile current = ts_rl_getFile(currentId);
-                        if (current.isFolder())
-                            current.getFolder().cascadeDelete();
-                        else
-                            current.delete();
-                    }
-                }
-            } finally {
-                packForbidden = false;
-                ts_wl_optionalPack();
-            }
-        } finally {
-            lock.unlock();
-        }
-    }
-
     private FATFile ts_rl_getFile(int fileId) throws IOException {
         int index = childFiles.indexOf(fileId);
         if (index < 0)
@@ -164,16 +133,53 @@ public class FATFolder {
     }
 
     /**
-     * Cascade folder delete.
+     * Deletes all children, terminates on the first locked file or folder
+     *
+     * Deletes all child files and folders.
+     * To delete a folder the {@link #cascadeDelete()} function is called.
+     *
+     * @throws IOException
+     * @throws FATFileLockedException
+     */
+    public void deleteChildren() throws IOException {
+        FATLock lock = fatFile.tryLock(true);
+        if (lock == null)
+            throw new FATFileLockedException(fatFile, true);
+        try {
+            try {
+                packForbidden = true;
+                for (Integer currentId : childFiles) {
+                    if (currentId != FATFile.INVALID_FILE_ID) {
+                        FATFile current = ts_rl_getFile(currentId);
+                        if (current.isFolder())
+                            current.getFolder().cascadeDelete();
+                        else
+                            current.delete();
+                    }
+                }
+            } finally {
+                packForbidden = false;
+                ts_wl_optionalPack();
+            }
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /**
+     * Cascade folder delete, terminates on the first locked file or folder
      *
      * Delete process stops on the first error. No rollback.
      * Can be called for [root]: that removes children and throw
      * an exception while root file delete.
      *
      * @throws IOException
+     * @throws FATFileLockedException
      */
     public void cascadeDelete() throws IOException {
-        FATLock lock = fatFile.getLock(true);
+        FATLock lock = fatFile.tryLock(true);
+        if (lock == null)
+            throw new FATFileLockedException(fatFile, true);
         try {
             deleteChildren();
             //PERFORMANCE HINT: make it better!
@@ -578,4 +584,10 @@ public class FATFolder {
             fs.disposeFolder(folderId);
         }
     }
+
+    @Override
+    public String toString() {
+        return fatFile.toString() + ",[" + super.toString() + "]";
+    }
+
 }

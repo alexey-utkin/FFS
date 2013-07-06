@@ -6,6 +6,7 @@ import java.nio.ByteBuffer;
 import java.nio.file.FileAlreadyExistsException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 
 /**
  * Provides access to tree structure of File System.
@@ -16,14 +17,17 @@ import java.util.Arrays;
  *   or restore the object state to initial condition and throw exception,
  *   or mark system as "dirty" and throw exception (critical error in host FS).
  *
+ * [wl_] prefix means "write-lock" - mandatory external write lock
+ * [rl_] prefix means "read-lock" - mandatory external read lock
+ *
  * All public functions have to be [transact-safe] by default.
  */
 
 public class FATFolder {
-    private static final String ROOT_NAME = "ROOT";
+    static final String ROOT_NAME = "ROOT";
 
     // to check long in call params
-    private static final long EMPTY_FILE_SIZE = 0L;
+    public static final long EMPTY_FILE_SIZE = 0L;
 
     // SIZE HINT POINT
     // FS guaranty, that deleted record less then a half.
@@ -35,7 +39,10 @@ public class FATFolder {
 
     //PERFORMANCE HINT POINT
     //use collections adapted for critical operations
-    ArrayList<FATFile> childFiles = new ArrayList<>();
+    ArrayList<Integer> childFiles = new ArrayList<>();
+    //unique index
+    HashMap<String, Integer> childNames = new HashMap<>();
+
 
     /**
      * Creates new file
@@ -46,35 +53,26 @@ public class FATFolder {
      * @throws IOException
      */
     private FATFile createFile(String fileName, int fileType) throws IOException {
-        synchronized (fatFile) {
-            fatFile.checkValid();
-            ts_fs().begin(true);
-            try {
-                if (findFile(fileName) != null)
-                    throw new FileAlreadyExistsException(fileName);
+        FATLock lock = fatFile.getLock(true);
+        try {
+            if (findFile(fileName) != null)
+                throw new FileAlreadyExistsException(fileName);
 
-                // reserve space first!
-                ts_reserveRecord();
+            // reserve space first!
+            ts_wl_reserveRecord();
 
-                // [access] is the same as in parent by default
-                FATFile file = ts_fs().ts_createFile(ts_getFolderId(),
-                        fileName,
-                        fileType, EMPTY_FILE_SIZE, fatFile.access());
+            // [access] is the same as in parent by default
+            FATFile file = new FATFile(
+                    this,
+                    fileName,
+                    fileType,
+                    EMPTY_FILE_SIZE,
+                    fatFile.access());
 
-                boolean success = false;
-                try {
-                    ts_ref(file);
-                    // commit
-                    success = true;
-                } finally {
-                    if (!success) {
-                        ts_fs().ts_setDirtyState("Cannot save file record to reserved space.", false);
-                    }
-                }
-                return file;
-            } finally {
-                ts_fs().end();
-            }
+            ts_wl_ref(file); //dirty inside
+            return file;
+        } finally {
+            lock.unlock();
         }
     }
 
@@ -87,17 +85,17 @@ public class FATFolder {
     }
 
     public FATFile[] listFiles() throws IOException {
-        synchronized (fatFile) {
-            fatFile.checkValid();
+        FATLock lock = fatFile.getLock(false);
+        try {
             // PERFORMANCE HINT POINT
             // make it better!
             ArrayList<FATFile> _childFiles = new ArrayList<>();
-            for (FATFile current : childFiles) {
-                if (current != FATFile.DELETED_FILE) {
-                    _childFiles.add(current);
-                }
+            for (Integer currentId : childFiles) if (currentId != FATFile.INVALID_FILE_ID) {
+                _childFiles.add(ts_rl_getFile(currentId));
             }
             return _childFiles.toArray(new FATFile[_childFiles.size()]);
+        } finally {
+            lock.unlock();
         }
     }
 
@@ -110,30 +108,59 @@ public class FATFolder {
      * @throws IOException
      */
     public void deleteChildren() throws IOException {
-        synchronized (fatFile) {
-            fatFile.checkValid();
-            boolean success = false;
-            ts_fs().begin(true);
+        FATLock lock = fatFile.getLock(true);
+        try {
             try {
                 packForbidden = true;
-                for (FATFile current : childFiles) {
-                    if (current != FATFile.DELETED_FILE) {
+                for (Integer currentId : childFiles) {
+                    if (currentId != FATFile.INVALID_FILE_ID) {
+                        FATFile current = ts_rl_getFile(currentId);
                         if (current.isFolder())
                             current.getFolder().cascadeDelete();
                         else
                             current.delete();
                     }
                 }
-                // commit
-                success = true;
             } finally {
                 packForbidden = false;
-                // partial delete
-                if (!success)
-                    ts_optionalPack();
-                ts_fs().end();
+                ts_wl_optionalPack();
+            }
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private FATFile ts_rl_getFile(int fileId) throws IOException {
+        int index = childFiles.indexOf(fileId);
+        if (index < 0)
+            throw new FileNotFoundException("fileId: " + fileId);
+        FATFile ret = ts_fs().ts_getFileFromCache(fileId);
+        if (ret == null) {
+            boolean success = false;
+            try (FATFileChannel folderContent = fatFile.getChannel(false, false)) {
+                ByteBuffer fileRecord = ts_fs().ts_allocateBuffer(FATFile.RECORD_SIZE);
+                int wasRead = folderContent
+                        .position(index * FATFile.RECORD_SIZE)
+                        .read(fileRecord);
+                if (wasRead == FATFile.RECORD_SIZE) {
+                    fileRecord.flip();
+                    int _fileId = fileRecord.getInt();
+                    if (_fileId != fileId)
+                        throw new IOException("Wrong state of folder:" + _fileId + "!=" + fileId);
+                    int type = fileRecord.getInt();
+                    ret = new FATFile(ts_fs(), fatFile, fileId, type);
+                    ret.ts_initFromBuffer(fileRecord);
+                    // commit
+                    success = true;
+                }
+            } finally {
+                if (!success) {
+                    //primitive rollback - cannot restore (not [ts_] function call in action).
+                    ts_fs().ts_setDirtyState("Cannot read folder record", false);
+                }
             }
         }
+        return ret;
     }
 
     /**
@@ -146,18 +173,15 @@ public class FATFolder {
      * @throws IOException
      */
     public void cascadeDelete() throws IOException {
-        synchronized (fatFile) {
-            fatFile.checkValid();
-            ts_fs().begin(true);
-            try {
-                deleteChildren();
-                //PERFORMANCE HINT: make it better!
-                pack();
-                // commit
-                fatFile.delete();
-            } finally {
-                ts_fs().end();
-            }
+        FATLock lock = fatFile.getLock(true);
+        try {
+            deleteChildren();
+            //PERFORMANCE HINT: make it better!
+            pack(); //need: fatFile.delete() checks 0 size
+            // commit
+            fatFile.delete();
+        } finally {
+            lock.unlock();
         }
     }
 
@@ -168,34 +192,35 @@ public class FATFolder {
      * @throws IOException
      */
     public int pack() throws IOException {
-        synchronized (fatFile) {
-            fatFile.checkValid();
-
+        FATLock lock = fatFile.getLock(true);
+        try {
             // PERFORMANCE HINT POINT
             // make it better!
             int startSize = childFiles.size();
-            ArrayList<FATFile> _childFiles = new ArrayList<>();
-            for (FATFile current : childFiles) {
-                if (current != FATFile.DELETED_FILE) {
-                    _childFiles.add(current);
+            ArrayList<Integer> _childFiles = new ArrayList<>();
+            for (Integer currentId : childFiles) {
+                if (currentId != FATFile.INVALID_FILE_ID) {
+                    _childFiles.add(currentId);
                 }
             }
             _childFiles.trimToSize();
 
             int endSize = _childFiles.size();
             if (startSize != endSize) {
-                //write first, truncate after!
-                ts_fs().begin(true);
-                try {
-                    childFiles = _childFiles;
-                    deletedCount = 0;
-                    ts_writeContent();
-                    //commit transaction
-                } finally {
-                    ts_fs().end();
+                childFiles = _childFiles;
+
+                ArrayList<FATFile> childFATFiles = new ArrayList<>();
+                for (Integer currentId : childFiles) {
+                    childFATFiles.add(ts_rl_getFile(currentId));
                 }
+                deletedCount = 0;
+
+                ts_wl_writeContent(childFATFiles);
+                //commit transaction
             }
             return startSize - endSize;
+        } finally {
+            lock.unlock();
         }
     }
 
@@ -210,16 +235,17 @@ public class FATFolder {
      * @throws IOException
      */
     public FATFile findFile(String fileName) throws IOException {
-        synchronized (fatFile) {
-            fatFile.checkValid();
+        FATLock lock = fatFile.getLock(false);
+        try {
             if (fileName == null)
                 return null;
-            for (FATFile file : childFiles) {
-                if (fileName.equals(file.getName()))
-                    return file;
-            }
+            Integer fileId = childNames.get(fileName);
+            return  (fileId != null)
+                ? ts_rl_getFile(fileId)
+                : null;
+        } finally {
+            lock.unlock();
         }
-        return null;
     }
 
     /***
@@ -230,37 +256,40 @@ public class FATFolder {
      * @throws IOException
      */
     public FATFile getChildFile(String fileName) throws IOException {
-        synchronized (fatFile) {
-            fatFile.checkValid();
+        FATLock lock = fatFile.getLock(false);
+        try {
             if (fileName == null)
                 throw new IllegalArgumentException();
-            for (FATFile file : childFiles) {
-                if (fileName.equals(file.getName()))
-                    return file;
-            }
+
+            FATFile ret = findFile(fileName);
+            if (ret != null)
+                return ret;
+            throw new FileNotFoundException(fileName);
+        } finally {
+            lock.unlock();
         }
-        throw new FileNotFoundException(fileName);
     }
 
     public String getView() throws IOException {
-        synchronized (fatFile) {
-            ts_fs().begin(false);
-            try {
-                StringBuilder sb = new StringBuilder();
-                if (fatFile.isRoot())
-                    sb.append("<?xml version=\"1.0\"?>");
-                sb.append("<folder name=\"");
-                sb.append(fatFile.getName());
-                sb.append("\" size=\"");
-                sb.append(fatFile.length());
-                sb.append("\" created=\"");
-                sb.append(fatFile.timeCreate());
-                sb.append("\" lastModified=\"");
-                sb.append(fatFile.lastModified());
-                sb.append("\">\n");
-                byte[] bcontext = new byte[16];
-                ByteBuffer content = ByteBuffer.wrap(bcontext);
-                for (FATFile current : childFiles) {
+        FATLock lock = fatFile.getLock(false);
+        try {
+            StringBuilder sb = new StringBuilder();
+            if (fatFile.isRoot())
+                sb.append("<?xml version=\"1.0\"?>");
+            sb.append("<folder name=\"");
+            sb.append(fatFile.getName());
+            sb.append("\" size=\"");
+            sb.append(fatFile.length());
+            sb.append("\" created=\"");
+            sb.append(fatFile.timeCreate());
+            sb.append("\" lastModified=\"");
+            sb.append(fatFile.lastModified());
+            sb.append("\">\n");
+            byte[] bcontext = new byte[16];
+            ByteBuffer content = ByteBuffer.wrap(bcontext);
+            for (Integer currentId : childFiles) {
+                if (currentId != FATFile.INVALID_FILE_ID) {
+                    FATFile current = ts_rl_getFile(currentId);
                     switch (current.getType()) {
                         case FATFile.TYPE_FILE:
                             sb.append("<file name=\"");
@@ -274,7 +303,7 @@ public class FATFolder {
                             sb.append("\">");
                             Arrays.fill(bcontext, (byte)' ');
                             content.clear();
-                            try (FATFileChannel fc = current.getChannel(false)) {
+                            try (FATFileChannel fc = current.getChannel(false, true)) {
                                 fc.read(content);
                             }
                             sb.append(new String(bcontext));
@@ -288,11 +317,11 @@ public class FATFolder {
                             break;
                     }
                 }
-                sb.append("</folder>\n");
-                return sb.toString();
-            } finally {
-                ts_fs().end();
             }
+            sb.append("</folder>\n");
+            return sb.toString();
+        } finally {
+            lock.unlock();
         }
     }
 
@@ -304,11 +333,14 @@ public class FATFolder {
      * @throws IOException
      */
     public FATFolder getChildFolder(String folderName) throws IOException {
-        synchronized (fatFile) {
+        FATLock lock = fatFile.getLock(false);
+        try {
             FATFile file = getChildFile(folderName);
             if (file.isFolder())
                 return file.getFolder();
             throw new IOException("File is not a folder:" + folderName);
+        } finally {
+            lock.unlock();
         }
     }
 
@@ -316,15 +348,14 @@ public class FATFolder {
     /**
      * Creates Folder from File.
      *
-     * Could not be called directly, use [ts_fs().ts_getFolder] instead.
-     * [ts_] constructor with [dirty] rollback
+     * Could not be called directly, use fs cache instead.
      *
-     * @param fatFile the folder storage
+     * @param file the folder storage
      * @throws IOException
      */
-    FATFolder(FATFile fatFile) throws IOException {
-        this.fatFile = fatFile;
-        register(fatFile.fs, fatFile.ts_getFileId());
+    FATFolder(FATFile file) throws IOException {
+        this.fatFile = file;
+        ts_fs().addFolder(this, new SelfDisposer(ts_fs(), ts_getFolderId()));
     }
 
 
@@ -340,13 +371,10 @@ public class FATFolder {
         // exclusive access to [ret]
         boolean success = false;
         try {
-            FATFile rootFile = fs.ts_createFile(FATFile.INVALID_FILE_ID,
-                    ROOT_NAME, FATFile.TYPE_FOLDER, EMPTY_FILE_SIZE, access);
+            FATFile rootFile = fs.ts_createRootFile(access);
             if (rootFile.ts_getFileId() != FATFile.ROOT_FILE_ID)
                 throw new IOException("Root already exists.");
-            FATFolder ret = fs.ts_getFolder(rootFile.ts_getFileId());
-            // update record in header
-            rootFile.updateLastModified();
+            FATFolder ret = rootFile.getFolder();
             // commit
             success = true;
             return ret;
@@ -358,26 +386,6 @@ public class FATFolder {
         }
     }
     
-    static FATFolder ts_getRoot(FATFileSystem fs) throws IOException {
-        // non-exclusive access to [ret] => transaction
-        boolean success = false;
-        try {
-            fs.begin(false);
-            FATFile rootFile = fs.ts_getFile(FATFile.ROOT_FILE_ID);
-            FATFolder ret = rootFile.getFolder();
-            // commit
-            success = true;
-            return ret;
-        } finally {
-            if (!success) {
-                // primitive rollback
-                fs.ts_setDirtyState("Cannot open the root folder.", false);
-            }
-            fs.end();
-        }
-    }
-    
-
     /**
      * Opens existent root folder.
      *
@@ -389,13 +397,13 @@ public class FATFolder {
         // exclusive access to [ret]
         boolean success = false;
         try {
-            FATFile rootFile = fs.ts_openFile(fs.getRootInfo(), FATFile.INVALID_FILE_ID);
+            FATFile rootFile = fs.ts_openRootFile();
             if (rootFile.ts_getFileId() != FATFile.ROOT_FILE_ID
-                || !ROOT_NAME.equals(rootFile.toString()))
+                || !ROOT_NAME.equals(rootFile.getName()))
             {
                 throw new IOException("Root folder is damaged!");
             }
-            FATFolder ret = fs.ts_getFolder(rootFile.ts_getFileId());
+            FATFolder ret = rootFile.getFolder();
             success = true;
             return ret;
         } finally {
@@ -406,58 +414,61 @@ public class FATFolder {
         }
     }
 
-    void ts_readContent() throws IOException {
+    void ts_rl_readContent() throws IOException {
         boolean success = false;
-        synchronized (fatFile) {
-            ts_fs().begin(false);
-            try {
-                try (FATFileChannel folderContent = fatFile.getChannel(false)) {
-                    ByteBuffer bf = ts_fs().ts_allocateBuffer(FATFile.RECORD_SIZE);
-                    long storageSize = fatFile.length();
-                    while (folderContent.position() < storageSize) {
-                        folderContent.read(bf);
-                        bf.flip();
-                        childFiles.add(ts_fs().ts_openFile(bf, ts_getFolderId()));
-                        bf.position(0);
+        try {
+            try (FATFileChannel folderContent = fatFile.getChannel(false, false)) {
+                ByteBuffer bf = ts_fs().ts_allocateBuffer(FATFile.RECORD_SIZE);
+                long storageSize = fatFile.length();
+                while (folderContent.position() < storageSize) {
+                    folderContent.read(bf);
+                    bf.flip();
+
+                    //read fileId
+                    int fileId = bf.getInt();
+                    childFiles.add(fileId);
+
+                    if (fileId != FATFile.INVALID_FILE_ID) {
+                        //read file name
+                        bf.position(FATFile.RECORD_NAME_OFFSET);
+                        char[] name = new char[FATFile.FILE_MAX_NAME];
+                        bf.asCharBuffer().get(name);
+                        childNames.put(FATFile.unlockedGetName(name), fileId);
                     }
-                    if (folderContent.position() != storageSize)
-                        throw new IOException("Folder is damaged!");
-                    success = true;
+                    bf.position(0);
                 }
-            } finally {
-                if (!success) {
-                    //primitive rollback - cannot restore.
-                    ts_fs().ts_setDirtyState("Cannot read folder content", false);
-                }
-                ts_fs().end();
+                if (folderContent.position() != storageSize)
+                    throw new IOException("Folder is damaged!");
+                success = true;
+            }
+        } finally {
+            if (!success) {
+                //primitive rollback - cannot restore.
+                ts_fs().ts_setDirtyState("Cannot read folder content", false);
             }
         }
     }
 
-    private void ts_writeContent() throws IOException {
+    private void ts_wl_writeContent(ArrayList<FATFile> childFATFiles) throws IOException {
         boolean success = false;
-        synchronized (fatFile) {
-            ts_fs().begin(true);
-            try {
-                try (FATFileChannel folderContent = fatFile.getChannel(false)) {
-                    ByteBuffer bf = ts_fs().ts_allocateBuffer(FATFile.RECORD_SIZE);
-                    for (FATFile file : childFiles) {
-                        bf.position(0);
-                        file.ts_serialize(bf, ts_fs().getVersion());
-                        bf.flip();
-                        folderContent.write(bf);
-                    }
-                    //update size in parent
-                    fatFile.setLength(folderContent.position());
-                    fatFile.updateLastModified();
-                    success = true;
+        try {
+            try (FATFileChannel folderContent = fatFile.getChannel(false, true)) {
+                ByteBuffer bf = ts_fs().ts_allocateBuffer(FATFile.RECORD_SIZE);
+                for (FATFile file : childFATFiles) {
+                    bf.position(0);
+                    file.ts_serialize(bf, ts_fs().getVersion());
+                    bf.flip();
+                    folderContent.write(bf);
                 }
-            } finally {
-                if (!success) {
-                    //primitive rollback - cannot restore.
-                    ts_fs().ts_setDirtyState("Cannot write folder content", false);
-                }
-                ts_fs().end();
+                //update size in parent
+                fatFile.setLength(folderContent.position());
+                fatFile.updateLastModified();
+                success = true;
+            }
+        } finally {
+            if (!success) {
+                //primitive rollback - cannot restore.
+                ts_fs().ts_setDirtyState("Cannot write folder content", false);
             }
         }
     }
@@ -469,10 +480,10 @@ public class FATFolder {
      * @param updateFile
      * @throws IOException
      */
-    private void ts_updateFileRecord(int index, FATFile updateFile) throws IOException {
+    private void ts_wl_updateFileRecord(int index, FATFile updateFile) throws IOException {
         boolean success = false;
-        try (FATFileChannel folderContent = fatFile.getChannel(false)) {
-            folderContent
+        try (FATFileChannel folderContent = fatFile.getChannel(false, true)) {
+            int wasWritten = folderContent
                 .position(index * FATFile.RECORD_SIZE)
                 .write(
                         (ByteBuffer) updateFile
@@ -481,7 +492,7 @@ public class FATFolder {
                                         ts_fs().getVersion())
                                 .flip());
             // commit
-            success = true;
+            success = (wasWritten == FATFile.RECORD_SIZE);
         } finally {
             if (!success) {
                 //primitive rollback - cannot restore (not [ts_] function call in action).
@@ -490,78 +501,56 @@ public class FATFolder {
         }
     }
 
-    static void ts_updateRootFileRecord(FATFile rootFile) throws IOException {
-        boolean success = false;
-        try {
-            ByteBuffer store = rootFile
-                .ts_serialize(
-                        rootFile.fs.ts_allocateBuffer(FATFile.RECORD_SIZE),
-                        rootFile.fs.getVersion());
-            store.flip();
-            rootFile.fs.updateRootRecord(store);
-            // commit
-            success = true;
-        } finally {
-            if (!success) {
-                //primitive rollback - cannot restore (not [ts_] function call in action).
-                rootFile.fs.ts_setDirtyState("Cannot update root folder record", false);
-            }
-        }
-    }
-
     void ts_updateFileRecord(FATFile updateFile) throws IOException {
-        synchronized (fatFile) {
-            fatFile.checkValid();
-            int index = childFiles.indexOf(updateFile);
+        FATLock lock = fatFile.getLock(true);
+        try {
+            int index = childFiles.indexOf(updateFile.ts_getFileId());
             if (index == -1)
                 throw new IOException("Cannot update file attributes: Child not found.");
-            ts_updateFileRecord(index, updateFile);
+            ts_wl_updateFileRecord(index, updateFile);
+        } finally {
+            lock.unlock();
         }
     }
 
-    void ts_reserveRecord() throws IOException {
-        synchronized (fatFile) {
-            int pos = childFiles.indexOf(FATFile.DELETED_FILE);
-            if (pos < 0) {
-                childFiles.add(FATFile.DELETED_FILE);
-                ts_updateFileRecord(childFiles.size() - 1, FATFile.DELETED_FILE);
-                ++deletedCount;
-            }
-        }
-    }
-
-    void ts_ref(FATFile addFile) throws IOException {
-        synchronized (fatFile) {
-            fatFile.checkValid();
-            int pos = childFiles.indexOf(FATFile.DELETED_FILE);
-            if (pos >= 0) {
-                childFiles.set(pos, addFile);
-                --deletedCount;
-            } else {
-                //{debug
-                //System.err.println("Unreserved Allocation! Exclusive mode only!");
-                //}debug
-                childFiles.add(addFile);
-                pos = childFiles.size() - 1;
-            }
-            ts_updateFileRecord(pos, addFile);
-        }
-    }
-
-    void ts_deRef(FATFile removeFile) throws IOException {
-        synchronized (fatFile) {
-            fatFile.checkValid();
-            int offset = childFiles.indexOf(removeFile);
-            if (offset == -1)
-                throw new IOException("Cannot remove file from folder: Child not found.");
-            childFiles.set(offset, FATFile.DELETED_FILE);
+    void ts_wl_reserveRecord() throws IOException {
+        int pos = childFiles.indexOf(FATFile.INVALID_FILE_ID);
+        if (pos < 0) {
+            childFiles.add(FATFile.INVALID_FILE_ID);
+            ts_wl_updateFileRecord(childFiles.size() - 1, FATFile.DELETED_FILE);
             ++deletedCount;
-            ts_updateFileRecord(offset, FATFile.DELETED_FILE);
-            ts_optionalPack();
         }
     }
 
-    private void ts_optionalPack() throws IOException {
+    void ts_wl_ref(FATFile addFile) throws IOException {
+        int pos = childFiles.indexOf(FATFile.INVALID_FILE_ID);
+        int fileId = addFile.ts_getFileId();
+        if (pos >= 0) {
+            childFiles.set(pos, fileId);
+            --deletedCount;
+        } else {
+            //{debug
+            System.err.println("Unreserved Allocation! Exclusive mode only!");
+            //}debug
+            childFiles.add(fileId);
+            pos = childFiles.size() - 1;
+        }
+        childNames.put(addFile.getName(), fileId);
+        ts_wl_updateFileRecord(pos, addFile);
+    }
+
+    void ts_wl_deRef(FATFile removeFile) throws IOException {
+        int offset = childFiles.indexOf(removeFile.ts_getFileId());
+        if (offset == -1)
+            throw new IOException("Cannot remove file from folder: Child not found.");
+        childNames.remove(removeFile.getName());
+        childFiles.set(offset, FATFile.INVALID_FILE_ID);
+        ++deletedCount;
+        ts_wl_updateFileRecord(offset, FATFile.DELETED_FILE);
+        ts_wl_optionalPack();
+    }
+
+    private void ts_wl_optionalPack() throws IOException {
         //SIZE HINT POINT
         //compact folder
         if (deletedCount > (childFiles.size() >> 1) && !packForbidden)
@@ -589,9 +578,4 @@ public class FATFolder {
             fs.disposeFolder(folderId);
         }
     }
-
-    private void register(FATFileSystem fs, int fileId) {
-        FATDisposer.addRecord(this, new FATFolder.SelfDisposer(fs, fileId));
-    }
-    
 }

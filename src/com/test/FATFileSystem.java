@@ -17,21 +17,9 @@ import java.util.HashMap;
  *
  * All public functions have to be [transact-safe] by default.
  *
- * Each public call with r/w operation need to be executed in FS transaction like
- * <pre><code>
- *              boolean success = false;
- *              begin(isWriteTransaction);
- *              try {
- *                  ...action...
- *                  //commit
- *                  success = true;
- *             } finally {
- *                 if (!success) {
- *                     //rollback action
- *                 }
- *                 end();
- *             }
- * </code></pre>
+ * Each public call with r/w operation need to be executed in FS transaction
+ * that is integrated with file lock.
+
  */
 public class FATFileSystem implements Closeable {
     private FATSystem fat;
@@ -43,6 +31,7 @@ public class FATFileSystem implements Closeable {
     //  Transaction counting + shutdown signal + wait for execution finish
     final Object shutdownSignal = new Object();
     private long transactionCounter = 0L;
+
     private FATFile root;
 
     private FATFileSystem() {}
@@ -201,8 +190,6 @@ public class FATFileSystem implements Closeable {
 
 
     void setFileLength(FATFile file, long newLength, long oldLength) throws IOException {
-        if (file.ts_getFileId() == FATFile.INVALID_FILE_ID)
-            throw new IOException("Bad file state.", file.killer);
         fat.adjustClusterChain(file.ts_getFileId(), newLength, oldLength);
     }
 
@@ -240,115 +227,21 @@ public class FATFileSystem implements Closeable {
     }
 
     /**
-     * Creates new file.
-     *
-     * Returns file has no connection with folder.
-     *
-     * @param parentId parent folder id
-     * @param fileName the name of created file
-     * @param type FATFile.TYPE_XXXX const
-     * @param size the space for allocation
-     * @param access desired access to file
-     * @return created file
-     * @throws IOException
-     */
-    FATFile ts_createFile(int parentId, String fileName, int type, long size, int access) throws IOException {
-        synchronized (this) {
-            // create new
-            FATFile ret = new FATFile(this, fileName, type, size, access);
-            fileCache.put(ret.ts_getFileId(), new WeakReference<>(ret));
-            if (!ret.isRoot())
-                ret.ts_setParent(ts_getFolder(parentId));
-            return ret;
-        }
-    }
-
-    /**
      * Rollback procedure for [{@see ts_createFile}] return value
      *
      * @param file the file for drop.
      */
     void ts_dropDirtyFile(FATFile file) throws IOException {
         synchronized (this) {
-            fileCache.remove(file.ts_getFileId());
             try {
-                fat.freeClusters(file.ts_getFileId(), true);
+                int fileId = file.ts_getFileId();
+                fileCache.remove(fileId);
+                folderCache.remove(fileId);
+                fat.freeClusters(fileId, true);
             } finally {
                 //no rollback from fat level - set dirty inside
                 file.ts_setFileId(FATFile.INVALID_FILE_ID);
             }
-        }
-    }
-
-    /**
-     * Opens file from folder record.
-     *
-     * Returns file that has no connection with folder.
-     *
-     * @param bf the storage of attributes
-     * @return opened file
-     * @throws IOException
-     */
-    FATFile ts_openFile(ByteBuffer bf, int parentId) throws IOException {
-        synchronized (this) {
-            // open existent if can
-            int fileId = bf.getInt();
-            int type = bf.getInt();
-            if (type == FATFile.TYPE_DELETED)
-               return FATFile.DELETED_FILE;
-
-            WeakReference<FATFile> r = fileCache.get(fileId);
-            FATFile ret = (r == null) ? null : r.get();
-            if (ret == null) {
-                // open existent
-                fat.checkFileId(fileId); //check & mark dirty
-                ret = new FATFile(this, type, fileId);
-                ret.ts_initFromBuffer(bf);
-                fileCache.put(ret.ts_getFileId(), new WeakReference<>(ret));
-                if (!ret.isRoot())
-                    ret.ts_setParent(ts_getFolder(parentId));
-            } else
-                ret.ts_initFromBuffer(bf);
-            return ret;
-        }
-    }
-
-    /**
-     * Restores folder from the file unique Id or gets it from cache.
-     *
-     * @param fileId the file unique Id in File System.
-     * @return the folder object
-     * @throws IOException
-     */
-    FATFolder ts_getFolder(int fileId) throws IOException {
-        synchronized (this) {
-            WeakReference<FATFolder> r = folderCache.get(fileId);
-            FATFolder ret = (r == null) ? null : r.get();
-            if (ret == null) {
-                //ts_ constructor
-                ret = new FATFolder(ts_getFile(fileId));
-                folderCache.put(fileId, new WeakReference<>(ret));
-                ret.ts_readContent();
-            }
-            return ret;
-        }
-    }
-
-    /**
-     * Gets a file object from cache.
-     *
-     * @param fileId  cached FATFile if any.
-     * @return  file object from cache.
-     * @throws IOException
-     */
-    FATFile ts_getFile(int fileId) throws IOException {
-        synchronized (this) {
-            WeakReference<FATFile> r = fileCache.get(fileId);
-            FATFile ret = (r == null) ? null : r.get();            
-            if (ret == null) {
-                fat.setDirtyState("Cache damaged", true);
-            }
-            return ret;
         }
     }
 
@@ -455,13 +348,112 @@ public class FATFileSystem implements Closeable {
         fat.setDirtyState(message, throwException);
     }
 
-    void updateRootRecord(ByteBuffer rootInfo) throws IOException {
-        fat.writeRootInfo(rootInfo);
+
+    void ts_updateRootFileRecord(FATFile rootFile) throws IOException {
+        synchronized (this) {
+            boolean success = false;
+            try {
+                ByteBuffer store = rootFile
+                        .ts_serialize(
+                                ts_allocateBuffer(FATFile.RECORD_SIZE),
+                                getVersion());
+                store.flip();
+                fat.writeRootInfo(store);
+                // commit
+                success = true;
+            } finally {
+                if (!success) {
+                    //primitive rollback - cannot restore (not [ts_] function call in action).
+                    ts_setDirtyState("Cannot update root folder record", false);
+                }
+            }
+        }
     }
+
+    FATFile ts_createRootFile(int access) throws IOException {
+        synchronized (this) {
+            boolean success = false;
+            try {
+                FATFile rootFile = new FATFile(
+                        this,
+                        null,
+                        FATFile.ROOT_FILE_ID,
+                        FATFile.TYPE_FOLDER);
+                rootFile.ts_initNewRoot(FATFolder.EMPTY_FILE_SIZE, access);
+                success = true;
+                return rootFile;
+            } finally {
+                if (!success) {
+                    //primitive rollback - cannot restore (not [ts_] function call in action).
+                    ts_setDirtyState("Cannot create root folder record", false);
+                }
+            }
+        }
+    }
+
+    public FATFile ts_openRootFile() throws IOException {
+        synchronized (this) {
+            FATFile rootFile = ts_getFileFromCache(FATFile.ROOT_FILE_ID);
+            if (rootFile == null) {
+                boolean success = false;
+                try {
+                    rootFile = new FATFile(
+                            this,
+                            null,
+                            FATFile.ROOT_FILE_ID,
+                            FATFile.TYPE_FOLDER);
+                    ByteBuffer bf = getRootInfo();
+                    int fileId = bf.getInt();
+                    int type = bf.getInt();
+                    if (fileId == FATFile.ROOT_FILE_ID && type == FATFile.TYPE_FOLDER) {
+                        rootFile.ts_initFromBuffer(bf);
+                        success = true;
+                    }
+                } finally {
+                    if (!success) {
+                        //primitive rollback - cannot restore (not [ts_] function call in action).
+                        ts_setDirtyState("Cannot create root folder record", false);
+                    }
+                }
+            }
+            return rootFile;
+        }
+    }
+
 
     public ByteBuffer getRootInfo() throws IOException {
         return fat.getRootInfo();
     }
+
+
+    /**
+     * Restores folder from the file unique Id or gets it from cache.
+     *
+     * @param fileId the file unique Id in File System.
+     * @return the folder object
+     * @throws IOException
+     */
+    FATFolder ts_getFolderFromCache(int fileId) {
+        synchronized (this) {
+            WeakReference<FATFolder> r = folderCache.get(fileId);
+            return (r == null) ? null : r.get();
+        }
+    }
+
+    /**
+     * Gets a file object from cache.
+     *
+     * @param fileId  cached FATFile if any.
+     * @return  file object from cache.
+     * @throws IOException
+     */
+    FATFile ts_getFileFromCache(int fileId) {
+        synchronized (this) {
+            WeakReference<FATFile> r = fileCache.get(fileId);
+            return (r == null) ? null : r.get();
+        }
+    }
+
 
     void disposeFile(int fileId) {
         synchronized (this) {
@@ -471,6 +463,26 @@ public class FATFileSystem implements Closeable {
     void disposeFolder(int folderId) {
         synchronized (this) {
             folderCache.remove(folderId);
+        }
+    }
+
+    void addFolder(FATFolder folder, FATDisposerRecord disposer) {
+        synchronized (this) {
+            int folderId = folder.ts_getFolderId();
+            if (ts_getFolderFromCache(folderId) != null)
+                throw new Error("Folder hot swap:" + folderId);
+            folderCache.put(folderId, new WeakReference<>(folder));
+            FATDisposer.addRecord(folder, disposer);
+        }
+    }
+
+    void addFile(FATFile file, FATDisposerRecord disposer) {
+        synchronized (this) {
+            int fileId = file.ts_getFileId();
+            if (ts_getFileFromCache(fileId) != null)
+                throw new Error("File hot swap:" + fileId);
+            fileCache.put(fileId, new WeakReference<>(file));
+            FATDisposer.addRecord(file, disposer);
         }
     }
 
@@ -490,5 +502,8 @@ public class FATFileSystem implements Closeable {
     void force() throws IOException {
         fat.force();
     }
-    //}debug-test        
+
+
+    //}debug-test
+
 }

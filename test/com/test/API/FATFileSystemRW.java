@@ -37,7 +37,7 @@ public class FATFileSystemRW extends FATBaseTest {
             }
 
             lbf.limit((int) ffs.getFreeSize());
-            try (FATFileChannel longFile = ffs.getRoot().createFile("longFile").getChannel(false)) {
+            try (FATFileChannel longFile = ffs.getRoot().createFile("longFile").getChannel(false, true)) {
                 lbf.flip();
                 longFile.write(lbf);
 
@@ -116,7 +116,7 @@ public class FATFileSystemRW extends FATBaseTest {
             Thread writerA = new Thread(new Runnable() {
                 @Override public void run() {
                     bufferA.flip();
-                    try (FATFileChannel longFile = file.getChannel(true)) {
+                    try (FATFileChannel longFile = file.getChannel(true, true)) {
                         while (bufferA.hasRemaining())
                             longFile.write(bufferA);
                     } catch (IOException e) {
@@ -127,7 +127,7 @@ public class FATFileSystemRW extends FATBaseTest {
 
             writerA.start();
             for(int i = 0; i < 3; ++i) {
-                try (FATFileChannel longFile = file.getChannel(true)) {
+                try (FATFileChannel longFile = file.getChannel(true, true)) {
                     bufferB.flip();
                     while (bufferB.hasRemaining())
                         longFile.write(bufferB);
@@ -142,7 +142,7 @@ public class FATFileSystemRW extends FATBaseTest {
                     throw new Error("Long buffer write problem.");
                 }
 
-                try (FATFileChannel longFile = file.getChannel(false)) {
+                try (FATFileChannel longFile = file.getChannel(false, true)) {
                     boolean eof = false;
                     long countB = 0;
                     while (!eof) {

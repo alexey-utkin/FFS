@@ -23,7 +23,7 @@ public class FATFileChannel implements Closeable {
      *                   the end of file right before {@link #write(java.nio.ByteBuffer)}
      *                   operation. Look into testLostWrite test.
      */
-    public FATFileChannel(FATFile file, boolean appendMode) {
+    public FATFileChannel(FATFile file, boolean appendMode) throws IOException {
         fatFile = file;
         this.appendMode = appendMode;
         position = appendMode

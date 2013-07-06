@@ -11,7 +11,6 @@ import java.nio.file.Path;
  */
 
 public class FATFileSystemTest  extends FATBaseTest {
-
     //
     // Test of FS creation.
     //
@@ -90,7 +89,7 @@ public class FATFileSystemTest  extends FATBaseTest {
                 for (int i = 0; i < 2000; ++i) {
                     collector.createFile("file" + i);
                 }
-            }    
+            }
             for (int i = 0; i < 10; ++i) {
                 System.gc();                
                 logLN("subf File Cach Size:" + ffs.getFileCacheSize()
@@ -98,7 +97,6 @@ public class FATFileSystemTest  extends FATBaseTest {
             }
             if ( ffs.getFileCacheSize() >= 2000 || ffs.getFolderCacheSize() >= 2000 )
                 throw new Error("Memory leaks in subfolders!");
-
             {
                 FATFolder root = ffs.getRoot();
                 root.deleteChildren();
@@ -139,7 +137,7 @@ public class FATFileSystemTest  extends FATBaseTest {
                                         int allocatorType) throws IOException {
         startUp(path);
         try (FATFileSystem ffs  = FATFileSystem.create(path, clusterSize, clusterCount, allocatorType)) {
-            FATFile ff[] = new FATFile[100];
+            FATFile ff[] = new FATFile[1];
             long freeSpace = ffs.getFreeSize();
             {
                 int fi = 0;
@@ -174,7 +172,7 @@ public class FATFileSystemTest  extends FATBaseTest {
         logOk();
     }
 
-
+/*
     //
     // Test of forward space reservation in folder store.
     //
@@ -248,6 +246,6 @@ public class FATFileSystemTest  extends FATBaseTest {
             logOk();
         }
     }
-
+*/
 }
 

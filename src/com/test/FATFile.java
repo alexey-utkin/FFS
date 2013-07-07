@@ -626,11 +626,11 @@ public class FATFile {
     }
 
     FATLock getLockInternal(boolean write) throws IOException {
+        fs.begin(write);
         Lock lock = write
                 ? lockRW.writeLock()
                 : lockRW.readLock();
         lock.lock();
-        fs.begin(write);
         return getFATLockAndCheck(fs, lock);
     }
     /**
@@ -649,13 +649,14 @@ public class FATFile {
     }
 
     FATLock tryLockInternal(boolean write) throws IOException {
+        fs.begin(write);
         Lock lock = write
                 ? lockRW.writeLock()
                 : lockRW.readLock();
         if (!lock.tryLock()) {
+            fs.end();
             return null;
         }
-        fs.begin(write);
         return getFATLockAndCheck(fs, lock);
     }
     /**
@@ -674,13 +675,14 @@ public class FATFile {
     }
 
     FATLock tryLockThrowInternal(boolean write) throws IOException {
+        fs.begin(write);
         Lock lock = write
                 ? lockRW.writeLock()
                 : lockRW.readLock();
         if (!lock.tryLock()) {
+            fs.end();
             throw new FATFileLockedException(this, write);
         }
-        fs.begin(write);
         return getFATLockAndCheck(fs, lock);
     }
     /**

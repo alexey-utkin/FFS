@@ -499,12 +499,17 @@ public class FATFolder {
                                         ts_fs().ts_allocateBuffer(FATFile.RECORD_SIZE),
                                         ts_fs().getVersion())
                                 .flip());
+
+            if (wasWritten != FATFile.RECORD_SIZE)
+                throw new IOException("Unexpected record writing error");
+
             // commit
-            success = (wasWritten == FATFile.RECORD_SIZE);
+            success = true;
         } finally {
-            if (!success) {
+            //can fail on empty record reservation.
+            if (!success && updateFile.getType()!=FATFile.TYPE_DELETED) {
                 //primitive rollback - cannot restore (not [ts_] function call in action).
-                ts_fs().ts_setDirtyState("Cannot read folder record", false);
+                ts_fs().ts_setDirtyState("Cannot write folder record", false);
             }
         }
     }

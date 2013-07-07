@@ -26,9 +26,7 @@ public class FATFileChannel implements Closeable {
     public FATFileChannel(FATFile file, boolean appendMode) throws IOException {
         fatFile = file;
         this.appendMode = appendMode;
-        position = appendMode
-                ? fatFile.length()
-                : 0;
+        position = 0;
     }
 
     /**
@@ -40,19 +38,18 @@ public class FATFileChannel implements Closeable {
      * java.nio.channels.ReadableByteChannel} interface. 
      */
     public int read(ByteBuffer dst) throws IOException {
-        synchronized (fatFile) {
-            fatFile.checkValid();
-            fs().begin(false);
-            try {
+        FATLock lock = fatFile.tryLockThrowInternal(false);
+        try {
+            synchronized (this) { //protect the position
                 if (position >= fatFile.length())
                     return -1;
                 int wasRead = fs().readFileContext(fatFile, position, dst);
                 // commit
                 position += wasRead;
                 return wasRead;
-            } finally {
-                fs().end();
             }
+        } finally {
+            lock.unlock();
         }
     }
 
@@ -74,10 +71,9 @@ public class FATFileChannel implements Closeable {
 
         int wasWritten = 0;
         //Lock Attribute due to file size change
-        synchronized (fatFile) {
-            fatFile.checkValid();
-            fs().begin(true);
-            try {
+        FATLock lock = fatFile.tryLockThrowInternal(true);
+        try {
+            synchronized (this) { //protect the position
                 if (appendMode)
                     position = fatFile.length();
                 long finalPos = position + sizeToWrite;
@@ -100,9 +96,9 @@ public class FATFileChannel implements Closeable {
                         fatFile.setLengthInternal(finalPos);
                     }
                 }
-            } finally {
-                fs().end();
             }
+        } finally {
+            lock.unlock();
         }
         return wasWritten;
     }
@@ -119,7 +115,9 @@ public class FATFileChannel implements Closeable {
      * @throws java.io.IOException If some other I/O error occurs
      */
     public long position() throws IOException {
-        return position;
+        synchronized (this) { //protect the position
+            return position;
+        }
     }
 
     /**
@@ -141,7 +139,7 @@ public class FATFileChannel implements Closeable {
     public FATFileChannel position(long newPosition) throws IOException {
         if (newPosition < 0)
             throw new IOException("Bad new position.");
-        synchronized (fatFile) {
+        synchronized (this) {
             position = newPosition;
         }
         return this;
@@ -179,7 +177,7 @@ public class FATFileChannel implements Closeable {
      * @throws java.io.IOException      If some other I/O error occurs
      */
     public FATFileChannel truncate(long size) throws IOException {
-        synchronized (fatFile) {
+        synchronized (this) {
             if (size < size()) {
                 fatFile.setLengthInternal(size);
                 position = Math.max(position, size);
@@ -231,85 +229,6 @@ public class FATFileChannel implements Closeable {
         }
         fatFile.force(metaData);
     }
-
-    /**
-     * Reads a sequence of bytes from this channel into the given buffer,
-     * starting at the given file position.
-     * 
-     * <p> This method works in the same manner as the {@link
-     * #read(java.nio.ByteBuffer)} method, except that bytes are read starting at the
-     * given file position rather than at the channel's current position.  This
-     * method does not modify this channel's position.  If the given position
-     * is greater than the file's current size then no bytes are read.  
-     *
-     * @param dst      The buffer into which bytes are to be transferred
-     * @param position The file position at which the transfer is to begin;
-     *                 must be non-negative
-     * @return The number of bytes read, possibly zero, or <tt>-1</tt> if the
-     *         given position is greater than or equal to the file's current
-     *         size
-     * @throws IllegalArgumentException If the position is negative
-     * @throws java.nio.channels.NonReadableChannelException
-     *                                  If this channel was not opened for reading
-     * @throws java.nio.channels.ClosedChannelException
-     *                                  If this channel is closed
-     * @throws java.nio.channels.AsynchronousCloseException
-     *                                  If another thread closes this channel
-     *                                  while the read operation is in progress
-     * @throws java.nio.channels.ClosedByInterruptException
-     *                                  If another thread interrupts the current thread
-     *                                  while the read operation is in progress, thereby
-     *                                  closing the channel and setting the current thread's
-     *                                  interrupt status
-     * @throws java.io.IOException      If some other I/O error occurs
-     */
-    public int read(ByteBuffer dst, long position) throws IOException {
-        // Lock Attribute due to file size change
-        synchronized (fatFile) {
-            position(position);
-            return read(dst);
-        }
-    }
-
-    /**
-     * Writes a sequence of bytes to this channel from the given buffer,
-     * starting at the given file position.
-     * 
-     * <p> This method works in the same manner as the {@link
-     * #write(java.nio.ByteBuffer)} method, except that bytes are written starting at
-     * the given file position rather than at the channel's current position.
-     * This method does not modify this channel's position.  If the given
-     * position is greater than the file's current size then the file will be
-     * grown to accommodate the new bytes; the values of any bytes between the
-     * previous end-of-file and the newly-written bytes are unspecified.  
-     *
-     * @param src      The buffer from which bytes are to be transferred
-     * @param position The file position at which the transfer is to begin;
-     *                 must be non-negative
-     * @return The number of bytes written, possibly zero
-     * @throws IllegalArgumentException If the position is negative
-     * @throws java.nio.channels.NonWritableChannelException
-     *                                  If this channel was not opened for writing
-     * @throws java.nio.channels.ClosedChannelException
-     *                                  If this channel is closed
-     * @throws java.nio.channels.AsynchronousCloseException
-     *                                  If another thread closes this channel
-     *                                  while the write operation is in progress
-     * @throws java.nio.channels.ClosedByInterruptException
-     *                                  If another thread interrupts the current thread
-     *                                  while the write operation is in progress, thereby
-     *                                  closing the channel and setting the current thread's
-     *                                  interrupt status
-     * @throws java.io.IOException      If some other I/O error occurs
-     */
-    public int write(ByteBuffer src, long position) throws IOException {
-        // Lock Attribute due to file size change
-        synchronized (fatFile) {
-            position(position);
-            return write(src);
-        }
-    }
-
 
     /**
      * Closes this stream and releases any system resources associated

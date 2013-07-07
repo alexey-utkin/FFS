@@ -75,12 +75,7 @@ public class FATFile {
 
 
     FATFileChannel getChannelInternal(boolean appendMode, boolean write) throws IOException {
-        FATLock lock = tryLockThrowInternal(write);
-        try {
-            return new FATFileChannel(this, appendMode);
-        } finally {
-            lock.unlock();
-        }
+        return new FATFileChannel(this, appendMode);
     }
 
     /**
@@ -631,11 +626,11 @@ public class FATFile {
     }
 
     FATLock getLockInternal(boolean write) throws IOException {
-        fs.begin(write);
         Lock lock = write
                 ? lockRW.writeLock()
                 : lockRW.readLock();
         lock.lock();
+        fs.begin(write);
         return getFATLockAndCheck(fs, lock);
     }
     /**

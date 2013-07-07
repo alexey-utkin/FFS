@@ -527,7 +527,7 @@ class FATSystem implements Closeable {
 
             int limit = src.limit();
             int restOfCluster = (int)(clusterSize - pos[0]);
-            if (restOfCluster >= limit) {
+            if (restOfCluster >= src.remaining()) {
                 wasWritten = fileChannel.write(src, startPos);
             } else {
                 src.limit(src.position() + restOfCluster);
@@ -562,7 +562,7 @@ class FATSystem implements Closeable {
 
             int limit = dst.limit();
             int restOfCluster = (int)(clusterSize - pos[0]);
-            if (restOfCluster > limit) {
+            if (restOfCluster > dst.remaining()) {
                 wasRead = fileChannel.read(dst, startPos);
             } else {
                 dst.limit(dst.position() + restOfCluster);

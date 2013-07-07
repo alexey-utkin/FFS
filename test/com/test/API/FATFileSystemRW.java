@@ -4,10 +4,7 @@ package com.test.API;
  * Basic File System Read Write operations.
  */
 
-import com.test.FATBaseTest;
-import com.test.FATFile;
-import com.test.FATFileChannel;
-import com.test.FATFileSystem;
+import com.test.*;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -104,21 +101,35 @@ public class FATFileSystemRW extends FATBaseTest {
 
         try (FATFileSystem ffs  = FATFileSystem.create(path, clusterSize, clusterCount, allocatorType)) {
             final FATFile file = ffs.getRoot().createFile("longFile");
-            final ByteBuffer bufferA =  ByteBuffer.allocateDirect((int) (ffs.getFreeSize() - 4096*3));
+
+            int buffSize = (int) (ffs.getFreeSize()/6);
+            final ByteBuffer bufferA =  ByteBuffer.allocateDirect(buffSize);
             while (bufferA.hasRemaining())
                 bufferA.put((byte) 'A');
 
-            ByteBuffer bufferB = ByteBuffer.allocateDirect(4096); //cluster size
+            ByteBuffer bufferB = ByteBuffer.allocateDirect(buffSize); //cluster size
             while (bufferB.hasRemaining())
                 bufferB.put((byte) 'B');
 
+            final Object writerAStart = new Object();
             final IOException problem[] = new IOException[]{null};
             Thread writerA = new Thread(new Runnable() {
                 @Override public void run() {
-                    bufferA.flip();
                     try (FATFileChannel longFile = file.getChannel(true, true)) {
-                        while (bufferA.hasRemaining())
-                            longFile.write(bufferA);
+                        synchronized (writerAStart) {
+                            writerAStart.notify();
+                        }
+                        for(int i = 0; i < 3; ++i) {
+                            bufferA.flip();
+                            while (bufferA.hasRemaining()) {
+                                FATLock lock = file.getLock(true);
+                                try {
+                                    longFile.write(bufferA);
+                                } finally {
+                                    lock.unlock();
+                                }
+                            }
+                        }
                     } catch (IOException e) {
                         problem[0] = e;
                     }
@@ -126,11 +137,25 @@ public class FATFileSystemRW extends FATBaseTest {
             });
 
             writerA.start();
+            synchronized (writerAStart) {
+                try {
+                    writerAStart.wait();
+                } catch (InterruptedException e) {
+                    //ok
+                }
+            }
+
             for(int i = 0; i < 3; ++i) {
                 try (FATFileChannel longFile = file.getChannel(true, true)) {
                     bufferB.flip();
-                    while (bufferB.hasRemaining())
-                        longFile.write(bufferB);
+                    while (bufferB.hasRemaining()) {
+                        FATLock lock = file.getLock(true);
+                        try {
+                            longFile.write(bufferB);
+                        } finally {
+                            lock.unlock();
+                        }
+                    }
                 }
             }
 
@@ -145,8 +170,9 @@ public class FATFileSystemRW extends FATBaseTest {
                 try (FATFileChannel longFile = file.getChannel(false, true)) {
                     boolean eof = false;
                     long countB = 0;
+                    long countA = 0;
                     while (!eof) {
-                        bufferB.position(0);
+                        bufferB.clear();
                         while (bufferB.hasRemaining()) {
                             if (longFile.read(bufferB) < 0) {
                                 eof = true;
@@ -155,11 +181,14 @@ public class FATFileSystemRW extends FATBaseTest {
                         }
                         bufferB.flip();
                         while (bufferB.hasRemaining()) {
-                            if ('B' == bufferB.get())
+                            char c = (char) bufferB.get();
+                            if ('B' == c)
                                 ++countB;
+                            else if ('A' == c)
+                                ++countA;
                         }
                     }
-                    if (countB != 4096*3)
+                    if (countB != buffSize*3 || countA != buffSize*3)
                         throw new Error("Lost write problem.");
                 }
             } catch (InterruptedException e) {
@@ -167,7 +196,7 @@ public class FATFileSystemRW extends FATBaseTest {
             }
         }
 
-        tearDown(path);
+//        tearDown(path);
     }
     @Test
     public void testLostWrite() throws IOException {

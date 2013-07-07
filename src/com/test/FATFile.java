@@ -50,6 +50,7 @@ public class FATFile {
     private long timeModify;
     private final char[] name = new char[FILE_MAX_NAME];
     private boolean initialized;
+    private int  moveLockCounter = 0;
 
     //PERFORMANCE HINT: bad
     //hard link to parent
@@ -178,7 +179,7 @@ public class FATFile {
     }
 
     /**
-     * Moves file to new location.
+     * Moves file to new location if can.
      *
      * @param newParent new owner of the file
      * @throws IOException
@@ -189,53 +190,70 @@ public class FATFile {
             if (isRoot())
                 throw new IOException("Cannot move the root.");
 
-            FATFolder oldParent = getParent();            
-            if (newParent.ts_getFolderId() == oldParent.ts_getFolderId())
-                return;
-
-
-            // we need to lock both storages and avoid deadlock
-            // Let's fix the order.
-            FATFile p1 = newParent.fatFile;
-            FATFile p2 = oldParent.fatFile;
-            if (p1.fileId < p2.fileId) {
-                FATFile temp = p1;
-                p1 = p2;
-                p2 = temp;
-            }
-
-            FATLock lock1 = p1.tryLockThrowInternal(true);
+            FATFolder oldParent = getParent();
+            FATLock lockOP = oldParent.asFile().tryLockThrowInternal(true);
             try {
-                FATLock lock2 = p2.tryLockThrowInternal(true);
+                FATLock lockNP = newParent.asFile().tryLockThrowInternal(true);
                 try {
-                    //Ok! now I go.
+                    if (moveLockCounter != 0)
+                        throw new IOException("Concurrent tree transform.");
 
-                    //PERFORMANCE HIT
-                    // Reserve storage first.
-                    // Yes, I do not support move on partition without space.
-                    // Else I need to take a storage lock. That is dramatically
-                    // reduce parallel operations.
-
-                    newParent.ts_wl_reserveRecord();
-
-                    // storage have a space for new record.
-                    // since now - no way back - maintenance mode only
-                    boolean success = false;
+                    int nestUp = 0;
+                    FATFile parent =  newParent.asFile();
                     try {
-                        newParent.ts_wl_ref(this);
-                        ts_setParent(newParent);
-                        //parentId = newParent.ts_getFolderId();
-                        oldParent.ts_deRef(this);
-                        success = true;
+                        //lock up chain from transform for [newParent]
+                        FATFile upParent = parent;
+                        while (upParent != null) {
+                            FATLock _lock = upParent.getLockInternal(true);
+                            try {
+                                if (upParent.ts_getFileId() == ts_getFileId())
+                                    throw new IOException("Cannot move to child or self.");
+                                ++upParent.moveLockCounter;
+                                ++nestUp;
+                                upParent = upParent.fatParent;
+                            } finally {
+                                _lock.unlock();
+                            }
+                        }
+                        //PERFORMANCE HIT
+                        // Reserve storage first.
+                        // Yes, I do not support move on partition without space.
+                        // Else I need to take a storage lock. That is dramatically
+                        // reduce parallel operations.
+                        newParent.ts_wl_reserveRecord();
+
+                        // storage have a space for new record.
+                        // since now - no way back - maintenance mode only
+                        boolean success = false;
+                        try {
+                            newParent.ts_wl_ref(this);
+                            ts_setParent(newParent);
+                            //parentId = newParent.ts_getFolderId();
+                            oldParent.ts_deRef(this);
+                            success = true;
+                        } finally {
+                            if (!success)
+                                fs.ts_setDirtyState("Cannot rollback movement of the file. ", false);
+                        }
                     } finally {
-                        if (!success)
-                            fs.ts_setDirtyState("Cannot rollback movement of the file. ", false);
+                        //unlock chain from transform for [newParent]
+                        FATFile upParent = parent;
+                        while (upParent != null && nestUp > 0) {
+                            FATLock _lock = upParent.getLockInternal(true);
+                            try {
+                                --upParent.moveLockCounter;
+                                --nestUp;
+                                upParent = upParent.fatParent;
+                            } finally {
+                                _lock.unlock();
+                            }
+                        }
                     }
                 } finally {
-                    lock2.unlock();
+                    lockNP.unlock();
                 }
             } finally {
-                lock1.unlock();
+                lockOP.unlock();
             }
         } finally {
              lock.unlock();

@@ -89,4 +89,108 @@ public class FATFileSystemStress extends FATBaseTest {
             logOk();
         }
     }
+
+    //
+    //  Test of cross child move.
+    //
+    static public void testStressCrossChildMove(Path path, int clusterSize, int clusterCount,
+                                          int allocatorType) throws IOException {
+        startUp(path);
+
+        String dump1;
+        try (final FATFileSystem ffs = FATFileSystem.create(path, clusterSize, clusterCount, allocatorType)) {
+            final FATFolder root1 = ffs.getRoot();
+            ExecutorService executor = Executors.newFixedThreadPool(100);
+            for (int i = 0; i < 100; i++) {
+                final int[] ii = new int[] { i };
+                Runnable worker = new Runnable() {
+                    @Override public void run() {
+                        try {
+                            //1->1_1->1_1_1
+                            final FATFolder f1 = root1.createFolder("" + ii[0] + "1");
+                            final FATFolder f1_1 = f1.createFolder("1_1");
+                            final FATFolder f1_1_1 = f1_1.createFolder("1_1_1");
+                            final FATFolder f2 = root1.createFolder("" + ii[0] + "2");
+
+                            final Object start = new Object();
+                            final IOException problem[] = new IOException[]{null};
+                            Thread mover = new Thread(new Runnable() {
+                                @Override public void run() {
+                                    try {
+                                        synchronized (start) {
+                                            start.notify();
+                                        }
+                                        try {
+                                            Thread.sleep(10);
+                                        } catch (InterruptedException e) {
+                                            //ok
+                                        }
+                                        f2.asFile().moveTo(f1_1_1);
+                                    } catch (IOException e) {
+                                        problem[0] = e;
+                                    }
+                                }
+                            });
+
+                            mover.start();
+                            synchronized (start) {
+                                try {
+                                    start.wait();
+                                } catch (InterruptedException e) {
+                                    //ok
+                                }
+                            }
+
+                            IOException test = null;
+                            try {
+                                f1.asFile().moveTo(f2);
+                            } catch (IOException e) {
+                                test = e;
+                            }
+
+                            try {
+                                mover.join();
+                            } catch (InterruptedException e) {
+                                //ok
+                            }
+                        } catch (Throwable e) {
+                            e.printStackTrace();
+                        }
+                    }
+                };//Runnable
+                executor.execute(worker);
+            }
+
+            try {
+                Thread.sleep(1000);
+                log(root1.getView());
+                ffs.waitForShutdown();
+            } catch (InterruptedException ex) {
+                //ok
+            }
+            executor.shutdown();
+            while (!executor.isTerminated()) {
+                try {
+                    Thread.sleep(10);
+                } catch (InterruptedException ex) {
+                    //ok
+                }
+            }
+        }
+
+        //checkDirty()
+        FATFileSystem.open(path).close();
+        tearDown(path);
+    }
+    @Test
+    public void testStressCrossChildMove() throws IOException {
+        int clusterSize = FATFile.RECORD_SIZE; //fixed!
+        int clusterCount = 4000; //fixed!
+        int allocatorType = allocatorTypes[0];
+
+        logStart(getPath(), clusterSize, clusterCount, allocatorType);
+        testStressCrossChildMove(getPath(), clusterSize, clusterCount, allocatorType);
+        logOk();
+    }
+
 }

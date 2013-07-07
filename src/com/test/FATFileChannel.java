@@ -84,7 +84,7 @@ public class FATFileChannel implements Closeable {
                 long oldLength = fatFile.length(); //rollback info
                 boolean success = false;
                 if (finalPos > fatFile.length())
-                    fatFile.setLength(finalPos);
+                    fatFile.setLengthInternal(finalPos);
                 else
                     success = true; //no rollback
                 try {
@@ -97,7 +97,7 @@ public class FATFileChannel implements Closeable {
                 } finally {
                     if (!success) {
                         // rollback
-                        fatFile.setLength(finalPos);
+                        fatFile.setLengthInternal(finalPos);
                     }
                 }
             } finally {
@@ -181,7 +181,7 @@ public class FATFileChannel implements Closeable {
     public FATFileChannel truncate(long size) throws IOException {
         synchronized (fatFile) {
             if (size < size()) {
-                fatFile.setLength(size);
+                fatFile.setLengthInternal(size);
                 position = Math.max(position, size);
             }
         }

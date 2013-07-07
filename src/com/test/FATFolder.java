@@ -21,6 +21,9 @@ import java.util.HashMap;
  * [rl_] prefix means "read-lock" - mandatory external read lock
  *
  * All public functions have to be [transact-safe] by default.
+ *
+ * The most locks over the folder operation are syncronouse.
+ * Any folder opertaion is limited in time.
  */
 
 public class FATFolder {
@@ -53,7 +56,7 @@ public class FATFolder {
      * @throws IOException
      */
     private FATFile createFile(String fileName, int fileType) throws IOException {
-        FATLock lock = fatFile.getLock(true);
+        FATLock lock = fatFile.getLockInternal(true);
         try {
             if (findFile(fileName) != null)
                 throw new FileAlreadyExistsException(fileName);
@@ -85,7 +88,7 @@ public class FATFolder {
     }
 
     public FATFile[] listFiles() throws IOException {
-        FATLock lock = fatFile.getLock(false);
+        FATLock lock = fatFile.getLockInternal(false);
         try {
             // PERFORMANCE HINT POINT
             // make it better!
@@ -133,7 +136,7 @@ public class FATFolder {
     }
 
     /**
-     * Deletes all children, terminates on the first locked file or folder
+     * Deletes all children, terminates on the first locked file
      *
      * Deletes all child files and folders.
      * To delete a folder the {@link #cascadeDelete()} function is called.
@@ -142,9 +145,7 @@ public class FATFolder {
      * @throws FATFileLockedException
      */
     public void deleteChildren() throws IOException {
-        FATLock lock = fatFile.tryLock(true);
-        if (lock == null)
-            throw new FATFileLockedException(fatFile, true);
+        FATLock lock = fatFile.tryLockThrowInternal(true);
         try {
             try {
                 packForbidden = true;
@@ -167,7 +168,7 @@ public class FATFolder {
     }
 
     /**
-     * Cascade folder delete, terminates on the first locked file or folder
+     * Cascade folder delete, terminates on the first locked file
      *
      * Delete process stops on the first error. No rollback.
      * Can be called for [root]: that removes children and throw
@@ -177,9 +178,7 @@ public class FATFolder {
      * @throws FATFileLockedException
      */
     public void cascadeDelete() throws IOException {
-        FATLock lock = fatFile.tryLock(true);
-        if (lock == null)
-            throw new FATFileLockedException(fatFile, true);
+        FATLock lock = fatFile.tryLockThrowInternal(true);
         try {
             deleteChildren();
             //PERFORMANCE HINT: make it better!
@@ -198,7 +197,7 @@ public class FATFolder {
      * @throws IOException
      */
     public int pack() throws IOException {
-        FATLock lock = fatFile.getLock(true);
+        FATLock lock = fatFile.getLockInternal(true);
         try {
             // PERFORMANCE HINT POINT
             // make it better!
@@ -241,7 +240,10 @@ public class FATFolder {
      * @throws IOException
      */
     public FATFile findFile(String fileName) throws IOException {
-        FATLock lock = fatFile.getLock(false);
+        if (fileName.length() > FATFile.FILE_MAX_NAME)
+            throw new IOException("Name is too long.");
+
+        FATLock lock = fatFile.getLockInternal(false);
         try {
             if (fileName == null)
                 return null;
@@ -262,7 +264,7 @@ public class FATFolder {
      * @throws IOException
      */
     public FATFile getChildFile(String fileName) throws IOException {
-        FATLock lock = fatFile.getLock(false);
+        FATLock lock = fatFile.getLockInternal(false);
         try {
             if (fileName == null)
                 throw new IllegalArgumentException();
@@ -277,7 +279,7 @@ public class FATFolder {
     }
 
     public String getView() throws IOException {
-        FATLock lock = fatFile.getLock(false);
+        FATLock lock = fatFile.getLockInternal(false);
         try {
             StringBuilder sb = new StringBuilder();
             if (fatFile.isRoot())
@@ -339,7 +341,7 @@ public class FATFolder {
      * @throws IOException
      */
     public FATFolder getChildFolder(String folderName) throws IOException {
-        FATLock lock = fatFile.getLock(false);
+        FATLock lock = fatFile.getLockInternal(false);
         try {
             FATFile file = getChildFile(folderName);
             if (file.isFolder())
@@ -467,7 +469,7 @@ public class FATFolder {
                     folderContent.write(bf);
                 }
                 //update size in parent
-                fatFile.setLength(folderContent.position());
+                fatFile.setLengthInternal(folderContent.position());
                 fatFile.updateLastModified();
                 success = true;
             }
@@ -508,7 +510,7 @@ public class FATFolder {
     }
 
     void ts_updateFileRecord(FATFile updateFile) throws IOException {
-        FATLock lock = fatFile.getLock(true);
+        FATLock lock = fatFile.getLockInternal(true);
         try {
             int index = childFiles.indexOf(updateFile.ts_getFileId());
             if (index == -1)
@@ -545,16 +547,36 @@ public class FATFolder {
         ts_wl_updateFileRecord(pos, addFile);
     }
 
-    void ts_wl_deRef(FATFile removeFile) throws IOException {
-        int offset = childFiles.indexOf(removeFile.ts_getFileId());
-        if (offset == -1)
-            throw new IOException("Cannot remove file from folder: Child not found.");
-        childNames.remove(removeFile.getName());
-        childFiles.set(offset, FATFile.INVALID_FILE_ID);
-        ++deletedCount;
-        ts_wl_updateFileRecord(offset, FATFile.DELETED_FILE);
-        ts_wl_optionalPack();
+    void ts_deRef(FATFile removeFile) throws IOException {
+        FATLock lock = fatFile.tryLockThrowInternal(true);
+        try {
+            int offset = childFiles.indexOf(removeFile.ts_getFileId());
+            if (offset == -1)
+                throw new IOException("Cannot remove file from folder: Child not found.");
+            childNames.remove(removeFile.getName());
+            childFiles.set(offset, FATFile.INVALID_FILE_ID);
+            ++deletedCount;
+            ts_wl_updateFileRecord(offset, FATFile.DELETED_FILE);
+            ts_wl_optionalPack();
+        } finally {
+            lock.unlock();
+        }
     }
+
+    public void ts_renameChild(FATFile renameFile, String newFileName) throws IOException {
+        FATLock lock = fatFile.tryLockThrowInternal(true);
+        try {
+            if (findFile(newFileName) != null)
+                throw new FileAlreadyExistsException(newFileName);
+            childNames.remove(renameFile.getName());
+            childNames.put(newFileName, renameFile.ts_getFileId());
+            renameFile.initName(newFileName);
+            ts_updateFileRecord(renameFile);
+        } finally {
+            lock.unlock();
+        }
+    }
+
 
     private void ts_wl_optionalPack() throws IOException {
         //SIZE HINT POINT
@@ -571,7 +593,10 @@ public class FATFolder {
         return fatFile.fs;
     }
 
-    
+    public FATFile asFile() {
+        return fatFile;
+    }
+
     private static class SelfDisposer implements FATDisposerRecord {
         private final FATFileSystem fs;        
         private final int folderId;

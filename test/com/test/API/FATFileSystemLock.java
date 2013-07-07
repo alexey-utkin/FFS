@@ -8,7 +8,6 @@ import com.test.*;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Path;
 
 public class FATFileSystemLock extends FATBaseTest {

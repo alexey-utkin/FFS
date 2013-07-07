@@ -232,4 +232,57 @@ public class FATFileSystemTree extends FATBaseTest {
             logOk();
         }
     }
+
+
+    //
+    // Test of Rename.
+    //
+    static public void testRename(Path path, int clusterSize, int clusterCount,
+                                         int allocatorType) throws IOException {
+        startUp(path);
+        try (FATFileSystem ffs  = FATFileSystem.create(path, clusterSize, clusterCount, allocatorType)) {
+            FATFolder root = ffs.getRoot();
+            try {
+                root.asFile().rename("newRoot");
+                throw new Error("Root renamed.");
+            } catch (IOException ex) {
+                //ok
+            }
+
+            root.createFile("test1");
+            root.createFile("test2");
+            try {
+                root.createFile("test1");
+                throw new Error("Second instance.");
+            } catch (IOException ex) {
+                //ok
+            }
+            root.getChildFile("test1").rename("test1_new");
+            root.createFile("test1");//ok
+            root.getChildFile("test1_new").delete();
+
+            try {
+                root.getChildFile("test1").rename("test2");
+                throw new Error("Second instance.");
+            } catch (IOException ex) {
+                //ok
+            }
+            root.getChildFile("test2").rename("test2_new");
+
+            log(root.getView());
+        }
+        tearDown(path);
+    }
+    @Test
+    public void testRename() throws IOException {
+        int clusterSize = FATFile.RECORD_SIZE; //fixed!
+        int clusterCount = 2000*3 + 1; //fixed!
+        int allocatorType = allocatorTypes[0];
+
+        logStart(getPath(), clusterSize, clusterCount, allocatorType);
+        testRename(getPath(),
+                clusterSize, clusterCount, allocatorType);
+        logOk();
+    }
+
 }

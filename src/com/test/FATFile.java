@@ -51,13 +51,6 @@ public class FATFile {
     private final char[] name = new char[FILE_MAX_NAME];
     private boolean initialized;
 
-
-
-
-
-    // properties
-    // private int parentId = INVALID_FILE_ID;
-    
     //PERFORMANCE HINT: bad
     //hard link to parent
     private FATFile fatParent; 
@@ -82,7 +75,7 @@ public class FATFile {
 
 
     FATFileChannel getChannelInternal(boolean appendMode, boolean write) throws IOException {
-        FATLock lock = getLock(write);
+        FATLock lock = tryLockThrowInternal(write);
         try {
             return new FATFileChannel(this, appendMode);
         } finally {
@@ -90,11 +83,38 @@ public class FATFile {
         }
     }
 
+    /**
+     * Opens file channel for file contexet access.
+     * @param appendMode if [true] the [write] call always add the buffer to the file tail
+     * @param write if [true] the "write" access to file are reserved
+     * @return the channel for context read/write operations.
+     * @throws IOException
+     * @throws FATFileLockedException
+     */
     public FATFileChannel getChannel(boolean appendMode, boolean write) throws IOException {
         if (isFolder())
             throw new IOException("That is a folder.");
         return getChannelInternal(appendMode, write);
     }
+
+    /**
+     * Rename the file, if can
+     *
+     * @throws IOException
+     * @throws FATFileLockedException
+     */
+    public void rename(String newName) throws IOException {
+        FATLock lock = tryLockThrowInternal(true);
+        try {
+            if (isRoot())
+                throw new IOException("Cannot rename root.");
+            getParent().ts_renameChild(this, newName);
+            //commit
+        } finally {
+            lock.unlock();
+        }
+    }
+
     /**
      * Deletes the file, if it is not locked
      *
@@ -102,15 +122,13 @@ public class FATFile {
      * @throws FATFileLockedException
      */
     public void delete() throws IOException {
-        FATLock lock = tryLock(true);
-        if (lock == null)
-            throw new FATFileLockedException(this, true);
+        FATLock lock = tryLockThrowInternal(true);
         try {
             if (isFolder() && !isEmpty())
                 throw new DirectoryNotEmptyException(getName());
             if (isRoot())
                 throw new IOException("Cannot delete root.");
-            getParent().ts_wl_deRef(this);
+            getParent().ts_deRef(this);
             fs.ts_dropDirtyFile(this);
             //commit
         } finally {
@@ -123,7 +141,7 @@ public class FATFile {
     }
 
     public FATFolder getParent() throws IOException {
-        FATLock lock = getLock(false);
+        FATLock lock = tryLockThrowInternal(false);
         try {
             return isRoot()
                 ? null
@@ -135,7 +153,7 @@ public class FATFile {
     }
 
     public void force(boolean updateMetadata) throws IOException {
-        FATLock lock = getLock(true);
+        FATLock lock = tryLockThrowInternal(true);
         try {
             if (updateMetadata)
                 updateLastModified();
@@ -147,7 +165,7 @@ public class FATFile {
     }
 
     public FATFolder getFolder() throws IOException {
-        FATLock lock = getLock(false);
+        FATLock lock = tryLockThrowInternal(false);
         try {
             if (!isFolder())
                 return null;
@@ -171,7 +189,7 @@ public class FATFile {
      * @throws IOException
      */
     public void moveTo(FATFolder newParent) throws IOException {
-        FATLock lock = getLock(true);
+        FATLock lock = tryLockThrowInternal(true);
         try {
             if (isRoot())
                 throw new IOException("Cannot move the root.");
@@ -191,9 +209,9 @@ public class FATFile {
                 p2 = temp;
             }
 
-            FATLock lock1 = p1.getLock(true);
+            FATLock lock1 = p1.tryLockThrowInternal(true);
             try {
-                FATLock lock2 = p2.getLock(true);
+                FATLock lock2 = p2.tryLockThrowInternal(true);
                 try {
                     //Ok! now I go.
 
@@ -212,7 +230,7 @@ public class FATFile {
                         newParent.ts_wl_ref(this);
                         ts_setParent(newParent);
                         //parentId = newParent.ts_getFolderId();
-                        oldParent.ts_wl_deRef(this);
+                        oldParent.ts_deRef(this);
                         success = true;
                     } finally {
                         if (!success)
@@ -238,7 +256,7 @@ public class FATFile {
     }
 
     public String getName() throws IOException {
-        FATLock lock = getLock(false);
+        FATLock lock = tryLockThrowInternal(false);
         try {
             return unlockedGetName(name);
         } finally {
@@ -257,7 +275,7 @@ public class FATFile {
      * @return the file length
      */
     public long length() throws IOException {
-        FATLock lock = getLock(false);
+        FATLock lock = tryLockThrowInternal(false);
         try {
             return size;
         } finally {
@@ -265,6 +283,19 @@ public class FATFile {
         }
     }
 
+    void setLengthInternal(long newLength) throws IOException {
+        FATLock lock = tryLockThrowInternal(true);
+        try {
+            if (newLength == size)
+                return;
+            fs.setFileLength(this, newLength, size);
+            size = newLength;
+            // commit
+            ts_wl_updateAttributes(); //no rollback - [dirty]
+        } finally {
+            lock.unlock();
+        }
+    }
     /**
      * Sets the length of this file.
      *
@@ -278,18 +309,11 @@ public class FATFile {
      * @param newLength The desired length of the file
      */
     public void setLength(long newLength) throws IOException {
-        FATLock lock = getLock(true);
-        try {
-            if (newLength == size)
-                return;
-            fs.setFileLength(this, newLength, size);
-            size = newLength;
-            // commit
-            ts_wl_updateAttributes(); //no rollback - [dirty]
-        } finally {
-            lock.unlock();
-        }
+        if (isFolder())
+            throw new IOException("That is a folder.");
+        setLengthInternal(newLength);
     }
+
 
     /**
      * Tests whether the file denoted by this is a directory.
@@ -323,7 +347,7 @@ public class FATFile {
      * @return the file access state.
      */
     public int access() throws IOException {
-        FATLock lock = getLock(false);
+        FATLock lock = tryLockThrowInternal(false);
         try {
             return access;
         } finally {
@@ -337,7 +361,7 @@ public class FATFile {
      * @param access the file access state.
      */
     public void setAccess(int access) throws IOException {
-        FATLock lock = getLock(true);
+        FATLock lock = tryLockThrowInternal(true);
         try {
             if (this.access == access)
                 return;
@@ -355,7 +379,7 @@ public class FATFile {
      * @return the file creation time in milliseconds.
      */
     public long timeCreate() throws IOException {
-        FATLock lock = getLock(false);
+        FATLock lock = tryLockThrowInternal(false);
         try {
             return timeCreate;
         } finally {
@@ -369,7 +393,7 @@ public class FATFile {
      * @param timeCreate the file creation time in milliseconds.
      */
     public void setTimeCreate(long timeCreate) throws IOException {
-        FATLock lock = getLock(true);
+        FATLock lock = tryLockThrowInternal(true);
         try {
             if (this.timeCreate == timeCreate)
                 return;
@@ -388,7 +412,7 @@ public class FATFile {
      * @return the file modification time in milliseconds.
      */
     public long lastModified() throws IOException {
-        FATLock lock = getLock(false);
+        FATLock lock = tryLockThrowInternal(false);
         try {
             return timeModify;
         } finally {
@@ -407,7 +431,7 @@ public class FATFile {
      * @param timeModify the file modification time in milliseconds.
      */
     public void setLastModified(long timeModify) throws IOException {
-        FATLock lock = getLock(true);
+        FATLock lock = tryLockThrowInternal(true);
         try {
             if (this.timeModify == timeModify)
                 return;
@@ -525,7 +549,7 @@ public class FATFile {
         }
     }
 
-    private void initName(String fileName) {
+    void initName(String fileName) {
         int len = fileName.length();
         if (len > FILE_MAX_NAME)
             throw new IllegalArgumentException("Name is too long. Max length is " + FILE_MAX_NAME);
@@ -606,6 +630,14 @@ public class FATFile {
         return ret;
     }
 
+    FATLock getLockInternal(boolean write) throws IOException {
+        fs.begin(write);
+        Lock lock = write
+                ? lockRW.writeLock()
+                : lockRW.readLock();
+        lock.lock();
+        return getFATLockAndCheck(fs, lock);
+    }
     /**
      * Locks the file.
      *
@@ -616,14 +648,21 @@ public class FATFile {
      * @throws IOException
      */
     public FATLock getLock(boolean write) throws IOException {
-        fs.begin(write);
+        if (isFolder())
+            throw new IOException("That is a folder.");
+        return getLockInternal(write);
+    }
+
+    FATLock tryLockInternal(boolean write) throws IOException {
         Lock lock = write
                 ? lockRW.writeLock()
                 : lockRW.readLock();
-        lock.lock();
+        if (!lock.tryLock()) {
+            return null;
+        }
+        fs.begin(write);
         return getFATLockAndCheck(fs, lock);
     }
-
     /**
      * Locks the file if possible
      *
@@ -633,16 +672,34 @@ public class FATFile {
      * @return the FAT lock with enclosed transaction or [null].
      * @throws IOException
      */
-    public FATLock tryLock(boolean write) throws IOException {
-        fs.begin(write);
+    FATLock tryLock(boolean write) throws IOException {
+        if (isFolder())
+            throw new IOException("That is a folder.");
+        return tryLock(write);
+    }
+
+    FATLock tryLockThrowInternal(boolean write) throws IOException {
         Lock lock = write
                 ? lockRW.writeLock()
                 : lockRW.readLock();
         if (!lock.tryLock()) {
-            fs.end();
-            return null;
+            throw new FATFileLockedException(this, write);
         }
+        fs.begin(write);
         return getFATLockAndCheck(fs, lock);
     }
-
+    /**
+     * Locks the file if possible, throws [FATFileLockedException] if cannot.
+     *
+     * Returns the lock that need to unlocked, or throws [FATFileLockedException].
+     *
+     * @param write  [true] - locks file for write, [false] - for read operations
+     * @return the FAT lock with enclosed transaction.
+     * @throws IOException
+     */
+    public FATLock tryLockThrow(boolean write) throws IOException {
+        if (isFolder())
+            throw new IOException("That is a folder.");
+        return tryLockThrowInternal(write);
+    }
 }

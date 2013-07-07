@@ -153,6 +153,19 @@ public class FATFileSystemStress extends FATBaseTest {
                             } catch (InterruptedException e) {
                                 //ok
                             }
+
+                            if (problem[0] != null && test != null) {
+                                logLN("Double rollback - ok");
+                            } else  if (problem[0] != null) {
+                                logLN("Rollback 1");
+                                f2.getChildFolder("" + ii[0] + "1");
+                            } else if (test != null) {
+                                logLN("Rollback 2");
+                                f1_1_1.getChildFolder("" + ii[0] + "2");
+                            } else {
+                                throw new IOException("Lost subtree");
+                            }
+
                         } catch (Throwable e) {
                             e.printStackTrace();
                         }

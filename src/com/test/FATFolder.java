@@ -484,11 +484,13 @@ public class FATFolder {
     /**
      * Updates the [index] element in folder storage.
      *
+     *
      * @param index
      * @param updateFile
+     * @param dirtyOnFail
      * @throws IOException
      */
-    private void ts_wl_updateFileRecord(int index, FATFile updateFile) throws IOException {
+    private void ts_wl_updateFileRecord(int index, FATFile updateFile, boolean dirtyOnFail) throws IOException {
         boolean success = false;
         try (FATFileChannel folderContent = fatFile.getChannelInternal(false, true)) {
             int wasWritten = folderContent
@@ -507,7 +509,7 @@ public class FATFolder {
             success = true;
         } finally {
             //can fail on empty record reservation.
-            if (!success && updateFile.getType()!=FATFile.TYPE_DELETED) {
+            if (!success && dirtyOnFail) {
                 //primitive rollback - cannot restore (not [ts_] function call in action).
                 ts_fs().ts_setDirtyState("Cannot write folder record", false);
             }
@@ -520,7 +522,7 @@ public class FATFolder {
             int index = childFiles.indexOf(updateFile.ts_getFileId());
             if (index == -1)
                 throw new IOException("Cannot update file attributes: Child not found.");
-            ts_wl_updateFileRecord(index, updateFile);
+            ts_wl_updateFileRecord(index, updateFile, true);
         } finally {
             lock.unlock();
         }
@@ -530,7 +532,7 @@ public class FATFolder {
         int pos = childFiles.indexOf(FATFile.INVALID_FILE_ID);
         if (pos < 0) {
             childFiles.add(FATFile.INVALID_FILE_ID);
-            ts_wl_updateFileRecord(childFiles.size() - 1, FATFile.DELETED_FILE);
+            ts_wl_updateFileRecord(childFiles.size() - 1, FATFile.DELETED_FILE, false);
             ++deletedCount;
         }
     }
@@ -549,7 +551,7 @@ public class FATFolder {
             pos = childFiles.size() - 1;
         }
         childNames.put(addFile.getName(), fileId);
-        ts_wl_updateFileRecord(pos, addFile);
+        ts_wl_updateFileRecord(pos, addFile, true);
     }
 
     void ts_deRef(FATFile removeFile) throws IOException {
@@ -561,7 +563,7 @@ public class FATFolder {
             childNames.remove(removeFile.getName());
             childFiles.set(offset, FATFile.INVALID_FILE_ID);
             ++deletedCount;
-            ts_wl_updateFileRecord(offset, FATFile.DELETED_FILE);
+            ts_wl_updateFileRecord(offset, FATFile.DELETED_FILE, true);
             ts_wl_optionalPack();
         } finally {
             lock.unlock();

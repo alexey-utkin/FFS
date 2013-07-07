@@ -291,5 +291,45 @@ public class FATFileSystemTest  extends FATBaseTest {
             logOk();
         }
     }
+
+    //
+    // Test of forward space reservation in folder store.
+    //
+    static public void testCreateNoSize(Path path, int clusterSize, int clusterCount,
+                                                    int allocatorType) throws IOException {
+        startUp(path);
+        try (FATFileSystem ffs  = FATFileSystem.create(path, clusterSize, clusterCount, allocatorType)) {
+            FATFolder root = ffs.getRoot();
+            long freeSpace = ffs.getFreeSize();
+            root.createFolder("Test1");
+            //ok
+            try {
+                root.createFolder("Test2");
+                throw new Error("Impossible allocation.");
+            } catch (IOException ex) {
+                //ok, but should not be dirty!
+            }
+            //check for dirty
+            root.deleteChildren();
+            root.pack();
+            if (freeSpace != ffs.getFreeSize())
+                throw new Error("Lost allocation.");
+
+            //not root
+        }
+        tearDown(path);
+    }
+    @Test
+    public void testCreateNoSize() throws IOException {
+        int clusterSize = FATFile.RECORD_SIZE;
+        int clusterCount = 2;
+        for (int allocatorType : allocatorTypes) {
+            logStart(getPath(), clusterSize, clusterCount, allocatorType);
+            testCreateNoSize(getPath(),
+                    clusterSize, clusterCount, allocatorType);
+            logOk();
+        }
+    }
+
 }
 

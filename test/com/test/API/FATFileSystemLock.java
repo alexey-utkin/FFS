@@ -180,16 +180,17 @@ public class FATFileSystemLock extends FATBaseTest {
                 //ok
             }
 
-            if (problem[0] != null) {
-                if (test != null)
-                    throw new IOException("Double rollback 1");
+            if (problem[0] != null && test != null) {
+                logLN("Double rollback - ok");
+            } else  if (problem[0] != null) {
+                logLN("Rollback 1");
                 f2.getChildFolder("1_1");
             } else if (test != null) {
-                if (problem[0] != null)
-                    throw new IOException("Double rollback 2");
+                logLN("Rollback 2");
                 f1_1.getChildFolder("2");
+            } else {
+                throw new IOException("Lost subtree");
             }
-
             log(root1.getView());
         }
         tearDown(path);

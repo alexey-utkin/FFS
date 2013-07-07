@@ -191,9 +191,19 @@ public class FATFile {
                 throw new IOException("Cannot move the root.");
 
             FATFolder oldParent = getParent();
-            FATLock lockOP = oldParent.asFile().tryLockThrowInternal(true);
+
+            //avoid deadlock on mundatory lock.
+            FATFile f1 = oldParent.asFile();
+            FATFile f2 = newParent.asFile();
+            if (f1.ts_getFileId() < f2.ts_getFileId()) {
+                FATFile temp = f1;
+                f1 = f2;
+                f2 = temp;
+            }
+
+            FATLock lockOP = f1.getLockInternal(true);
             try {
-                FATLock lockNP = newParent.asFile().tryLockThrowInternal(true);
+                FATLock lockNP = f2.getLockInternal(true);
                 try {
                     if (moveLockCounter != 0)
                         throw new IOException("Concurrent tree transform.");

@@ -77,7 +77,7 @@ public class FATFolder {
         }
     }
 
-    public FATFolder createFolder(String folderName) throws IOException {
+    public FATFolder decreateFolder(String folderName) throws IOException {
         return createFile(folderName, FATFile.TYPE_FOLDER).getFolder();
     }
 
@@ -145,13 +145,8 @@ public class FATFolder {
      * @throws FATFileLockedException
      */
     public void deleteChildren() throws IOException {
-        //check locked
-        synchronized (this) {
-            //only one move or delete at once
-            if (fatFile.isDeleting() || fatFile.isMoving())
-                throw new FATFileLockedException(fatFile, true);
-            fatFile.markDeleting();
-        }
+        //only one move or delete at once
+        fatFile.freeze();
         try {
             while (true) {
                 FATLock lock = fatFile.getLockInternal(true);
@@ -172,7 +167,7 @@ public class FATFolder {
                     firstValid.delete();
             }
         } finally {
-            fatFile.unmarkDeleting();
+            fatFile.unfreeze();
         }
     }
 
@@ -304,12 +299,8 @@ public class FATFolder {
             sb.append("\" lastModified=\"");
             sb.append(fatFile.lastModified());
             synchronized (this) {
-                if (fatFile.isDeleting()) {
-                    sb.append("\" DELETING=\"");
-                    sb.append(true);
-                }
-                if (fatFile.isMoving()) {
-                    sb.append("\" MOVING=\"");
+                if (fatFile.isFrozen()) {
+                    sb.append("\" FROZEN=\"");
                     sb.append(true);
                 }
             }
@@ -611,7 +602,7 @@ public class FATFolder {
     private void ts_wl_optionalPack() throws IOException {
         //SIZE HINT POINT
         //compact folder
-        if (deletedCount > (childFiles.size() >> 1) && !fatFile.isDeleting())
+        if (deletedCount > (childFiles.size() >> 1) && !fatFile.isFrozen())
             pack();
     }
 

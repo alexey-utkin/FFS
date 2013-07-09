@@ -142,7 +142,7 @@ public class FATFileSystemTree extends FATBaseTest {
             //2
 
             dump = root1.getView();
-            if (dump.contains("MOVING") || dump.contains("DELETING"))
+            if (dump.contains("FROZEN"))
                 throw new Error("Bad state.");
         }
 
@@ -213,7 +213,7 @@ public class FATFileSystemTree extends FATBaseTest {
                     .cascadeDelete();
 
             dump = root1.getView();
-            if (dump.contains("MOVING") || dump.contains("DELETING"))
+            if (dump.contains("FROZEN"))
                 throw new Error("Bad state.");
         }
 

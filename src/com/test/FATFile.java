@@ -49,8 +49,7 @@ public class FATFile {
     private long timeModify;
     private final char[] name = new char[FILE_MAX_NAME];
     private boolean initialized;
-    private int  moveLockCounter = 0;
-    private int  deleteLockCounter = 0;
+    private boolean isFrozen = false;
 
     //PERFORMANCE HINT: bad
     //hard link to parent
@@ -194,34 +193,30 @@ public class FATFile {
             throw new IllegalArgumentException("Bad new parent");
         if (isRoot())
             throw new IOException("Cannot move the root.");
-        final FATFile newParentFile = newParent.asFile();
 
-        synchronized (this) {
-           //only one move or delete at once
-           if (isMoving() || isDeleting())
-               throw new FATFileLockedException(this, true);
-           markMoving();
-        }
+        //only one move or delete at once
+        freeze();
         try {
             final FATFile oldParentFile = fatParent;
             //cannot run away from deleting folder
-            oldParentFile.markMovingIfNotDeleting();
+            oldParentFile.freeze();
             try {
                 int nestUp = 0;
+                final FATFile newParentFile = newParent.asFile();
                 try {
                     //lock chain from move for [newParent]
                     FATFile newUpParentFile = newParentFile;
                     while (newUpParentFile != null) {
+                        if (!newUpParentFile.tryToFreeze()) {
+                            if (newParentFile.fileId == oldParentFile.fileId)
+                                return;//nothing to do
+                            if (newUpParentFile.fileId == fileId)
+                                throw new IOException("Cannot move to child or self.");
+                            throw new FATFileLockedException(newUpParentFile,true);
+                        }
                         ++nestUp;
-                        newUpParentFile.markMoving();
-                        if (newUpParentFile.fileId == fileId)
-                            throw new IOException("Cannot move to child or self.");
                         newUpParentFile = newUpParentFile.fatParent;
                     }
-
-                    //HINT POINT: hot check
-                    if (newParentFile.fileId == oldParentFile.fileId)
-                        return; //nothing to do
 
                     //up lock order
                     //newParentFile <?- oldParentFile <- this
@@ -262,36 +257,41 @@ public class FATFile {
                     //unlock chain from move for [newParent]
                     FATFile newUpParentFile = newParentFile;
                     while (newUpParentFile != null && nestUp > 0) {
-                        newUpParentFile.unmarkMoving();
+                        newUpParentFile.unfreeze();
                         --nestUp;
                         newUpParentFile = newUpParentFile.fatParent;
                     }
                 }
 
             } finally {
-                oldParentFile.unmarkMoving();
+                oldParentFile.unfreeze();
             }
         } finally {
-            unmarkMoving();
+            unfreeze();
         }
     }
 
-    private synchronized void markMovingIfNotDeleting() throws FATFileLockedException {
-        if (isDeleting())
+    synchronized boolean isFrozen() {
+        return isFrozen;
+    }
+
+    synchronized boolean tryToFreeze() {
+        if (isFrozen)
+            return false;
+        isFrozen = true;
+        return true;
+    }
+
+    synchronized void freeze() throws FATFileLockedException {
+        if (isFrozen)
             throw new FATFileLockedException(this, true);
-        markMoving();
+        isFrozen = true;
     }
 
-    synchronized boolean isMoving() {
-        return (moveLockCounter > 0);
-    }
-
-    private synchronized void markMoving() {
-        ++moveLockCounter;
-    }
-
-    private synchronized void unmarkMoving() {
-        --moveLockCounter;
+    synchronized void unfreeze() {
+        if (!isFrozen)
+            System.err.println("Bad State");
+        isFrozen = false;
     }
 
 
@@ -635,18 +635,6 @@ public class FATFile {
         this.access = access;
         initialized = true;
         fs.ts_updateRootFileRecord(this);
-    }
-
-    synchronized  boolean isDeleting() {
-        return (deleteLockCounter > 0);
-    }
-
-    synchronized  void markDeleting() {
-        ++deleteLockCounter;
-    }
-
-    synchronized  void unmarkDeleting() {
-        --deleteLockCounter;
     }
 
     private static class SelfDisposer implements FATDisposerRecord {

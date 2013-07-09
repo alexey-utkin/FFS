@@ -193,7 +193,7 @@ public class FATFileSystemLock extends FATBaseTest {
             }
 
             String dump = root1.getView();
-            if (dump.contains("MOVING") || dump.contains("DELETING"))
+            if (dump.contains("FROZEN"))
                 throw new Error("Bad state.");
             log(dump);
         }
@@ -223,11 +223,21 @@ public class FATFileSystemLock extends FATBaseTest {
         try (final FATFileSystem ffs = FATFileSystem.create(path, clusterSize, clusterCount, allocatorType)) {
             FATFolder root1 = ffs.getRoot();
 
-            //1->1_1->1_1_1
+            //1 <- 1_1 <- 1_1_1
             final FATFolder f1 = root1.createFolder("1");
             final FATFolder f1_1 = f1.createFolder("1_1");
             final FATFolder f1_1_1 = f1_1.createFolder("1_1_1");
+
+            //2 <- 2_1 <- 2_1_1
             final FATFolder f2 = root1.createFolder("2");
+            final FATFolder f2_1 = f2.createFolder("2_1");
+            final FATFolder f2_1_1 = f2_1.createFolder("2_1_1");
+
+            // Now the worst concurrent case:
+            // at the same time
+            //   2_1 -> 1_1_1
+            //   1 -> 2_1_1
+            // Both are good, but not at the same time
 
             final Object start = new Object();
             final IOException problem[] = new IOException[]{null};
@@ -242,7 +252,7 @@ public class FATFileSystemLock extends FATBaseTest {
                         } catch (InterruptedException e) {
                             //ok
                         }
-                        f2.asFile().moveTo(f1_1_1);
+                        f2_1.asFile().moveTo(f1_1_1);
                     } catch (IOException e) {
                         problem[0] = e;
                     }
@@ -260,7 +270,7 @@ public class FATFileSystemLock extends FATBaseTest {
 
             IOException test = null;
             try {
-                f1.asFile().moveTo(f2);
+                f1.asFile().moveTo(f2_1_1);
             } catch (IOException e) {
                 test = e;
             }
@@ -275,16 +285,16 @@ public class FATFileSystemLock extends FATBaseTest {
                 logLN("Double rollback - ok");
             } else  if (problem[0] != null) {
                 logLN("Rollback 1");
-                f2.getChildFolder("1");
+                f2_1_1.getChildFolder("1");
             } else if (test != null) {
                 logLN("Rollback 2");
-                f1_1_1.getChildFolder("2");
+                f1_1_1.getChildFolder("2_1");
             } else {
                 throw new IOException("Lost subtree");
             }
 
             String dump = root1.getView();
-            if (dump.contains("MOVING") || dump.contains("DELETING"))
+            if (dump.contains("FROZEN"))
                 throw new Error("Bad state.");
             log(dump);
         }

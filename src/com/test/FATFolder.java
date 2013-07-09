@@ -35,8 +35,6 @@ public class FATFolder {
     // SIZE HINT POINT
     // FS guaranty, that deleted record less then a half.
     private int deletedCount = 0;
-    // set this flag on folder delete
-    private boolean packForbidden = false;
 
     final FATFile fatFile;
 
@@ -141,29 +139,35 @@ public class FATFolder {
      * Deletes all child files and folders.
      * To delete a folder the {@link #cascadeDelete()} function is called.
      *
+     * NB! Only up-locks allowed in the system
+     *
      * @throws IOException
      * @throws FATFileLockedException
      */
     public void deleteChildren() throws IOException {
-        FATLock lock = fatFile.tryLockThrowInternal(true);
+        //check locked
+        fatFile.markDeleted();
         try {
-            try {
-                packForbidden = true;
-                for (Integer currentId : childFiles) {
-                    if (currentId != FATFile.INVALID_FILE_ID) {
-                        FATFile current = ts_rl_getFile(currentId);
-                        if (current.isFolder())
-                            current.getFolder().cascadeDelete();
-                        else
-                            current.delete();
+            while (true) {
+                FATLock lock = fatFile.getLockInternal(true);
+                FATFile firstValid = null;
+                try {
+                    for (int fileId : childFiles) if (fileId != FATFile.INVALID_FILE_ID) {
+                        firstValid = ts_rl_getFile(fileId);
+                        break;
                     }
+                    if (firstValid == null)
+                        break;
+                } finally {
+                    lock.unlock();
                 }
-            } finally {
-                packForbidden = false;
-                ts_wl_optionalPack();
+                if (firstValid.isFolder())
+                    firstValid.getFolder().cascadeDelete();
+                else
+                    firstValid.delete();
             }
         } finally {
-            lock.unlock();
+            fatFile.unmarkDeleted();
         }
     }
 
@@ -178,9 +182,10 @@ public class FATFolder {
      * @throws FATFileLockedException
      */
     public void cascadeDelete() throws IOException {
+        deleteChildren();
+
         FATLock lock = fatFile.tryLockThrowInternal(true);
         try {
-            deleteChildren();
             //PERFORMANCE HINT: make it better!
             pack(); //need: fatFile.delete() checks 0 size
             // commit
@@ -212,15 +217,15 @@ public class FATFolder {
 
             int endSize = _childFiles.size();
             if (startSize != endSize) {
-                childFiles = _childFiles;
-
                 ArrayList<FATFile> childFATFiles = new ArrayList<>();
                 for (Integer currentId : childFiles) {
-                    childFATFiles.add(ts_rl_getFile(currentId));
+                    if (currentId != FATFile.INVALID_FILE_ID) {
+                        childFATFiles.add(ts_rl_getFile(currentId));
+                    }
                 }
-                deletedCount = 0;
-
                 ts_wl_writeContent(childFATFiles);
+                childFiles = _childFiles;
+                deletedCount = 0;
                 //commit transaction
             }
             return startSize - endSize;
@@ -531,9 +536,18 @@ public class FATFolder {
     void ts_wl_reserveRecord() throws IOException {
         int pos = childFiles.indexOf(FATFile.INVALID_FILE_ID);
         if (pos < 0) {
-            childFiles.add(FATFile.INVALID_FILE_ID);
-            ts_wl_updateFileRecord(childFiles.size() - 1, FATFile.DELETED_FILE, false);
-            ++deletedCount;
+            //Need parent hard lock for resize
+            FATLock lock = fatFile.isRoot()
+                    ? ts_fs().getLockInternal(true)
+                    : fatFile.ts_rl_getParentAsFile().getLockInternal(true);
+            try {
+                childFiles.add(FATFile.INVALID_FILE_ID);
+                ts_wl_updateFileRecord(childFiles.size() - 1, FATFile.DELETED_FILE, false);
+                ++deletedCount;
+            } finally {
+                //no problem if fail (marks dirty internally for fatal error)
+                lock.unlock();
+            }
         }
     }
 
@@ -588,7 +602,7 @@ public class FATFolder {
     private void ts_wl_optionalPack() throws IOException {
         //SIZE HINT POINT
         //compact folder
-        if (deletedCount > (childFiles.size() >> 1) && !packForbidden)
+        if (deletedCount > (childFiles.size() >> 1) && !fatFile.isDeleted())
             pack();
     }
 

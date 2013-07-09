@@ -6,6 +6,8 @@ import java.lang.ref.WeakReference;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * The File System over the FAT System.
@@ -33,6 +35,18 @@ public class FATFileSystem implements Closeable {
     private long transactionCounter = 0L;
 
     private FATFile root;
+    //RW Lock
+    final ReentrantReadWriteLock fatRecordRW = new ReentrantReadWriteLock();
+
+    FATLock getLockInternal(boolean write) throws IOException {
+        begin(write);
+        Lock lock = write
+                ? fatRecordRW.writeLock()
+                : fatRecordRW.readLock();
+        lock.lock();
+        return new FATLock(this, lock);
+    }
+
 
     private FATFileSystem() {}
 
@@ -350,23 +364,21 @@ public class FATFileSystem implements Closeable {
 
 
     void ts_updateRootFileRecord(FATFile rootFile) throws IOException {
-        synchronized (this) {
-            boolean success = false;
-            try {
-                ByteBuffer store = rootFile
-                        .ts_serialize(
-                                ts_allocateBuffer(FATFile.RECORD_SIZE),
-                                getVersion());
-                store.flip();
-                fat.writeRootInfo(store);
-                // commit
-                success = true;
-            } finally {
-                if (!success) {
-                    //primitive rollback - cannot restore (not [ts_] function call in action).
-                    ts_setDirtyState("Cannot update root folder record", false);
-                }
-            }
+        FATLock lock = getLockInternal(true);
+        boolean success = false;
+        try {
+            ByteBuffer store = rootFile
+                    .ts_serialize(
+                            ts_allocateBuffer(FATFile.RECORD_SIZE),
+                            getVersion());
+            store.flip();
+            fat.writeRootInfo(store);
+            // commit
+            success = true;
+        } finally {
+            if (!success)
+                ts_setDirtyState("Cannot update root folder record", false);
+            lock.unlock();
         }
     }
 
@@ -422,7 +434,17 @@ public class FATFileSystem implements Closeable {
 
 
     public ByteBuffer getRootInfo() throws IOException {
-        return fat.getRootInfo();
+        FATLock lock = getLockInternal(false);
+        boolean success = false;
+        try {
+            ByteBuffer ret = fat.getRootInfo();
+            success = true;
+            return ret;
+        } finally {
+            if (!success)
+                ts_setDirtyState("Cannot read root folder record", false);
+            lock.unlock();
+        }
     }
 
 

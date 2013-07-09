@@ -51,6 +51,7 @@ public class FATFile {
     private final char[] name = new char[FILE_MAX_NAME];
     private boolean initialized;
     private int  moveLockCounter = 0;
+    private int  deleteLockCounter = 0;
 
     //PERFORMANCE HINT: bad
     //hard link to parent
@@ -134,6 +135,12 @@ public class FATFile {
 
     public boolean isEmpty() throws IOException {
         return length() == 0;
+    }
+
+    FATFile ts_rl_getParentAsFile() {
+        return isRoot()
+                ? null
+                : fatParent;
     }
 
     public FATFolder getParent() throws IOException {
@@ -616,6 +623,18 @@ public class FATFile {
         fs.ts_updateRootFileRecord(this);
     }
 
+    synchronized  boolean isDeleted() {
+        return deleteLockCounter == 0;
+    }
+
+    synchronized  void markDeleted() {
+        ++deleteLockCounter;
+    }
+
+    synchronized  void unmarkDeleted() {
+        --deleteLockCounter;
+    }
+
     private static class SelfDisposer implements FATDisposerRecord {
         private final FATFileSystem fs;        
         private final int fileId;
@@ -686,7 +705,7 @@ public class FATFile {
      * @return the FAT lock with enclosed transaction or [null].
      * @throws IOException
      */
-    FATLock tryLock(boolean write) throws IOException {
+    public FATLock tryLock(boolean write) throws IOException {
         if (isFolder())
             throw new IOException("That is a folder.");
         return tryLock(write);

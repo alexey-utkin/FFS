@@ -77,7 +77,7 @@ public class FATFolder {
         }
     }
 
-    public FATFolder decreateFolder(String folderName) throws IOException {
+    public FATFolder createFolder(String folderName) throws IOException {
         return createFile(folderName, FATFile.TYPE_FOLDER).getFolder();
     }
 

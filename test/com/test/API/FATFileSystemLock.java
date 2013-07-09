@@ -191,7 +191,11 @@ public class FATFileSystemLock extends FATBaseTest {
             } else {
                 throw new IOException("Lost subtree");
             }
-            log(root1.getView());
+
+            String dump = root1.getView();
+            if (dump.contains("MOVING") || dump.contains("DELETING"))
+                throw new Error("Bad state.");
+            log(dump);
         }
         tearDown(path);
     }
@@ -279,7 +283,10 @@ public class FATFileSystemLock extends FATBaseTest {
                 throw new IOException("Lost subtree");
             }
 
-            log(root1.getView());
+            String dump = root1.getView();
+            if (dump.contains("MOVING") || dump.contains("DELETING"))
+                throw new Error("Bad state.");
+            log(dump);
         }
         tearDown(path);
     }

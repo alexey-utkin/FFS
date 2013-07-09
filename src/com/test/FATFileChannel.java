@@ -11,9 +11,9 @@ import java.nio.ByteBuffer;
 
 public class FATFileChannel implements Closeable {
     //hash map on start cluster for exclusive access
-    final FATFile fatFile;
+    private final FATFile fatFile;
     private long position;
-    private boolean appendMode;
+    private final boolean appendMode;
 
     /**
      * Returns the channel to work with file content
@@ -23,7 +23,7 @@ public class FATFileChannel implements Closeable {
      *                   the end of file right before {@link #write(java.nio.ByteBuffer)}
      *                   operation. Look into testLostWrite test.
      */
-    public FATFileChannel(FATFile file, boolean appendMode) throws IOException {
+    public FATFileChannel(FATFile file, boolean appendMode) {
         fatFile = file;
         this.appendMode = appendMode;
         position = 0;
@@ -35,7 +35,9 @@ public class FATFileChannel implements Closeable {
      * <p> Bytes are read starting at this channel's current file position, and
      * then the file position is updated with the number of bytes actually
      * read.  Otherwise this method behaves exactly as specified in the {@link
-     * java.nio.channels.ReadableByteChannel} interface. 
+     * java.nio.channels.ReadableByteChannel} interface.
+     *
+     * @throws java.io.IOException If some other I/O error occurs
      */
     public int read(ByteBuffer dst) throws IOException {
         FATLock lock = fatFile.tryLockThrowInternal(false);
@@ -62,7 +64,9 @@ public class FATFileChannel implements Closeable {
      * to accommodate the written bytes, and then the file position is updated
      * with the number of bytes actually written.  Otherwise this method
      * behaves exactly as specified by the {@link java.nio.channels.WritableByteChannel}
-     * interface. 
+     * interface.
+     *
+     * @throws java.io.IOException If some other I/O error occurs
      */
     public int write(ByteBuffer src) throws IOException {
         long sizeToWrite = src.limit() - src.position();
@@ -77,7 +81,6 @@ public class FATFileChannel implements Closeable {
                 if (appendMode)
                     position = fatFile.length();
                 long finalPos = position + sizeToWrite;
-                long oldLength = fatFile.length(); //rollback info
                 boolean success = false;
                 if (finalPos > fatFile.length())
                     fatFile.setLengthInternal(finalPos);
@@ -110,11 +113,8 @@ public class FATFileChannel implements Closeable {
      * @return This channel's file position,
      *         a non-negative integer counting the number of bytes
      *         from the beginning of the file to the current position
-     * @throws java.nio.channels.ClosedChannelException
-     *                             If this channel is closed
-     * @throws java.io.IOException If some other I/O error occurs
      */
-    public long position() throws IOException {
+    public long position() {
         synchronized (this) { //protect the position
             return position;
         }
@@ -169,12 +169,7 @@ public class FATFileChannel implements Closeable {
      * 
      * @param size The new size, a non-negative byte count
      * @return This file channel
-     * @throws java.nio.channels.NonWritableChannelException
-     *                                  If this channel was not opened for writing
-     * @throws java.nio.channels.ClosedChannelException
-     *                                  If this channel is closed
-     * @throws IllegalArgumentException If the new size is negative
-     * @throws java.io.IOException      If some other I/O error occurs
+     * @throws java.io.IOException If some other I/O error occurs
      */
     public FATFileChannel truncate(long size) throws IOException {
         synchronized (this) {
@@ -219,8 +214,6 @@ public class FATFileChannel implements Closeable {
      *                 to both the file's content and metadata to be written to
      *                 storage; otherwise, it need only force content changes to be
      *                 written
-     * @throws java.nio.channels.ClosedChannelException
-     *                             If this channel is closed
      * @throws java.io.IOException If some other I/O error occurs
      */
     public void force(boolean metaData) throws IOException {

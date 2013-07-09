@@ -91,7 +91,7 @@ public class FATFileSystemTest  extends FATBaseTest {
                 //That is ok.
                 FATFile file = ffs.getRoot().getChildFile("testFolder");
                 //That is not ok.
-                file.getChannel(false, false);
+                file.getChannel(false);
                 throw new IOException("Open Folder context as file");
             } catch (IOException ex) {
                 //ok
@@ -132,8 +132,8 @@ public class FATFileSystemTest  extends FATBaseTest {
                 } catch (InterruptedException e) {
                     //ok
                 }
-                logLN("subf File Cach Size:" + ffs.getFileCacheSize()
-                        + " Folder Cach Size:" + ffs.getFolderCacheSize());
+                logLN("subf File Cache Size:" + ffs.getFileCacheSize()
+                        + " Folder Cache Size:" + ffs.getFolderCacheSize());
             }
             if ( ffs.getFileCacheSize() >= 4000 || ffs.getFolderCacheSize() >= 4000 )
                 throw new Error("Memory leaks in subfolders!");
@@ -270,11 +270,11 @@ public class FATFileSystemTest  extends FATBaseTest {
             FATFolder html = root.createFolder("html");
             html.createFolder("head")
                     .createFile("title")
-                        .getChannel(false, true)
+                        .getChannel(false)
                             .write(ByteBuffer.wrap("That was funny! That was funny! That was funny!".getBytes()));
             html.createFolder("body")
                     .createFile("context")
-                       .getChannel(false, true)
+                       .getChannel(false)
                           .write(ByteBuffer.wrap("That fun!".getBytes()));
             log(root.getView());
         }

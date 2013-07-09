@@ -26,17 +26,17 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 public class FATFileSystem implements Closeable {
     private FATSystem fat;
 
-    private HashMap<Integer, WeakReference<FATFolder>> folderCache = new HashMap<>();
-    private HashMap<Integer, WeakReference<FATFile>>   fileCache = new HashMap<>();
+    private final HashMap<Integer, WeakReference<FATFolder>> folderCache = new HashMap<>();
+    private final HashMap<Integer, WeakReference<FATFile>>   fileCache = new HashMap<>();
 
     // smart termination procedure as
     //  Transaction counting + shutdown signal + wait for execution finish
-    final Object shutdownSignal = new Object();
+    private final Object shutdownSignal = new Object();
     private long transactionCounter = 0L;
 
     private FATFile root;
     //RW Lock
-    final ReentrantReadWriteLock fatRecordRW = new ReentrantReadWriteLock();
+    private final ReentrantReadWriteLock fatRecordRW = new ReentrantReadWriteLock();
 
     FATLock getLockInternal(boolean write) throws IOException {
         begin(write);
@@ -433,7 +433,7 @@ public class FATFileSystem implements Closeable {
     }
 
 
-    public ByteBuffer getRootInfo() throws IOException {
+    ByteBuffer getRootInfo() throws IOException {
         FATLock lock = getLockInternal(false);
         boolean success = false;
         try {
@@ -453,7 +453,6 @@ public class FATFileSystem implements Closeable {
      *
      * @param fileId the file unique Id in File System.
      * @return the folder object
-     * @throws IOException
      */
     FATFolder ts_getFolderFromCache(int fileId) {
         synchronized (this) {
@@ -467,7 +466,6 @@ public class FATFileSystem implements Closeable {
      *
      * @param fileId  cached FATFile if any.
      * @return  file object from cache.
-     * @throws IOException
      */
     FATFile ts_getFileFromCache(int fileId) {
         synchronized (this) {

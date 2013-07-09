@@ -64,11 +64,13 @@ public final class FATDisposer implements Runnable {
         implements FATDisposerRecord
     {
         protected WeakDisposerRecord(Object referent) {
+            //noinspection unchecked
             super(referent, FATDisposer.queue);
             this.record = null;
         }
 
         private WeakDisposerRecord(Object referent, FATDisposerRecord record) {
+            //noinspection unchecked
             super(referent, FATDisposer.queue);
             this.record = record;
         }

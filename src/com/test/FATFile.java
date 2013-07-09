@@ -36,10 +36,9 @@ public class FATFile {
 
     public static final int RECORD_NAME_OFFSET = 3*4 + 3*8;
     public static final int RECORD_SIZE = RECORD_NAME_OFFSET + FILE_MAX_NAME*2;  //256 bytes
-    public static final int LOCK_WAIT = 10;
 
     //RW Lock
-    final ReentrantReadWriteLock lockRW = new ReentrantReadWriteLock();
+    private final ReentrantReadWriteLock lockRW = new ReentrantReadWriteLock();
 
     // attributes
     private final int type;
@@ -76,22 +75,21 @@ public class FATFile {
     }
 
 
-    FATFileChannel getChannelInternal(boolean appendMode, boolean write) throws IOException {
+    FATFileChannel getChannelInternal(boolean appendMode) throws IOException {
         return new FATFileChannel(this, appendMode);
     }
 
     /**
-     * Opens file channel for file contexet access.
+     * Opens file channel for file context access.
      * @param appendMode if [true] the [write] call always add the buffer to the file tail
-     * @param write if [true] the "write" access to file are reserved
      * @return the channel for context read/write operations.
      * @throws IOException
      * @throws FATFileLockedException
      */
-    public FATFileChannel getChannel(boolean appendMode, boolean write) throws IOException {
+    public FATFileChannel getChannel(boolean appendMode) throws IOException {
         if (isFolder())
             throw new IOException("That is a folder.");
-        return getChannelInternal(appendMode, write);
+        return getChannelInternal(appendMode);
     }
 
     /**
@@ -192,80 +190,111 @@ public class FATFile {
      * @throws IOException
      */
     public void moveTo(FATFolder newParent) throws IOException {
-        FATLock lock = tryLockThrowInternal(true);
+        if (newParent == null)
+            throw new IllegalArgumentException("Bad new parent");
+        if (isRoot())
+            throw new IOException("Cannot move the root.");
+        final FATFile newParentFile = newParent.asFile();
+
+        synchronized (this) {
+           //only one move or delete at once
+           if (isMoving() || isDeleting())
+               throw new FATFileLockedException(this, true);
+           markMoving();
+        }
         try {
-            if (isRoot())
-                throw new IOException("Cannot move the root.");
-
-            FATFolder oldParent = getParent();
-            FATLock lockOP = oldParent.asFile().tryLockThrowInternal(true);
+            final FATFile oldParentFile = fatParent;
+            //cannot run away from deleting folder
+            oldParentFile.markMovingIfNotDeleting();
             try {
-                FATLock lockNP = newParent.asFile().tryLockThrowInternal(true);
+                int nestUp = 0;
                 try {
-                    if (moveLockCounter != 0)
-                        throw new IOException("Concurrent tree transform.");
+                    //lock chain from move for [newParent]
+                    FATFile newUpParentFile = newParentFile;
+                    while (newUpParentFile != null) {
+                        ++nestUp;
+                        newUpParentFile.markMoving();
+                        if (newUpParentFile.fileId == fileId)
+                            throw new IOException("Cannot move to child or self.");
+                        newUpParentFile = newUpParentFile.fatParent;
+                    }
 
-                    int nestUp = 0;
-                    FATFile parent =  newParent.asFile();
+                    //HINT POINT: hot check
+                    if (newParentFile.fileId == oldParentFile.fileId)
+                        return; //nothing to do
+
+                    //up lock order
+                    //newParentFile <?- oldParentFile <- this
+
+                    FATLock lockNewParentFile = newParentFile.getLockInternal(true);
                     try {
-                        //lock up chain from transform for [newParent]
-                        FATFile upParent = parent;
-                        while (upParent != null) {
-                            FATLock _lock = upParent.getLockInternal(true);
-                            try {
-                                if (upParent.ts_getFileId() == ts_getFileId())
-                                    throw new IOException("Cannot move to child or self.");
-                                ++upParent.moveLockCounter;
-                                ++nestUp;
-                                upParent = upParent.fatParent;
-                            } finally {
-                                _lock.unlock();
-                            }
-                        }
-                        //PERFORMANCE HIT
-                        // Reserve storage first.
-                        // Yes, I do not support move on partition without space.
-                        // Else I need to take a storage lock. That is dramatically
-                        // reduce parallel operations.
-                        newParent.ts_wl_reserveRecord();
-
-                        // storage have a space for new record.
-                        // since now - no way back - maintenance mode only
-                        boolean success = false;
+                        FATLock lockOldParentFile = oldParentFile.getLockInternal(true);
                         try {
-                            newParent.ts_wl_ref(this);
-                            ts_setParent(newParent);
-                            //parentId = newParent.ts_getFolderId();
-                            oldParent.ts_deRef(this);
-                            success = true;
+                            //don't need [this] lock - it's protected from [move] or [delete]
+
+                            //PERFORMANCE HIT
+                            // Reserve storage first.
+                            // Yes, I do not support move on partition without space.
+                            // Else I need to take a storage lock. That is dramatically
+                            // reduce parallel operations.
+                            newParent.ts_wl_reserveRecord();
+
+                            // storage have a space for new record.
+                            // since now - no way back - maintenance mode only
+                            boolean success = false;
+                            try {
+                                getParent().ts_deRef(this); //oldParentFile locked
+                                newParent.ts_wl_ref(this); // newParentFile locked
+                                //here is the only place where parent is been changing
+                                fatParent = newParentFile;
+                                success = true;
+                            } finally {
+                                if (!success)
+                                    fs.ts_setDirtyState("Cannot rollback movement of the file. ", false);
+                            }
                         } finally {
-                            if (!success)
-                                fs.ts_setDirtyState("Cannot rollback movement of the file. ", false);
+                            lockOldParentFile.unlock();
                         }
                     } finally {
-                        //unlock chain from transform for [newParent]
-                        FATFile upParent = parent;
-                        while (upParent != null && nestUp > 0) {
-                            FATLock _lock = upParent.getLockInternal(true);
-                            try {
-                                --upParent.moveLockCounter;
-                                --nestUp;
-                                upParent = upParent.fatParent;
-                            } finally {
-                                _lock.unlock();
-                            }
-                        }
+                        lockNewParentFile.unlock();
                     }
                 } finally {
-                    lockNP.unlock();
+                    //unlock chain from move for [newParent]
+                    FATFile newUpParentFile = newParentFile;
+                    while (newUpParentFile != null && nestUp > 0) {
+                        newUpParentFile.unmarkMoving();
+                        --nestUp;
+                        newUpParentFile = newUpParentFile.fatParent;
+                    }
                 }
+
             } finally {
-                lockOP.unlock();
+                oldParentFile.unmarkMoving();
             }
         } finally {
-             lock.unlock();
+            unmarkMoving();
         }
     }
+
+    private synchronized void markMovingIfNotDeleting() throws FATFileLockedException {
+        if (isDeleting())
+            throw new FATFileLockedException(this, true);
+        markMoving();
+    }
+
+    synchronized boolean isMoving() {
+        return (moveLockCounter > 0);
+    }
+
+    private synchronized void markMoving() {
+        ++moveLockCounter;
+    }
+
+    private synchronized void unmarkMoving() {
+        --moveLockCounter;
+    }
+
+
 
     static String unlockedGetName(char[] name) {
         String ret = new String(name);
@@ -583,27 +612,12 @@ public class FATFile {
         return fileId;
     }
 
-    //{debug
-    Throwable killer;
-    String infoRIP;
-    //}debug
     void ts_setFileId(int fileId) {
-        //{debug
-        killer = new Throwable();
-        infoRIP = Thread.currentThread().toString()
-                + " " + this.fileId;
-        //}debug
         this.fileId = fileId;
     }
 
     public int getType() {
         return type;
-    }
-
-    void ts_setParent(FATFolder newParent) throws IOException {
-        if (ts_getFileId() == newParent.ts_getFolderId())
-            fs.ts_setDirtyState("Cyclic dependence.", true);
-        fatParent = newParent.fatFile;
     }
 
     void ts_initNewRoot(long size, int access) throws IOException {
@@ -623,15 +637,15 @@ public class FATFile {
         fs.ts_updateRootFileRecord(this);
     }
 
-    synchronized  boolean isDeleted() {
-        return deleteLockCounter == 0;
+    synchronized  boolean isDeleting() {
+        return (deleteLockCounter > 0);
     }
 
-    synchronized  void markDeleted() {
+    synchronized  void markDeleting() {
         ++deleteLockCounter;
     }
 
-    synchronized  void unmarkDeleted() {
+    synchronized  void unmarkDeleting() {
         --deleteLockCounter;
     }
 
@@ -685,31 +699,6 @@ public class FATFile {
         return getLockInternal(write);
     }
 
-    FATLock tryLockInternal(boolean write) throws IOException {
-        fs.begin(write);
-        Lock lock = write
-                ? lockRW.writeLock()
-                : lockRW.readLock();
-        if (!lock.tryLock()) {
-            fs.end();
-            return null;
-        }
-        return getFATLockAndCheck(fs, lock);
-    }
-    /**
-     * Locks the file if possible
-     *
-     * Returns the lock that need to unlocked, or [null] if lock was not succeeded.
-     *
-     * @param write  [true] - locks file for write, [false] - for read operations
-     * @return the FAT lock with enclosed transaction or [null].
-     * @throws IOException
-     */
-    public FATLock tryLock(boolean write) throws IOException {
-        if (isFolder())
-            throw new IOException("That is a folder.");
-        return tryLock(write);
-    }
 
     FATLock tryLockThrowInternal(boolean write) throws IOException {
         fs.begin(write);

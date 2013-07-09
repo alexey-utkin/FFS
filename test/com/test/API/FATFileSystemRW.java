@@ -34,7 +34,7 @@ public class FATFileSystemRW extends FATBaseTest {
             }
 
             lbf.limit((int) ffs.getFreeSize());
-            try (FATFileChannel longFile = ffs.getRoot().createFile("longFile").getChannel(false, true)) {
+            try (FATFileChannel longFile = ffs.getRoot().createFile("longFile").getChannel(false)) {
                 lbf.flip();
                 longFile.write(lbf);
 
@@ -93,7 +93,7 @@ public class FATFileSystemRW extends FATBaseTest {
     //
     //  Test of Lost Write Test for append mode
     //
-    static int MAX_FILE_SIZE = 0x64000; //1M = 1024*1024
+    static final int MAX_FILE_SIZE = 0x64000; //1M = 1024*1024
     static public void testLostWrite(Path path, int clusterSize, int clusterCount,
                                      int allocatorType) throws IOException
     {
@@ -115,7 +115,7 @@ public class FATFileSystemRW extends FATBaseTest {
             final IOException problem[] = new IOException[]{null};
             Thread writerA = new Thread(new Runnable() {
                 @Override public void run() {
-                    try (FATFileChannel longFile = file.getChannel(true, true)) {
+                    try (FATFileChannel longFile = file.getChannel(true)) {
                         synchronized (writerAStart) {
                             writerAStart.notify();
                         }
@@ -146,7 +146,7 @@ public class FATFileSystemRW extends FATBaseTest {
             }
 
             for(int i = 0; i < 3; ++i) {
-                try (FATFileChannel longFile = file.getChannel(true, true)) {
+                try (FATFileChannel longFile = file.getChannel(true)) {
                     bufferB.flip();
                     while (bufferB.hasRemaining()) {
                         FATLock lock = file.getLock(true);
@@ -167,7 +167,7 @@ public class FATFileSystemRW extends FATBaseTest {
                     throw new Error("Long buffer write problem.");
                 }
 
-                try (FATFileChannel longFile = file.getChannel(false, true)) {
+                try (FATFileChannel longFile = file.getChannel(false)) {
                     boolean eof = false;
                     long countB = 0;
                     long countA = 0;

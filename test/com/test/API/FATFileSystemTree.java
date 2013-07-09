@@ -118,7 +118,7 @@ public class FATFileSystemTree extends FATBaseTest {
                                     int allocatorType) throws IOException {
         startUp(path);
 
-        String dump1;
+        String dump;
         try (final FATFileSystem ffs = FATFileSystem.create(path, clusterSize, clusterCount, allocatorType)) {
             FATFolder root1 = ffs.getRoot();
 
@@ -141,7 +141,9 @@ public class FATFileSystemTree extends FATBaseTest {
             // ->2_1->2_1_1
             //2
 
-            dump1 = root1.getView();
+            dump = root1.getView();
+            if (dump.contains("MOVING") || dump.contains("DELETING"))
+                throw new Error("Bad state.");
         }
 
         try (final FATFileSystem ffs = FATFileSystem.open(path)) {
@@ -157,7 +159,7 @@ public class FATFileSystemTree extends FATBaseTest {
             if (root1.getChildFolder("1").listFiles().length != 2)
                 throw new Error("Wrong child list!");
 
-            if (!dump1.equals(root1.getView()))
+            if (!dump.equals(root1.getView()))
                 throw new Error("Wrong dump!");
         }
 
@@ -181,7 +183,7 @@ public class FATFileSystemTree extends FATBaseTest {
                                     int allocatorType) throws IOException {
         startUp(path);
 
-        String dump1;
+        String dump;
         try (final FATFileSystem ffs = FATFileSystem.create(path, clusterSize, clusterCount, allocatorType)) {
             FATFolder root1 = ffs.getRoot();
 
@@ -210,13 +212,14 @@ public class FATFileSystemTree extends FATBaseTest {
             root1.getChildFolder("1")
                     .cascadeDelete();
 
-            dump1 = root1.getView();
+            dump = root1.getView();
+            if (dump.contains("MOVING") || dump.contains("DELETING"))
+                throw new Error("Bad state.");
         }
 
         try (final FATFileSystem ffs = FATFileSystem.open(path)) {
             FATFolder root1 = ffs.getRoot();
-
-            if (!dump1.equals(root1.getView()))
+            if (!dump.equals(root1.getView()))
                 throw new Error("Wrong dump!");
         }
 

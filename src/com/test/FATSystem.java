@@ -653,7 +653,7 @@ class FATSystem implements Closeable {
      * @param index the entry index in FAT, not offset!
      * @return entry value
      */
-    int getFatEntry(int index) throws IOException {
+    int getFatEntry(int index) {
         return fatZone.getInt(fatOffset + index*FAT_E_SIZE);
         /* Uncomment the alternative procedure to compare the performance
         ByteBuffer bf = allocateBuffer(4);
@@ -670,7 +670,7 @@ class FATSystem implements Closeable {
      * @param index the entry index in FAT, not offset!
      * @param value to store
      */
-    void putFatEntry(int index, int value) throws IOException {
+    void putFatEntry(int index, int value) {
         fatZone.putInt(fatOffset + index*FAT_E_SIZE, value);
         /* Uncomment the alternative procedure to compare the performance
         ByteBuffer bf = allocateBuffer(4);

@@ -43,8 +43,14 @@ public class FATFileChannel implements Closeable {
         FATLock lock = fatFile.tryLockThrowInternal(false);
         try {
             synchronized (this) { //protect the position
-                if (position >= fatFile.length())
+                long rest = fatFile.length() - position;
+                if (rest <= 0)
                     return -1;
+
+                //we need to protect from read-after-EOF
+                if (dst.remaining() > rest)
+                    dst.limit((int) (dst.position() + rest));
+
                 int wasRead = fs().readFileContext(fatFile, position, dst);
                 // commit
                 position += wasRead;
@@ -88,8 +94,10 @@ public class FATFileChannel implements Closeable {
                     success = true; //no rollback
                 try {
                     wasWritten = fs().writeFileContext(fatFile, position, src);
-                    if (wasWritten != sizeToWrite)
+                    if (wasWritten != sizeToWrite) {
+                        // sbj for adjustment in NFS
                         throw new IOException("Chanel write error.");
+                    }
                     // commit
                     success = true;
                     position += wasWritten;

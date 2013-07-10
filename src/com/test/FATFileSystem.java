@@ -523,6 +523,38 @@ public class FATFileSystem implements Closeable {
         fat.force();
     }
 
+    void copyFile(FATFile src, FATFile dst) throws IOException {
+        //PERFORMANCE HINT: "sparse files", shallow copy till fist write.
+        //PERFORMANCE HINT: non-blocking copy procedure. Not easy-to-understand, but could be effective.
+
+        //reserve space at first
+        long sizeToCopy = src.length();
+        dst.setLength(sizeToCopy);
+
+        long wasCopied = 0;
+        ByteBuffer fragment = fat.allocateBuffer(fat.getClusterSize());
+        try (FATFileChannel input = src.getChannelInternal(false)) {
+            try (FATFileChannel output = dst.getChannelInternal(false)) {
+                while(wasCopied < sizeToCopy) {
+                    fragment.clear();
+                    int wasRead = input.read(fragment);
+                    if (wasRead == -1) {
+                        //EOF
+                        throw new IOException("Chanel read error.");
+                    }
+                    fragment.flip();
+                    int wasWritten = output.write(fragment);
+                    if (wasWritten != wasRead) {
+                        // That is impossible now,
+                        // but sbj for adjustment in NFS
+                        throw new IOException("Chanel write error.");
+                    }
+                    wasCopied += wasWritten;
+                }
+            }
+        }
+    }
+
 
     //}debug-test
 

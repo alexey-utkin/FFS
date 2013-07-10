@@ -358,6 +358,14 @@ class FATSystem implements Closeable {
     }
 
     /**
+     * Returns the cluster size of FS
+     * @return the size of cluster.
+     */
+    public int getClusterSize() {
+        return clusterSize;
+    }
+
+    /**
      * Returns the free capacity of FS
      * @return the free size in storage. The [<0] means dirty FAT and the system needs in maintenance.
      */

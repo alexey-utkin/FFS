@@ -110,6 +110,47 @@ public class FATFile {
     }
 
     /**
+     * Creates deep copy the file, if it is not locked
+     *
+     * @param dst the destination folder.
+     * @return the copy file instance
+     * @throws IOException
+     */
+    public FATFile copyTo(FATFolder dst, boolean overwrite) throws IOException {
+        FATLock lockSrc = tryLockThrowInternal(false);
+        try {
+            if (isFolder())
+                throw new IOException("Cannot copy folder.");
+
+            FATFile dstFile = null;
+            FATLock lockFolder = dst.asFile().getLockInternal(true);
+            try {
+                if (overwrite) {
+                    dstFile = dst.findFile(getName());
+                    if (fileId == dstFile.fileId)
+                        throw new IOException("Cannot copy to self.");
+                }
+                if (dstFile == null)
+                    dstFile = dst.createFile(getName());
+            } finally {
+                lockFolder.unlock();
+            }
+            FATLock lockDst = dstFile.tryLockThrowInternal(true);
+            try {
+                // delegate to low level to supports
+                // system hints like "sparse files"
+                fs.copyFile(this, dstFile);
+                return dstFile;
+            } finally {
+                lockDst.unlock();
+            }
+            //commit
+        } finally {
+            lockSrc.unlock();
+        }
+    }
+
+    /**
      * Deletes the file, if it is not locked
      *
      * @throws IOException

@@ -38,31 +38,40 @@ public class FATFileSystemRW extends FATBaseTest {
                 lbf.flip();
                 longFile.write(lbf);
 
+                final ByteBuffer rbf = ByteBuffer.allocateDirect(lbf.position() + 12);
+                longFile.position(0);
+                longFile.read(rbf);
+
+                if (rbf.position() != longFile.size())
+                    throw new Error("Wrong content read (lost EOF?)");
+
+                rbf.flip();
                 lbf.flip();
-                longFile.read(lbf);
-                byte i = (byte)'0';
-                while (lbf.hasRemaining()) {
-                    if (i != lbf.get())
+                while (rbf.hasRemaining()) {
+                    if (rbf.get() != lbf.get())
                         throw new Error("Wrong content read.");
-                    if (i == (byte)'A')
-                        i = (byte)'0';
-                    ++i;
                 }
                 log(" Disk Size WR:Ok");
 
-                lbf.flip();
-                lbf.limit((int)ffs.getFreeSize() + 1);
+                long freeSize = ffs.getFreeSize();
+
+                lbf.position(0);
+                lbf.limit((int) (freeSize + 1));
+                longFile.position(longFile.size());
+
                 try {
                     longFile.write(lbf);
                     throw new Error("Write more than disk.");
                 } catch (IOException ex) {
-                    //OK: disk full
                     log(", Disk Size+1 W:Ok");
                 }
 
-                if (longFile.read(lbf) >= 0)
-                    throw new Error("Read more than disk");
-                log(", Disk Size+1 R:Ok");
+                lbf.clear();
+                longFile.position(longFile.size());
+                //EOF test
+                if (longFile.read(lbf) != -1)
+                    throw new Error("Read more than file?");
+                log(", File Size+1 R:Ok");
 
                 log(", common:");
             }
@@ -209,4 +218,103 @@ public class FATFileSystemRW extends FATBaseTest {
         }
     }
 
+    //
+    //  Test of FS read-write basic
+    //
+    static public void testBaseFileCopy(Path path, int clusterSize, int clusterCount,
+                                         int allocatorType) throws IOException
+    {
+        startUp(path);
+
+        try (final FATFileSystem ffs  = FATFileSystem.create(path, clusterSize, clusterCount, allocatorType)) {
+            final ByteBuffer lbf =  ByteBuffer.allocateDirect((int)ffs.getFreeSize());
+            {
+                byte i = (byte)'0';
+                while (lbf.hasRemaining()) {
+                    lbf.put(i);
+                    if (i == (byte)'A')
+                        i = (byte)'0';
+                    ++i;
+                }
+            }
+            lbf.flip();
+
+            FATFile src = ffs.getRoot().createFile("longFile");
+            try (FATFileChannel longFile = src.getChannel(false)) {
+                int startSize = (int)ffs.getFreeSize() - 3*FATFile.RECORD_SIZE;
+                lbf.limit(startSize);
+                longFile.write(lbf);
+                log("Write long:Ok");
+
+                try {
+                    src.copyTo(ffs.getRoot(), true);
+                    throw new Error("Copy to self");
+                } catch (IOException ex) {
+                    //ok
+                    logLN("no copy to self:" + ex.getMessage());
+                }
+
+                FATFolder dstFolder = ffs.getRoot().createFolder("dst");
+                FATFile dst = dstFolder.createFile("longFile");
+
+                try {
+                    src.copyTo(dstFolder, false);
+                    throw new Error("Copy to existent");
+                } catch (IOException ex) {
+                    //ok - file exist
+                    logLN("no copy to existence:" + ex.getMessage());
+                }
+
+                try {
+                    src.copyTo(dstFolder, true);
+                    throw new Error("Copy while no size");
+                } catch (IOException ex) {
+                    //ok - no space for copy
+                    logLN("no space for copy:" + ex.getMessage());
+                }
+
+                longFile.truncate(startSize/2);
+                src.copyTo(dstFolder, true);
+
+                if (dst.length() != src.length())
+                    throw new Error("Bad copy size");
+
+
+                final ByteBuffer sbf =  ByteBuffer.allocateDirect((int)dst.length());
+                try (FATFileChannel shortFile = src.getChannel(false)) {
+                    shortFile.read(sbf);
+                }
+                sbf.flip();
+                lbf.position(0);
+                lbf.limit((int)dst.length());
+                while (sbf.hasRemaining()) {
+                    if (sbf.get() != lbf.get())
+                        throw new Error("Bad copy context");
+                }
+
+                dst.delete();
+                //test create copy
+                src.copyTo(dstFolder, false);
+            }
+        }
+        tearDown(path);
+    }
+    @Test
+    public void testBaseFileCopy() throws IOException {
+        int[] clusterCounts = new int[] {
+                31, 1021, 4096
+        };
+        int[] clusterSizes = new int[] {
+                FATFile.RECORD_SIZE + 17, FATFile.RECORD_SIZE*3
+        };
+        for (int allocatorType : allocatorTypes) {
+            for(int clusterCount : clusterCounts) {
+                for(int clusterSize : clusterSizes) {
+                    logStart(getPath(), clusterSize, clusterCount, allocatorType);
+                    testBaseFileCopy(getPath(), clusterSize, clusterCount, allocatorType);
+                    logOk();
+                }
+            }
+        }
+    }
 }

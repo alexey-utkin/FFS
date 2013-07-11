@@ -11,6 +11,7 @@ import com.test.FATFolder;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Path;
 
@@ -129,7 +130,7 @@ public class FATFileSystemTree extends FATBaseTest {
             //2->2_1->2_1_1
             root1.createFolder("2")
                     .createFolder("2_1")
-                        .createFolder("2_1_1");
+                        .createFile("2_1_1");
 
             //1->1_1->1_1_1
             //2->2_1->2_1_1
@@ -172,6 +173,88 @@ public class FATFileSystemTree extends FATBaseTest {
             int clusterCount = 20; //fixed!
             logStart(getPath(), clusterSize, clusterCount, allocatorType);
             testFileMove(getPath(), clusterSize, clusterCount, allocatorType);
+            logOk();
+        }
+    }
+
+    //
+    //  Test of FS tree copy.
+    //
+    static public void testFileCopy(Path path, int clusterSize, int clusterCount,
+                                    int allocatorType) throws IOException {
+        startUp(path);
+
+        String dump;
+        try (final FATFileSystem ffs = FATFileSystem.create(path, clusterSize, clusterCount, allocatorType)) {
+            FATFolder root1 = ffs.getRoot();
+
+            //1->1_1->1_1_1
+            root1.createFolder("1")
+                    .createFolder("1_1")
+                        .createFolder("1_1_1");
+            //2->2_1->2_1_1
+            root1.createFolder("2")
+                    .createFolder("2_1")
+                        .createFile("2_1_1").getChannel(false)
+                                            .write(ByteBuffer.wrap("That fun!".getBytes()));
+
+            //1->1_1->1_1_1
+            //2->2_1->2_1_1
+            root1.getChildFolder("2")
+                    .getChildFile("2_1")
+                        .copyTo(
+                                root1.getChildFolder("1"), false);
+            //1->1_1->1_1_1
+            // ->2_1->2_1_1
+            //2
+
+            dump = root1.getView();
+            if (dump.contains("FROZEN"))
+                throw new Error("Bad state.");
+        }
+
+        try (final FATFileSystem ffs = FATFileSystem.open(path)) {
+            FATFolder root1 = ffs.getRoot();
+
+            if (!dump.equals(root1.getView()))
+                throw new Error("Wrong dump!");
+
+            FATFile f211_copy = root1.getChildFolder("1")
+                    .getChildFolder("2_1")
+                       .getChildFile("2_1_1");
+
+            FATFile f211_orig = root1.getChildFolder("2")
+                    .getChildFolder("2_1")
+                        .getChildFile("2_1_1");
+
+            if (f211_copy.length() == 0 || f211_copy.length() != f211_orig.length())
+                throw new Error("Wrong context copy!");
+
+            f211_copy.getChannel(false)
+                     .write(ByteBuffer.wrap("That was fun!".getBytes()));
+
+            if (f211_copy.length() == 0 || f211_copy.length() == f211_orig.length())
+                throw new Error("Wrong deep context copy!");
+
+
+            if (root1.getChildFolder("2").listFiles().length != 1)
+                throw new Error("Not empty child list!");
+
+            if (root1.getChildFolder("1").listFiles().length != 2)
+                throw new Error("Wrong child list!");
+
+            logLN(root1.getView());
+        }
+
+        tearDown(path);
+    }
+    @Test
+    public void testFileCopy() throws IOException {
+        for (int allocatorType : allocatorTypes) {
+            int clusterSize = FATFile.RECORD_SIZE*3/2; //fixed!
+            int clusterCount = 20; //fixed!
+            logStart(getPath(), clusterSize, clusterCount, allocatorType);
+            testFileCopy(getPath(), clusterSize, clusterCount, allocatorType);
             logOk();
         }
     }

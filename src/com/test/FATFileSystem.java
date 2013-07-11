@@ -131,7 +131,7 @@ public class FATFileSystem implements Closeable {
         synchronized (this) {
             if (fat != null) {
                 if (!shutdownRequest())
-                    throw new IOException("System was not unmounted.");
+                    throw new IOException("System was not unmounted");
                 // here only [clean] close can happen
                 // it saves actual value of [dirty] status
                 fat.close();
@@ -185,7 +185,7 @@ public class FATFileSystem implements Closeable {
 
     int ts_allocateFileSpace(long size) throws IOException {
         if (size < 0)
-            throw new IOException("Wrong file size.");
+            throw new IOException("Wrong file size");
 
         // use startCluster as fileId
         return fat.allocateClusters(-1, fat.getSizeInClusters(size));
@@ -270,7 +270,7 @@ public class FATFileSystem implements Closeable {
     void begin(boolean writeOperation) throws IOException {
         synchronized (this) {
             if (fat.state.ordinal() >= FATSystem.SystemState.SHUTDOWN.ordinal())
-                throw new IOException("System down.");   
+                throw new IOException("System down");
             
             if (transactionCounter == 0) {
                 // we start concurrent transaction pull,
@@ -540,14 +540,14 @@ public class FATFileSystem implements Closeable {
                     int wasRead = input.read(fragment);
                     if (wasRead == -1) {
                         //EOF
-                        throw new IOException("Chanel read error.");
+                        throw new IOException("Chanel read error");
                     }
                     fragment.flip();
                     int wasWritten = output.write(fragment);
                     if (wasWritten != wasRead) {
                         // That is impossible now,
                         // but sbj for adjustment in NFS
-                        throw new IOException("Chanel write error.");
+                        throw new IOException("Chanel write error");
                     }
                     wasCopied += wasWritten;
                 }

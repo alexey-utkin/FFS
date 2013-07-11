@@ -57,14 +57,14 @@ public class FATFile {
 
     void checkSelfValid() throws IOException {
         if (fileId == INVALID_FILE_ID)
-            throw new IOException("Invalid file id.");
+            throw new IOException("Invalid file id");
     }
 
     void checkParent() throws IOException {
         if (isRoot())
             return;
         if (fatParent == null)
-            throw new IOException("Invalid parent ref.");
+            throw new IOException("Invalid parent ref");
         fatParent.checkSelfValid();
     }
     
@@ -87,7 +87,7 @@ public class FATFile {
      */
     public FATFileChannel getChannel(boolean appendMode) throws IOException {
         if (isFolder())
-            throw new IOException("That is a folder.");
+            throw new IOException("That is a folder");
         return getChannelInternal(appendMode);
     }
 
@@ -101,7 +101,7 @@ public class FATFile {
         FATLock lock = tryLockThrowInternal(true);
         try {
             if (isRoot())
-                throw new IOException("Cannot rename root.");
+                throw new IOException("Cannot rename root");
             getParent().ts_renameChild(this, newName);
             //commit
         } finally {
@@ -110,48 +110,71 @@ public class FATFile {
     }
 
     /**
-     * Creates deep copy the file, if it is not locked
+     * Creates deep copy of the folder, or the file if it is not locked
      *
      * @param dst the destination folder.
-     * @return the copy file instance
+     * @param overwrite if [true] overwrites instances in [dst].
+     *        can overwrite empty folder, if the source instance is a file
+     * @return the copy instance of the file or folder
      * @throws IOException
      */
     public FATFile copyTo(FATFolder dst, boolean overwrite) throws IOException {
         FATLock lockSrc = tryLockThrowInternal(false);
-        try {
-            if (isFolder())
-                throw new IOException("Cannot copy folder.");
 
-            FATFile dstFile = null;
+        //deep copy instance
+        FATFile dstFile = null;
+        //child list snapshot
+        FATFile[] srcChildren = null;
+        try {
             FATLock lockFolder = dst.asFile().getLockInternal(true);
             try {
                 if (overwrite) {
                     dstFile = dst.findFile(getName());
                     if (fileId == dstFile.fileId)
-                        throw new IOException("Cannot copy to self.");
+                        throw new IOException("Cannot copy to self");
+
+                    if (dstFile.type != type) {
+                        // let's delete files and empty folders
+                        // tree deletion is too strong [overwrite] suggestion.
+                        dstFile.delete();
+                        dstFile = null;
+                    }
                 }
                 if (dstFile == null)
-                    dstFile = dst.createFile(getName());
+                    dstFile = dst.createFile(getName(), type);
             } finally {
                 lockFolder.unlock();
             }
-            FATLock lockDst = dstFile.tryLockThrowInternal(true);
-            try {
-                // delegate to low level to supports
-                // system hints like "sparse files"
-                fs.copyFile(this, dstFile);
-                return dstFile;
-            } finally {
-                lockDst.unlock();
+
+            if (isFolder())
+                srcChildren = getFolder().listFiles();
+            else {
+                FATLock lockDst = dstFile.tryLockThrowInternal(true);
+                try {
+                    // delegate to low level to supports
+                    // system hints like "sparse files"
+                    fs.copyFile(this, dstFile);
+                } finally {
+                    lockDst.unlock();
+                }
             }
             //commit
         } finally {
             lockSrc.unlock();
         }
+
+        // copy from snapshot
+        if (srcChildren != null) {
+            FATFolder dstFolder = dstFile.getFolder();
+            for(FATFile child : srcChildren){
+                child.copyTo(dstFolder, overwrite);
+            }
+        }
+        return dstFile;
     }
 
     /**
-     * Deletes the file, if it is not locked
+     * Deletes empty folders or the file if it is not locked
      *
      * @throws IOException
      * @throws FATFileLockedException
@@ -162,7 +185,7 @@ public class FATFile {
             if (isFolder() && !isEmpty())
                 throw new DirectoryNotEmptyException(getName());
             if (isRoot())
-                throw new IOException("Cannot delete root.");
+                throw new IOException("Cannot delete root");
             getParent().ts_deRef(this);
             fs.ts_dropDirtyFile(this);
             //commit
@@ -209,7 +232,7 @@ public class FATFile {
         FATLock lock = tryLockThrowInternal(false);
         try {
             if (!isFolder())
-                return null;
+                throw new IOException("Not a folder");
             FATFolder ret = fs.ts_getFolderFromCache(fileId);
             if (ret == null) {
                 //ts_ constructor
@@ -233,7 +256,7 @@ public class FATFile {
         if (newParent == null)
             throw new IllegalArgumentException("Bad new parent");
         if (isRoot())
-            throw new IOException("Cannot move the root.");
+            throw new IOException("Cannot move the root");
 
         //only one move or delete at once
         freeze();
@@ -728,8 +751,7 @@ public class FATFile {
         return getLockInternal(write);
     }
 
-
-    FATLock tryLockThrowInternal(boolean write) throws IOException {
+    FATLock tryLockThrowInternalFile(boolean write) throws IOException {
         fs.begin(write);
         Lock lock = write
                 ? lockRW.writeLock()
@@ -739,6 +761,15 @@ public class FATFile {
             throw new FATFileLockedException(this, write);
         }
         return getFATLockAndCheck(fs, lock);
+    }
+    FATLock tryLockThrowInternalFolder(boolean write) throws IOException {
+        //all folder operation need to be sync
+        return getLockInternal(write);
+    }
+    FATLock tryLockThrowInternal(boolean write) throws IOException {
+        return isFolder()
+           ? tryLockThrowInternalFolder(write)
+           : tryLockThrowInternalFile(write);
     }
     /**
      * Locks the file if possible, throws [FATFileLockedException] if cannot.

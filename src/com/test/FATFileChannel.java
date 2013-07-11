@@ -96,7 +96,7 @@ public class FATFileChannel implements Closeable {
                     wasWritten = fs().writeFileContext(fatFile, position, src);
                     if (wasWritten != sizeToWrite) {
                         // sbj for adjustment in NFS
-                        throw new IOException("Chanel write error.");
+                        throw new IOException("Chanel write error");
                     }
                     // commit
                     success = true;
@@ -146,7 +146,7 @@ public class FATFileChannel implements Closeable {
      */
     public FATFileChannel position(long newPosition) throws IOException {
         if (newPosition < 0)
-            throw new IOException("Bad new position.");
+            throw new IOException("Bad new position");
         synchronized (this) {
             position = newPosition;
         }

@@ -53,7 +53,7 @@ public class FATFolder {
      * @return created file
      * @throws IOException
      */
-    private FATFile createFile(String fileName, int fileType) throws IOException {
+    FATFile createFile(String fileName, int fileType) throws IOException {
         FATLock lock = fatFile.getLockInternal(true);
         try {
             if (findFile(fileName) != null)
@@ -284,6 +284,26 @@ public class FATFolder {
         }
     }
 
+    /***
+     * Get the folder by name
+     *
+     * @param folderName the exact name to find, case sensitive.
+     * @return the found folder or throws FileNotFoundException.
+     * @throws IOException
+     */
+    public FATFolder getChildFolder(String folderName) throws IOException {
+        FATLock lock = fatFile.getLockInternal(false);
+        try {
+            FATFile file = getChildFile(folderName);
+            if (file.isFolder())
+                return file.getFolder();
+            throw new IOException("File is not a folder:" + folderName);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+
     public String getView() throws IOException {
         FATLock lock = fatFile.getLockInternal(false);
         try {
@@ -345,26 +365,6 @@ public class FATFolder {
         }
     }
 
-    /***
-     * Get the folder by name
-     *
-     * @param folderName the exact name to find, case sensitive.
-     * @return the found folder or throws FileNotFoundException.
-     * @throws IOException
-     */
-    public FATFolder getChildFolder(String folderName) throws IOException {
-        FATLock lock = fatFile.getLockInternal(false);
-        try {
-            FATFile file = getChildFile(folderName);
-            if (file.isFolder())
-                return file.getFolder();
-            throw new IOException("File is not a folder:" + folderName);
-        } finally {
-            lock.unlock();
-        }
-    }
-
-
     /**
      * Creates Folder from File.
      *
@@ -392,7 +392,7 @@ public class FATFolder {
         try {
             FATFile rootFile = fs.ts_createRootFile(access);
             if (rootFile.ts_getFileId() != FATFile.ROOT_FILE_ID)
-                throw new IOException("Root already exists.");
+                throw new IOException("Root already exists");
             FATFolder ret = rootFile.getFolder();
             // commit
             success = true;
@@ -420,7 +420,7 @@ public class FATFolder {
             if (rootFile.ts_getFileId() != FATFile.ROOT_FILE_ID
                 || !ROOT_NAME.equals(rootFile.getName()))
             {
-                throw new IOException("Root folder is damaged!");
+                throw new IOException("Root folder is damaged");
             }
             FATFolder ret = rootFile.getFolder();
             success = true;
@@ -457,7 +457,7 @@ public class FATFolder {
                     bf.position(0);
                 }
                 if (folderContent.position() != storageSize)
-                    throw new IOException("Folder is damaged!");
+                    throw new IOException("Folder is damaged");
                 success = true;
             }
         } finally {
@@ -526,7 +526,7 @@ public class FATFolder {
         try {
             int index = childFiles.indexOf(updateFile.ts_getFileId());
             if (index == -1)
-                throw new IOException("Cannot update file attributes: Child not found.");
+                throw new IOException("Cannot update file attributes: Child not found");
             ts_wl_updateFileRecord(index, updateFile, true);
         } finally {
             lock.unlock();
@@ -573,7 +573,7 @@ public class FATFolder {
         try {
             int offset = childFiles.indexOf(removeFile.ts_getFileId());
             if (offset == -1)
-                throw new IOException("Cannot remove file from folder: Child not found.");
+                throw new IOException("Cannot remove file from folder: Child not found");
             childNames.remove(removeFile.getName());
             childFiles.set(offset, FATFile.INVALID_FILE_ID);
             ++deletedCount;
@@ -617,6 +617,7 @@ public class FATFolder {
     public FATFile asFile() {
         return fatFile;
     }
+
 
     private static class SelfDisposer implements FATDisposerRecord {
         private final FATFileSystem fs;        

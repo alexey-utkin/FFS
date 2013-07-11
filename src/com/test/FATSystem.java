@@ -726,13 +726,13 @@ class FATSystem implements Closeable {
 
         long length = (long)clusterCount * clusterSize;
         if (length/clusterSize != clusterCount)
-            throw new IOException("File system is too big. FAT overloaded.");
+            throw new IOException("File system is too big, FAT overloaded");
 
         // max storage size for 4k cluster: CLUSTER_INDEX*4096 = 3FF FFFF F000
         // 0x3FFFFFFF000/0x10000000000 = 3T - big enough.
         long sizeFS = length + getDataOffset(mapLength);
         if (sizeFS < length)
-            throw new IOException("File system is too big. No space for header." );
+            throw new IOException("File system is too big, no space for header" );
         return sizeFS;
     }
 }

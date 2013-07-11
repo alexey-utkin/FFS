@@ -319,6 +319,48 @@ public class FATFileSystemTree extends FATBaseTest {
         }
     }
 
+    //
+    //  Test of FS delete empty folder.
+    //
+    static public void testDeleteEmptyFolder(Path path, int clusterSize, int clusterCount,
+                                      int allocatorType) throws IOException {
+        startUp(path);
+
+        String dump;
+        try (final FATFileSystem ffs = FATFileSystem.create(path, clusterSize, clusterCount, allocatorType)) {
+            FATFolder root1 = ffs.getRoot();
+
+            //1->1_1->1_1_1
+            root1.createFolder("1");
+            root1.createFolder("2");
+            root1.deleteChildren();
+            try {
+                //no pack!
+                root1.asFile().delete();
+                throw new Error("RIP root");
+            } catch (IOException ex){
+                //ok - root is alive
+            }
+
+            FATFolder mumu = root1.createFolder("mumu");
+            mumu.createFile("1");
+            mumu.createFile("2");
+            mumu.deleteChildren();
+             //no pack!
+            mumu.asFile().delete();
+        }
+        tearDown(path);
+    }
+    @Test
+    public void testDeleteEmptyFolder() throws IOException {
+        for (int allocatorType : allocatorTypes) {
+            int clusterSize = FATFile.RECORD_SIZE*3/2; //fixed!
+            int clusterCount = 20; //fixed!
+            logStart(getPath(), clusterSize, clusterCount, allocatorType);
+            testDeleteEmptyFolder(getPath(), clusterSize, clusterCount, allocatorType);
+            logOk();
+        }
+    }
 
     //
     // Test of Rename.

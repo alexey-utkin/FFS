@@ -183,16 +183,7 @@ public class FATFolder {
      */
     public void cascadeDelete() throws IOException {
         deleteChildren();
-
-        FATLock lock = fatFile.tryLockThrowInternal(true);
-        try {
-            //PERFORMANCE HINT: make it better!
-            pack(); //need: fatFile.delete() checks 0 size
-            // commit
-            fatFile.delete();
-        } finally {
-            lock.unlock();
-        }
+        fatFile.delete();
     }
 
     /**

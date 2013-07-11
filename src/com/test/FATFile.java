@@ -182,8 +182,11 @@ public class FATFile {
     public void delete() throws IOException {
         FATLock lock = tryLockThrowInternal(true);
         try {
-            if (isFolder() && !isEmpty())
-                throw new DirectoryNotEmptyException(getName());
+            if (isFolder() && !isEmpty()) {
+                getFolder().pack();
+                if (!isEmpty())
+                    throw new DirectoryNotEmptyException(getName());
+            }
             if (isRoot())
                 throw new IOException("Cannot delete root");
             getParent().ts_deRef(this);
